@@ -48,6 +48,7 @@
    variáveis CSS simples, consumidas via var(). */
 @theme {
   --color-cream: #fff3df;
+  --color-card: #fffaf1;
   --color-sand: #f6dfc3;
   --color-peach: #f3a271;
   --color-coral: #ee6a50;
