@@ -6,7 +6,7 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
 
 ## Phases
 
-- [ ] **Phase 1: Fundação, Design System & Deploy** - Scaffold Convex + Vite/React/TS/Tailwind, pipeline Vercel e identidade visual portada
+- [x] **Phase 1: Fundação, Design System & Deploy** - Scaffold Convex + Vite/React/TS/Tailwind, pipeline Vercel e identidade visual portada (completed 2026-07-23)
 - [ ] **Phase 2: Convite Público** - Página do evento: hero, countdown, programa, dress code, local/Aracaju
 - [ ] **Phase 3: RSVP** - Confirmação de presença pública por telefone, com edição
 - [ ] **Phase 4: Carta de Vinhos** - Catálogo de presentes que redireciona para o WhatsApp
@@ -156,7 +156,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação, Design System & Deploy | 3/3 | In Progress|  |
+| 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 0/2 | Not started | - |
 | 3. RSVP | 0/2 | Not started | - |
 | 4. Carta de Vinhos | 0/2 | Not started | - |
