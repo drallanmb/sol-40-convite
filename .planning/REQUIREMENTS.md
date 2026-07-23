@@ -8,8 +8,8 @@
 ### Setup & Deploy
 
 - [x] **SETUP-01**: Projeto Vite + React + TypeScript + Tailwind v4 + Convex inicializado, com React Router v7 e TypeScript 6 pinados (não as majors recém-lançadas)
-- [ ] **SETUP-02**: Pipeline de deploy na Vercel funcionando — Build Command `npx convex deploy --cmd 'npm run build'`, `vercel.json` com SPA rewrite para `/admin`, preview e produção separados
-- [ ] **SETUP-03**: Variáveis de ambiente configuradas (`CONVEX_DEPLOY_KEY` na Vercel, `ADMIN_PASSWORD` só no servidor)
+- [x] **SETUP-02**: Pipeline de deploy na Vercel funcionando — Build Command `npx convex deploy --cmd 'npm run build'`, `vercel.json` com SPA rewrite para `/admin`, preview e produção separados
+- [x] **SETUP-03**: Variáveis de ambiente configuradas (`CONVEX_DEPLOY_KEY` na Vercel, `ADMIN_PASSWORD` só no servidor)
 
 ### Design System
 
@@ -93,8 +93,8 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SETUP-01 | Phase 1 | Complete |
-| SETUP-02 | Phase 1 | Pending |
-| SETUP-03 | Phase 1 | Pending |
+| SETUP-02 | Phase 1 | Complete |
+| SETUP-03 | Phase 1 | Complete |
 | DESIGN-01 | Phase 1 | Pending |
 | DESIGN-02 | Phase 1 | Pending |
 | INVITE-01 | Phase 2 | Pending |

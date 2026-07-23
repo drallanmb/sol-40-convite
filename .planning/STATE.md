@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: funda-o-design-system-deploy
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-07-23T16:48:28.887Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-07-23T17:29:42.213Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -32,7 +32,7 @@ Plan: 2 of 3
 Status: Ready to execute
 Last activity: 2026-07-23 — Phase 01 execution started
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [███░░░░░░░] 33%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 45min | 2 tasks | 17 files |
+| Phase 01-funda-o-design-system-deploy P02 | ~10min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: Checkpoint blocking-human de legitimidade de pacotes satisfeito por verificação first-party prévia (STACK.md) — instalação prosseguiu com versões EXATAS pinadas
 - [Phase ?]: src/main.tsx monta apenas ConvexProvider, sem provider de auth — auth do dono é escopo da Phase 6
 - [Phase ?]: npx convex dev NÃO executado (ambiente não-interativo); dono precisa rodar manualmente para provisionar VITE_CONVEX_URL e convex/_generated
+- [Phase ?]: Build da Vercel encadeia npx convex deploy --cmd 'npm run build'; VITE_CONVEX_URL injetada automaticamente, nunca setada manualmente
+- [Phase ?]: CONVEX_DEPLOY_KEY e ADMIN_PASSWORD documentados como server-only (sem prefixo VITE_); deploy keys Production/Preview separadas isolam backends Convex de produção e preview
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-23T16:48:28.882Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-07-23T17:29:42.209Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
