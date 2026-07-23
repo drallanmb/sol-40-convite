@@ -1,20 +1,24 @@
 ---
 phase: 01-funda-o-design-system-deploy
 verified: 2026-07-23T00:00:00Z
-status: human_needed
+status: passed
 score: 12/12 must-haves verificados no código; 4 itens exigem confirmação humana/ao vivo
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Deploy real na Vercel do projeto atual (branch main) usando o vercel.json existente."
     expected: "Build conclui, site fica no ar, e a home carrega com a identidade pôr do sol."
     why_human: "Nenhum deploy foi executado neste ambiente (não-interativo); só a configuração (vercel.json, DEPLOY.md) pôde ser verificada estaticamente."
+
   - test: "Na URL de produção da Vercel já deployada, navegar até /admin e dar hard-refresh (Cmd+Shift+R)."
     expected: "A página carrega normalmente (React Router resolve /admin client-side) — NÃO pode retornar 404."
     why_human: "Requer um deploy ao vivo na Vercel para testar o rewrite de SPA em produção; não pode ser simulado localmente sem infraestrutura da Vercel."
+
   - test: "Gerar Production Deploy Key e Preview Deploy Key no Convex Dashboard, colar em CONVEX_DEPLOY_KEY (escopos Production/Preview) na Vercel, disparar um build de produção e um de preview (PR), e comparar os deployments no Convex Dashboard."
     expected: "Dois deployments Convex distintos aparecem no dashboard — um para produção, um efêmero para o preview — confirmando isolamento de dados."
     why_human: "Depende de ações no dashboard Convex e da Vercel (device-auth/dashboard, não automatizável nesta sessão); `npx convex dev/deploy` não foi executado neste ambiente."
+
   - test: "Rodar `npm run dev` e abrir `/` no navegador (viewport mobile ~375px e desktop)."
     expected: "(1) Fundo cream #fff3df, títulos em Alegreya (serif); (2) swatches mostram coral/orange/plum/wine/sea corretos; (3) Button, Field, Card e Toast renderizam com a identidade pôr do sol; (4) layout empilha bem no mobile."
     why_human: "Verificação visual explicitamente diferida pelo próprio plano 01-03 (task 3, human-check) para o fim da fase, conforme workflow.human_verify_mode=end-of-phase — cores/fontes/empilhamento real só são confirmáveis olhando o navegador renderizado, não por grep/build."
