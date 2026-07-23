@@ -19,11 +19,17 @@ awaiting: user response
 
 ### 1. Deploy real na Vercel
 expected: Build conclui e o site fica no ar; a home carrega com a identidade pôr do sol.
-result: [pending]
+result: pass
+source: browser-verified (Claude) — https://sol-40-convite.vercel.app/
+notes: |
+  Produção no ar em https://sol-40-convite.vercel.app/ (importado na Vercel a partir de drallanmb/sol-40-convite). Home renderiza: fundo cream rgb(255,243,223)=#fff3df, títulos em Alegreya Variable, 7 headings, 4 botões, "DESIGN SYSTEM PREVIEW / Paleta pôr do sol". Crucialmente, o React MONTOU — logo o build da Vercel injetou VITE_CONVEX_URL via `npx convex deploy --cmd 'npm run build'` (senão o guard WR-01 lançaria erro e a página ficaria em branco). Isso prova o pipeline de deploy Convex+Vite ponta a ponta.
 
 ### 2. Hard-refresh em `/admin` em produção
 expected: Após o deploy, navegar até `/admin` e dar hard-refresh (Cmd+Shift+R) carrega a página normalmente via fallback SPA — NÃO pode retornar 404.
-result: [pending]
+result: pass
+source: browser-verified (Claude) — GET https://sol-40-convite.vercel.app/admin
+notes: |
+  Navegação direta a https://sol-40-convite.vercel.app/admin (equivalente a hard-refresh): resposta HTTP 200 (não 404), documento serve index.html, React Router resolve /admin client-side e renderiza o placeholder "Admin — área dos donos (em breve)". O rewrite de SPA do vercel.json (source /(.*) -> /index.html) está sendo respeitado em produção pela Vercel.
 
 ### 3. Backends Convex separados (preview vs. produção)
 expected: Gerar Production e Preview Deploy Keys no Convex Dashboard, colar em `CONVEX_DEPLOY_KEY` nos escopos corretos da Vercel, disparar builds de produção e de preview (PR) e comparar os deployments — dois deployments Convex distintos aparecem no dashboard, confirmando isolamento de dados.
@@ -40,9 +46,9 @@ notes: |
 ## Summary
 
 total: 4
-passed: 1
+passed: 3
 issues: 0
-pending: 3
+pending: 1
 skipped: 0
 blocked: 0
 
