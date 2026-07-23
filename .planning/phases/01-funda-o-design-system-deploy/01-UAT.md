@@ -31,14 +31,18 @@ result: [pending]
 
 ### 4. Renderização visual real de `/` (preview do design system)
 expected: Rodar `npm run dev` e abrir `/` em viewport mobile (~375px) e desktop — (1) fundo cream #fff3df e títulos em Alegreya; (2) swatches coral/orange/plum/wine/sea corretos; (3) Button/Field/Card/Toast com a identidade pôr do sol; (4) layout empilha bem no mobile.
-result: [pending]
+result: pass
+source: browser-verified (Claude, in-app browser)
+notes: |
+  Verificado no navegador em 375px (mobile) e desktop. Confirmado: (1) fundo cream rgb(255,243,223)=#fff3df, títulos em Alegreya Variable (serif), corpo em Gabarito Variable; (2) 9 swatches corretos (cream/sand/peach/coral/orange/plum/wine/ink/sea); (3) os 4 primitivos renderizam com a identidade pôr do sol — Button (primary "CONFIRMAR PRESENÇA", quiet "VER PROGRAMA", disabled "ENVIANDO…"), Field (input NOME + hint via aria-describedby, textarea RECADO), Card ("Card de exemplo" com sombra offset), Toast (dispara "Presença confirmada! Obrigado ✨"); (4) empilhamento mobile OK; Shell com topbar sticky + footer plum (data 17/10/2026 · Matapuã Eventos · Aracaju/SE). Sem erros de console.
+  PRÉ-REQUISITO: `npm run dev` exige `VITE_CONVEX_URL` no ambiente/.env.local — sem ela o fix WR-01 lança erro claro e a página fica em branco (comportamento intencional). Verificação feita com URL placeholder; a home é preview estático (sem queries Convex ao vivo).
 
 ## Summary
 
 total: 4
-passed: 0
+passed: 1
 issues: 0
-pending: 4
+pending: 3
 skipped: 0
 blocked: 0
 
