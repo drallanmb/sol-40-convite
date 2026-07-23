@@ -25,12 +25,12 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
   2. `npx convex deploy` roda no build da Vercel; preview e produção usam backends Convex separados
   3. Tokens de cor (paleta pôr do sol) e fontes (Alegreya + Gabarito) estão disponíveis como classes/tema Tailwind
   4. Primitivos de UI (botão, campo, card, toast) e o shell/layout base renderizam com a identidade visual
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Scaffold da stack + pin de versões (React Router v7, TypeScript 6)
-- [ ] 01-02: Pipeline de deploy Vercel + Convex (build command, vercel.json SPA rewrite, env, preview/prod)
-- [ ] 01-03: Design system — tokens de cor/fontes + primitivos de UI + shell base
+- [ ] 01-01-PLAN.md — Scaffold Vite+React+TS+Tailwind v4+Convex+React Router v7, versões pinadas, rotas / e /admin, cliente Convex
+- [ ] 01-02-PLAN.md — Pipeline de deploy Vercel+Convex (buildCommand encadeado, vercel.json SPA rewrite, env server-only, preview/prod)
+- [ ] 01-03-PLAN.md — Design system: tokens de cor/fontes no @theme + primitivos (botão/campo/card/toast) + shell base
 
 ### Phase 2: Convite Público
 **Goal**: Página pública do convite completa e responsiva, ainda sem interações de backend.
