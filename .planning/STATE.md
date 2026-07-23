@@ -1,12 +1,19 @@
 ---
-gsd_state_version: '1.0'
-status: planning
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 01
+current_phase_name: funda-o-design-system-deploy
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-07-23T16:48:28.887Z"
+last_activity: 2026-07-23
+last_activity_desc: Phase 01 execution started
 progress:
-  total_phases: 7
+  total_phases: 1
   completed_phases: 0
-  total_plans: 15
-  completed_plans: 0
-  percent: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -16,20 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-23)
 
 **Core value:** Convidados confirmam presença e escolhem presente sem atrito; donos veem tudo ao vivo, sem trabalho manual.
-**Current focus:** Phase 1 — Fundação, Design System & Deploy
+**Current focus:** Phase 01 — funda-o-design-system-deploy
 
 ## Current Position
 
-Phase: 1 of 7 (Fundação, Design System & Deploy)
-Plan: 0 of 3 in current phase
-Status: Ready to execute (3 planos criados, plan-check PASS)
-Last activity: 2026-07-23 — Fase 1 planejada: 01-01 scaffold, 01-02 deploy, 01-03 design system
+Phase: 01 (funda-o-design-system-deploy) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-23 — Phase 01 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
@@ -39,6 +47,11 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | - | - | - | - |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 45min | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -49,6 +62,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - Stack: Convex + React/Tailwind (Vite SPA + React Router v7) + Vercel; auth do dono por senha compartilhada
 - Refaz do zero o projeto antigo `sol-40-integrado`, aproveitando design/vinhos/dados do evento e descartando a stack Cloudflare, Instagram, telão (→ v2)
 - RSVP público sem login; presente = redirect wa.me; mural com moderação
+- [Phase ?]: Checkpoint blocking-human de legitimidade de pacotes satisfeito por verificação first-party prévia (STACK.md) — instalação prosseguiu com versões EXATAS pinadas
+- [Phase ?]: src/main.tsx monta apenas ConvexProvider, sem provider de auth — auth do dono é escopo da Phase 6
+- [Phase ?]: npx convex dev NÃO executado (ambiente não-interativo); dono precisa rodar manualmente para provisionar VITE_CONVEX_URL e convex/_generated
 
 ### Pending Todos
 
@@ -69,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-23
-Stopped at: Fase 1 planejada e verificada (PASS); pronta para /gsd-execute-phase 1
+Last session: 2026-07-23T16:48:28.882Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
