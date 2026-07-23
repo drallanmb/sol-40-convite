@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Os tokens do design system (paleta "pôr do sol", tipografia) entram no
+   plano 01-03 via @theme. Por enquanto, apenas o import base do Tailwind v4. */
