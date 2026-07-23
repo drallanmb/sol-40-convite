@@ -1,19 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 01-funda-o-design-system-deploy
 source: [01-VERIFICATION.md]
 started: 2026-07-23T18:07:43Z
-updated: 2026-07-23T18:07:43Z
+updated: 2026-07-23T21:21:59Z
 ---
 
 ## Current Test
 
-number: 1
-name: Deploy real na Vercel do projeto (branch main) usando o vercel.json existente
-expected: |
-  Build conclui (`npx convex deploy --cmd 'npm run build'` roda sem erro), o site fica no ar
-  e a home carrega com a identidade visual pôr do sol.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -33,7 +28,10 @@ notes: |
 
 ### 3. Backends Convex separados (preview vs. produção)
 expected: Gerar Production e Preview Deploy Keys no Convex Dashboard, colar em `CONVEX_DEPLOY_KEY` nos escopos corretos da Vercel, disparar builds de produção e de preview (PR) e comparar os deployments — dois deployments Convex distintos aparecem no dashboard, confirmando isolamento de dados.
-result: [pending]
+result: pass
+source: browser-verified (Claude) — comparação dos bundles prod vs preview
+notes: |
+  Aberto PR #1 (branch chore/preview-smoke-test) → disparou build de preview na Vercel. GitHub deployment statuses confirmam 2 ambientes distintos: Production (ref main 0d068ed) e Preview (ref fff034a). Extraí as URLs Convex injetadas em cada bundle e elas DIFEREM: produção usa https://rugged-hippopotamus-117.convex.cloud e o preview usa https://neat-snake-930.convex.cloud (a URL comum happy-otter-123 é placeholder interno da lib convex). Backends Convex distintos por ambiente = isolamento de dados prod/preview confirmado. Preview deployment é auth-protected (proteção padrão da Vercel); acesso via link de share temporário. PR de teste fechado e branch removida após verificação.
 
 ### 4. Renderização visual real de `/` (preview do design system)
 expected: Rodar `npm run dev` e abrir `/` em viewport mobile (~375px) e desktop — (1) fundo cream #fff3df e títulos em Alegreya; (2) swatches coral/orange/plum/wine/sea corretos; (3) Button/Field/Card/Toast com a identidade pôr do sol; (4) layout empilha bem no mobile.
@@ -46,9 +44,9 @@ notes: |
 ## Summary
 
 total: 4
-passed: 3
+passed: 4
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
