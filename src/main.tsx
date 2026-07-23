@@ -12,7 +12,13 @@ import App from './App.tsx'
 // NOTA: nesta fase (Fase 1), monta-se apenas ConvexProvider — nenhum
 // provider de autenticação é adicionado aqui. A auth do dono é escopo
 // da Phase 6; /admin é só um placeholder de rota até lá.
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL)
+const convexUrl = import.meta.env.VITE_CONVEX_URL
+if (!convexUrl) {
+  throw new Error(
+    'VITE_CONVEX_URL não definida — configure o .env (ver .env.example) antes de rodar/deployar.',
+  )
+}
+const convex = new ConvexReactClient(convexUrl)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
