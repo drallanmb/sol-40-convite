@@ -28,13 +28,13 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
   3. Tokens de cor (paleta pôr do sol) e fontes (Alegreya + Gabarito) estão disponíveis como classes/tema Tailwind
   4. Primitivos de UI (botão, campo, card, toast) e o shell/layout base renderizam com a identidade visual
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 
 - [x] 01-01-PLAN.md — Scaffold Vite+React+TS+Tailwind v4+Convex+React Router v7, versões pinadas, rotas / e /admin, cliente Convex
 - [x] 01-02-PLAN.md — Pipeline de deploy Vercel+Convex (buildCommand encadeado, vercel.json SPA rewrite, env server-only, preview/prod)
-- [ ] 01-03-PLAN.md — Design system: tokens de cor/fontes no @theme + primitivos (botão/campo/card/toast) + shell base
+- [x] 01-03-PLAN.md — Design system: tokens de cor/fontes no @theme + primitivos (botão/campo/card/toast) + shell base
 
 ### Phase 2: Convite Público
 
@@ -156,7 +156,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação, Design System & Deploy | 2/3 | In Progress|  |
+| 1. Fundação, Design System & Deploy | 3/3 | In Progress|  |
 | 2. Convite Público | 0/2 | Not started | - |
 | 3. RSVP | 0/2 | Not started | - |
 | 4. Carta de Vinhos | 0/2 | Not started | - |

@@ -13,8 +13,8 @@
 
 ### Design System
 
-- [ ] **DESIGN-01**: Tokens de cor (paleta pôr do sol) e fontes (Alegreya display + Gabarito corpo) portados do projeto antigo para Tailwind
-- [ ] **DESIGN-02**: Primitivos de UI (botões, campos, cards, toasts) e shell/layout base, mobile-first
+- [x] **DESIGN-01**: Tokens de cor (paleta pôr do sol) e fontes (Alegreya display + Gabarito corpo) portados do projeto antigo para Tailwind
+- [x] **DESIGN-02**: Primitivos de UI (botões, campos, cards, toasts) e shell/layout base, mobile-first
 
 ### Convite Público
 
@@ -95,8 +95,8 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | SETUP-01 | Phase 1 | Complete |
 | SETUP-02 | Phase 1 | Complete |
 | SETUP-03 | Phase 1 | Complete |
-| DESIGN-01 | Phase 1 | Pending |
-| DESIGN-02 | Phase 1 | Pending |
+| DESIGN-01 | Phase 1 | Complete |
+| DESIGN-02 | Phase 1 | Complete |
 | INVITE-01 | Phase 2 | Pending |
 | INVITE-02 | Phase 2 | Pending |
 | INVITE-03 | Phase 2 | Pending |

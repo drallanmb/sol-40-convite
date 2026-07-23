@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: funda-o-design-system-deploy
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-07-23T17:29:42.213Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-07-23T17:50:06.133Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 01 (funda-o-design-system-deploy) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-23 — Phase 01 execution started
 
-Progress: [███████░░░] 67%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███████░░░] 67%
 |------|----------|-------|-------|
 | Phase 01 P01 | 45min | 2 tasks | 17 files |
 | Phase 01-funda-o-design-system-deploy P02 | ~10min | 2 tasks | 3 files |
+| Phase 01 P03 | 25min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: npx convex dev NÃO executado (ambiente não-interativo); dono precisa rodar manualmente para provisionar VITE_CONVEX_URL e convex/_generated
 - [Phase ?]: Build da Vercel encadeia npx convex deploy --cmd 'npm run build'; VITE_CONVEX_URL injetada automaticamente, nunca setada manualmente
 - [Phase ?]: CONVEX_DEPLOY_KEY e ADMIN_PASSWORD documentados como server-only (sem prefixo VITE_); deploy keys Production/Preview separadas isolam backends Convex de produção e preview
+- [Phase ?]: [Phase 1-03]: duration-*/z-* não têm namespace @theme oficial no Tailwind v4 — usar sintaxe de parênteses duration-(--var)/z-(--var) em vez de utilitária nomeada; tracking-*/ease-* são namespaces oficiais e funcionam direto
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-23T17:29:42.209Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-07-23T17:50:06.127Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
