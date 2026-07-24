@@ -14,6 +14,7 @@ export function DressCodeSection() {
   return (
     <section
       id={SECTION_IDS.traje}
+      tabIndex={-1}
       className="scroll-mt-[120px] bg-plum px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-cream"
     >
       <div className="mx-auto grid max-w-[1320px] gap-[clamp(40px,6vw,90px)] md:grid-cols-2 md:items-center">

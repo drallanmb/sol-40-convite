@@ -15,6 +15,7 @@ export function ProgramaSection() {
   return (
     <section
       id={SECTION_IDS.programa}
+      tabIndex={-1}
       className="scroll-mt-[120px] bg-cream px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
     >
       <div className="mx-auto max-w-[840px]">
