@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { buttonClassName } from '../components/ui/Button'
 import * as eventContent from './event'
 import {
   DRESS,
@@ -44,10 +46,12 @@ type RsvpCopyContract = {
   family: {
     kicker: string
     greeting: string
+    savedSummary: string
     formHeading: string
     zeroGuests: string
   }
   attendance: {
+    groupLabel: string
     yes: string
     pending: string
     no: string
@@ -88,6 +92,21 @@ function flattenCopy(value: unknown): string[] {
   if (typeof value === 'string') return [value]
   if (!value || typeof value !== 'object') return []
   return Object.values(value).flatMap(flattenCopy)
+}
+
+const RSVP_SURFACE_SOURCE_PATHS = [
+  './event.ts',
+  '../components/invite/Hero.tsx',
+  '../components/layout/Shell.tsx',
+  '../components/ui/Button.tsx',
+  '../components/ui/Field.tsx',
+  '../lib/rsvpDraft.ts',
+  '../lib/rsvpSession.ts',
+  '../lib/rsvpClock.ts',
+] as const
+
+function readSource(path: string) {
+  return readFileSync(new URL(path, import.meta.url), 'utf8')
 }
 
 describe('event content — PROGRAMA', () => {
@@ -191,10 +210,12 @@ describe('event content — approved RSVP copy', () => {
       family: {
         kicker: 'SEU CONVITE',
         greeting: 'Olá, {displayName}. Esse pôr do sol tem lugar pra vocês.',
+        savedSummary: 'Vai: {yes} · Não vai: {no} · Pendente: {pending}',
         formHeading: 'Quem deste convite estará com a gente?',
         zeroGuests: 'Este convite ainda não tem pessoas cadastradas. Fale com a organização.',
       },
       attendance: {
+        groupLabel: 'Presença de {name}',
         yes: 'Vai',
         pending: 'Pendente',
         no: 'Não vai',
@@ -237,13 +258,36 @@ describe('event content — approved RSVP copy', () => {
       'Digite o telefone usado no convite. Não precisa criar conta.',
     ])
 
-    const withoutApprovedAssurances = copy
-      .join('\n')
+    const surfaceSource = RSVP_SURFACE_SOURCE_PATHS.map(readSource).join('\n')
+    const withoutApprovedAssurances = surfaceSource
       .replaceAll('sem criar conta', '')
       .replaceAll('Não precisa criar conta', '')
 
     expect(withoutApprovedAssurances).not.toMatch(
-      /\b(cadastro|cadastrar|cadastre|login|senha|administrador|admin)\b/i,
+      /\b(account|cadastro|cadastrar|cadastre|conta|entrar|login|password|senha|sign-?up|administrador|admin)\b/i,
+    )
+    expect(withoutApprovedAssurances).not.toMatch(
+      /\/(?:account|admin|cadastro|login|register|sign-?up)\b/i,
+    )
+  })
+})
+
+describe('RSVP primitive contracts', () => {
+  it('uses important 3px sea focus declarations that win over the global shorthand', () => {
+    const classes = buttonClassName('rsvp').split(/\s+/)
+
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'focus-visible:outline-[3px]!',
+        'focus-visible:outline-sea!',
+        'focus-visible:outline-offset-[3px]!',
+      ]),
+    )
+  })
+
+  it('uses a solid AA placeholder color instead of inherited half-opacity ink', () => {
+    expect(readSource('../components/ui/Field.tsx')).toContain(
+      'placeholder:text-wine',
     )
   })
 })
