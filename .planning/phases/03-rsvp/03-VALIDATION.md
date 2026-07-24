@@ -3,9 +3,9 @@ phase: 3
 slug: rsvp
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
+status: validated
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-07-24
 ---
 
@@ -45,13 +45,13 @@ created: 2026-07-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 03-01-02 | 03-01 | 0 | RSVP-01 | T-03-01-A | Exact prefix 2–5/6–9/0–1 rules, raw-control rejection, equivalent formats, and DDD 55 | unit | `npx vitest run src/lib/phone.test.ts` | ❌ W0 | ⬜ pending |
-| 03-01-03 | 03-01 | 0 | RSVP-02 | T-03-01-B/C/D | Validators/indexes plus guarded normal/zero/one/many-long fixtures preserve uniqueness/idempotence | integration | `npx vitest run convex/rsvps.test.ts -t "schema\\|fixture\\|unique"` | ❌ W0 | ⬜ pending |
-| 03-02-03 | 03-02 | 1 | RSVP-03 | T-03-02-D/E/F | Sparse patches affect only scoped guest refs; contact set/clear is bounded and atomic | integration | `npx vitest run convex/rsvps.test.ts -t "partial\\|contact\\|atomic\\|idempotent"` | ❌ W0 | ⬜ pending |
-| 03-02-02 | 03-02 | 1 | RSVP-04 | T-03-02-B/C/J | A token cannot cross families or be reused; expired/invalid tokens fail closed | integration | `npx vitest run convex/rsvps.test.ts -t "unlock\\|scope\\|session\\|token conflict"` | ❌ W0 | ⬜ pending |
-| 03-02-03 | 03-02 | 1 | RSVP-05 | T-03-02-G/K/L | Invalid lookup/save tokens consume global limits at exact N-1/N/N+1; valid buckets remain coherent; guarded helper prepares save call 31 | integration | `npx vitest run convex/rsvps.test.ts -t "rate\\|global invalid token\\|prepare throttle"` | ❌ W0 | ⬜ pending |
-| 03-03-02/03 | 03-03 | 2 | RSVP-03, RSVP-04 | T-03-03-B/C | Client sends dirty changes only, retries token conflict once, and keeps capability session-only | unit/model | `npx vitest run src/lib/rsvpDraft.test.ts src/lib/rsvpSession.test.ts src/lib/rsvpClock.test.ts` | ❌ W0 | ⬜ pending |
-| 03-05-03 | 03-05 | 4 | RSVP-01–05 | T-03-05-A–G | Production-shaped schema/API compile; guarded fixtures, expired session, post-deadline state, and browser matrix execute | smoke/manual | `npm test && npm run build && npx convex dev --once` | ❌ W0 | ⬜ pending |
+| 03-01-02 | 03-01 | 0 | RSVP-01 | T-03-01-A | Exact prefix 2–5/6–9/0–1 rules, raw-control rejection, equivalent formats, and DDD 55 | unit | `npx vitest run src/lib/phone.test.ts` | ✅ | ✅ green |
+| 03-01-03 | 03-01 | 0 | RSVP-02 | T-03-01-B/C/D | Validators/indexes plus guarded normal/zero/one/many-long fixtures preserve uniqueness/idempotence | integration | `npx vitest run convex/rsvps.test.ts -t "schema\\|fixture\\|unique"` | ✅ | ✅ green |
+| 03-02-03 | 03-02 | 1 | RSVP-03 | T-03-02-D/E/F | Sparse patches affect only scoped guest refs; contact set/clear is bounded and atomic | integration | `npx vitest run convex/rsvps.test.ts -t "partial\\|contact\\|atomic\\|idempotent"` | ✅ | ✅ green |
+| 03-02-02 | 03-02 | 1 | RSVP-04 | T-03-02-B/C/J | A token cannot cross families or be reused; expired/invalid tokens fail closed | integration | `npx vitest run convex/rsvps.test.ts -t "unlock\\|scope\\|session\\|token conflict"` | ✅ | ✅ green |
+| 03-02-03 | 03-02 | 1 | RSVP-05 | T-03-02-G/K/L | Invalid lookup/save tokens consume global limits at exact N-1/N/N+1; valid buckets remain coherent; guarded helper prepares save call 31 | integration | `npx vitest run convex/rsvps.test.ts -t "rate\\|global invalid token\\|prepare throttle"` | ✅ | ✅ green |
+| 03-03-02/03 | 03-03 | 2 | RSVP-03, RSVP-04 | T-03-03-B/C | Client sends dirty changes only, retries token conflict once, and keeps capability session-only | unit/model | `npx vitest run src/lib/rsvpDraft.test.ts src/lib/rsvpSession.test.ts src/lib/rsvpClock.test.ts` | ✅ | ✅ green |
+| 03-05-03 | 03-05 | 4 | RSVP-01–05 | T-03-05-A–G | Production-shaped schema/API compile; guarded fixtures, expired session, post-deadline state, and browser matrix execute | smoke/manual | `npm test && npm run build && npx convex dev --once` | ✅ | ⚠️ partial |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -59,16 +59,16 @@ created: 2026-07-24
 
 ## Wave 0 Requirements
 
-- [ ] `convex-test@0.0.54` — exact-pinned dev dependency.
-- [ ] `@convex-dev/rate-limiter@0.3.2` — exact-pinned application dependency.
-- [ ] `@edge-runtime/vm` — exact-pinned dev dependency if required by the installed convex-test setup.
-- [ ] `vite.config.ts` — include `convex/**/*.test.ts` without regressing existing `src/**/*.test.ts`.
-- [ ] `convex/convex.config.ts` — register the rate-limiter component.
-- [ ] Convex test setup — register `@convex-dev/rate-limiter/test` in every relevant test instance.
-- [ ] `src/lib/phone.test.ts` — table-driven normalization/candidate cases.
-- [ ] `convex/rsvps.test.ts` — fixtures and public-function integration harness.
-- [ ] Guarded internal demo fixtures — normal, zero, one, many-long; phones derived from server-only seed, no public/committed access value.
-- [ ] Generated Convex API/component types — regenerate; never patch by hand.
+- [x] `convex-test@0.0.54` — exact-pinned dev dependency.
+- [x] `@convex-dev/rate-limiter@0.3.2` — exact-pinned application dependency.
+- [x] `@edge-runtime/vm` — reviewed and not required by the installed convex-test setup.
+- [x] `vite.config.ts` — include `convex/**/*.test.ts` without regressing existing `src/**/*.test.ts`.
+- [x] `convex/convex.config.ts` — register the rate-limiter component.
+- [x] Convex test setup — register `@convex-dev/rate-limiter/test` in every relevant test instance.
+- [x] `src/lib/phone.test.ts` — table-driven normalization/candidate cases.
+- [x] `convex/rsvps.test.ts` — fixtures and public-function integration harness.
+- [x] Guarded internal demo fixtures — normal, zero, one, many-long; phones derived from server-only seed, no public/committed access value.
+- [x] Generated Convex API/component types — regenerated by the real Convex smoke; never patched by hand.
 
 ---
 
@@ -85,15 +85,34 @@ created: 2026-07-24
 | Literal “Confirme até 30 de setembro” renders while late edits remain available | RSVP-03, RSVP-04 | Date copy plus policy behavior | Set test clock after the deadline and confirm no UI/server block |
 | Normal/zero/one/many-long shapes, expired session, and post-deadline state are reproducible without public seed/debug APIs | RSVP-02–04 | Guarded dev fixtures and browser state | Run `ensureDemoFixtures`, `issueDemoSession(state=expired)`, and the DEV-only clock override documented in 03-05; record the CLI/browser results without committing raw demo phones |
 
+### 03-05 Execution Record
+
+| Row | Result | Evidence / remaining action |
+|-----|--------|-----------------------------|
+| Both home entry points, direct route, and refresh | ✅ pass | Header and hero links both reached `/confirmar`; direct load and same-tab refresh rendered correctly. |
+| Same-tab restoration and independent browser session | ✅ pass | Saved family restored in the original tab; an independent tab returned to the phone gate. |
+| Local invalid, generic miss, and lookup throttling | ✅ pass | Browser showed the local alert, the generic unknown-phone alert, then the rate alert with a positive integer retry and disabled action. |
+| Partial save, optional contact set/clear, reopen, and edit | ✅ pass | Dirty draft saved with pending people, restored after reload, edited again, and optional contact cleared explicitly. |
+| Clean/dirty phone switching and native dialog | ✅ pass | Clean state switched immediately; dirty state required the destructive action, supported Escape, returned focus, and removed scoped DOM only after confirmation. |
+| Normal, zero, one, and many-long fixtures | ✅ pass | Zero had invariant copy/no save; one retained full anatomy; twelve long-name rows wrapped and expanded only page scroll. |
+| 320, 360, 390, 640, 1024, and 1440 CSS-pixel viewports | ✅ pass | No horizontal/nested scroll; 320 stacked 44px choices, 360 used three equal choices, 640 centered the card, and 1024 used 257/560 columns with a 64px gap. |
+| Keyboard, focus, live regions, native groups, and privacy/tone | ✅ pass | Visible focus, named fieldsets/radios, polite success, alert errors, thankful all-no copy, neutral pending copy, clean URL/logs, and no admin/password control. |
+| Fixture idempotence and real Convex smoke | ✅ pass | Two guarded fixture runs returned the same 4 RSVP / 16 guest totals; real `npx convex dev --once` passed. |
+| Expired helper in browser | ⚠️ human needed | The internal expired capability was issued and revoked, but Chrome exposed no writable CDP/sessionStorage surface and the in-app browser was unavailable. |
+| Post-deadline helper in browser | ⚠️ human needed | Literal deadline and automated dev-clock/backend date tests passed; the documented DEV session key could not be injected in this browser surface. |
+| Save call 31 visual throttle | ⚠️ human needed | Preparation returned exactly 29/30/30/31 and server teardown succeeded; browser token injection, dirty-draft N+1, and rendered retry remain manual. |
+| Browser offline/network retention | ⚠️ human needed | Catch/retry code and automated draft tests are green; this Chrome connector exposes neither CDP nor offline emulation. |
+| Literal 200% zoom and emulated reduced motion | ⚠️ human needed | Equivalent 320px reflow and reduced-motion source contract passed; the connector could not change browser zoom or media preferences. |
+
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** partial on 2026-07-24 — automated/runtime checks and the observable browser matrix are green; expired/dev-clock/save-N+1 injection, browser offline, literal 200% zoom, and reduced-motion emulation still require human UAT.

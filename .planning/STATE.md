@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 current_phase_name: RSVP
-status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-07-24T20:06:01.836Z"
+status: verifying
+stopped_at: Completed 03-05 implementation; manual Nyquist UAT pending
+last_updated: "2026-07-24T20:51:39.293Z"
 last_activity: 2026-07-24
 last_activity_desc: RSVP normal flow complete; plan 03-05 ready
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 
 Phase: 3 (RSVP) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 — RSVP normal flow complete; plan 03-05 ready
 
-Progress: [█████████░] 94% (15/16 plans complete overall; Phase 3 is 4/5)
+Progress: [██████████] 100% (15/16 plans complete overall; Phase 3 is 4/5)
 
 ## Performance Metrics
 
@@ -68,6 +68,7 @@ Progress: [█████████░] 94% (15/16 plans complete overall; Ph
 | Phase 03 P02 | 16 min | 3 tasks | 6 files |
 | Phase 03 P03 | 17min | 3 tasks | 12 files |
 | Phase 03 P04 | 13min | 2 tasks | 5 files |
+| Phase 03 P05 | 39min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 03]: RSVP focus longhands are important because the unlayered global shorthand wins over Tailwind utilities; placeholders use solid wine. — This preserves the ordinary coral focus rule while delivering the contracted 3px sea ring and AA placeholder contrast.
 - [Phase 03]: A restauração de /confirmar usa consulta Convex capturável e nunca exibe dados familiares obsoletos. — Distingue falha de rede de sessão expirada e mantém dados escopados fora do DOM até uma leitura válida.
 - [Phase 03]: Troca de telefone com rascunho sujo falha fechada até o diálogo final de 03-05. — Evita perda silenciosa de respostas; troca limpa já remove capability e DOM escopado.
+- [Phase 03]: Troca de telefone suja usa dialog nativo com foco inicial seguro; descarte só ocorre por ação destrutiva explícita. — Evita perda silenciosa, preserva Escape/retorno de foco e mantém a troca limpa imediata.
 
 ### Pending Todos
 
@@ -133,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:06:01.832Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-07-24T20:51:39.288Z
+Stopped at: Completed 03-05 implementation; manual Nyquist UAT pending
 Resume file: None
