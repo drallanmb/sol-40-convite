@@ -1,8 +1,8 @@
 ---
 phase: 05
 slug: mural-de-mem-rias-modera-o
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-24
 ---
@@ -38,13 +38,18 @@ created: 2026-07-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 05-01-01 | 01 | 1 | WALL-01 | T-05-01 | Invalid post shapes and statuses are rejected | Convex integration | `npm test -- convex/posts.test.ts` | ❌ W0 | ⬜ pending |
-| 05-01-02 | 01 | 1 | WALL-02 | T-05-02 | Type and size are validated after upload; invalid blobs are deleted | Convex integration + unit | `npm test -- convex/posts.test.ts convex/uploadValidation.test.ts` | ❌ W0 | ⬜ pending |
-| 05-01-03 | 01 | 1 | WALL-05 | T-05-03 | Device and global buckets stop abusive upload reservations before storage | Convex integration | `npm test -- convex/posts.test.ts` | ❌ W0 | ⬜ pending |
-| 05-02-01 | 02 | 2 | WALL-02 | T-05-04 | Client downscale preserves aspect ratio and codec failure preserves the draft | Unit + browser smoke | `npm test -- src/lib/imageProcessing.test.ts src/lib/memoryDraft.test.ts` | ❌ W0 | ⬜ pending |
-| 05-02-02 | 02 | 2 | WALL-03 | T-05-05 | A 1–280-character plain-text message creates a pending post | Convex integration + unit | `npm test -- convex/posts.test.ts src/lib/memoryDraft.test.ts` | ❌ W0 | ⬜ pending |
-| 05-02-03 | 02 | 2 | WALL-04 | T-05-06 | Public query returns only approved posts and no private storage identifiers | Convex integration | `npm test -- convex/posts.test.ts` | ❌ W0 | ⬜ pending |
-| 05-03-01 | 03 | 3 | WALL-04 | T-05-07 | Visit order stays stable and reduced motion disables autoplay | Unit + manual UI | `npm test -- src/lib/stableVisitOrder.test.ts` | ❌ W0 | ⬜ pending |
+| 05-01-01 | 01 | 0 | WALL-01, WALL-05 | T-05-01-H | Deploy-safe Convex harness instantiates the live schema and registers the existing official limiter adapter without importing future handlers | Harness smoke | `npm test -- convex/posts.test.ts` | ❌ W0 | ⬜ pending |
+| 05-01-02 | 01 | 0 | WALL-02, WALL-03, WALL-05 | T-05-01-A/B/F/G | Text/capability/limiter policies and real-byte type/size rules are exact at pure boundaries | Unit | `npm test -- convex/posts.test.ts convex/uploadValidation.test.ts` | ❌ W0 | ⬜ pending |
+| 05-01-03 | 01 | 0 | WALL-01, WALL-04 | T-05-01-D/E/H | Additive post/reservation schema accepts valid shapes, rejects invalid literals, preserves Phase 4/RSVP, and passes real Convex analysis | Convex schema integration + runtime | `npm test -- convex/posts.test.ts convex/uploadValidation.test.ts && npm test && npm run build && npx convex dev --once` | ❌ W0 | ⬜ pending |
+| 05-02-01 | 02 | 1 | WALL-03, WALL-04, WALL-05 | T-05-02-A/E/F/G | Text-only creation is pending/rate-limited and the public projection generates URLs only after approved filtering | Convex integration | `npm test -- convex/posts.test.ts -t "text|rate|approved|projection|author"` | ❌ added with task | ⬜ pending |
+| 05-02-02 | 02 | 1 | WALL-01, WALL-02, WALL-05 | T-05-02-A/B/C/E/G | Reservation, metadata claim, real-byte action, safe status, and parallel retry converge to one pending post | Convex storage/action integration + unit | `npm test -- convex/posts.test.ts convex/uploadValidation.test.ts -t "upload|metadata|bytes|claim|retry|concurrent|status|delete"` | ❌ added with task | ⬜ pending |
+| 05-02-03 | 02 | 1 | WALL-01, WALL-02, WALL-04 | T-05-02-C/D/H | Expiry and paginated orphan cleanup preserve every live owner; the real backend exposes only intended public functions | Convex scheduler/storage integration + runtime | `npm test -- convex/posts.test.ts -t "expire|orphan|cleanup|ownership|pagination|public surface" && npm test && npm run build && npx convex dev --once` | ❌ added with task | ⬜ pending |
+| 05-03-01 | 03 | 2 | WALL-02, WALL-05 | T-05-03-A/B/D | Client downscale/session/XHR helpers enforce resource limits, safe key scope, cleanup, progress, and explicit HEIC fallback | Unit + browser smoke | `npm test -- src/lib/imageProcessing.test.ts src/lib/memorySession.test.ts` | ❌ W0 | ⬜ pending |
+| 05-03-02 | 03 | 2 | WALL-01, WALL-02, WALL-03, WALL-05 | T-05-03-C/E/F/G | Reducer preserves draft across every interruption/double-submit and resets only after accepted, with matching 280-code-point policy | Unit + backend regression | `npm test -- src/lib/memoryDraft.test.ts && npm test -- convex/posts.test.ts -t "retry|concurrent|status"` | ❌ W0 | ⬜ pending |
+| 05-03-03 | 03 | 2 | WALL-01, WALL-02, WALL-03, WALL-05 | T-05-03-C/D/E/F/H | Accessible form implements one-memory preview/progress/retry/rate/success states without raw HTML, pending URL, or capability leak | Unit + build + manual UI | `npm test -- src/lib/imageProcessing.test.ts src/lib/memoryDraft.test.ts src/lib/memorySession.test.ts && npm test -- convex/posts.test.ts && npm run build` | ❌ added with task | ⬜ pending |
+| 05-04-01 | 04 | 3 | WALL-04 | T-05-04-C/E | Exact Embla pins coexist with Phase 4 dependencies; stable visit order is immutable and reduced-motion hook is cleanup-safe | Unit + build | `npm test -- src/lib/stableVisitOrder.test.ts && npm run build` | ❌ W0 | ⬜ pending |
+| 05-04-02 | 04 | 3 | WALL-04 | T-05-04-A/B/C | Cards/carousel consume only approved minimal views and provide controllable drag/autoplay/focus/reduced-motion behavior | Unit + Convex regression + manual UI | `npm test -- src/lib/stableVisitOrder.test.ts convex/posts.test.ts -t "approved|projection" && npm run build` | ❌ added with task | ⬜ pending |
+| 05-04-03 | 04 | 3 | WALL-01, WALL-02, WALL-03, WALL-04, WALL-05 | T-05-04-A–H | Shared-file merge preserves Phase 4 and the complete upload/album/rate/cleanup/concurrency system passes tests, build, real Convex, and browser gates | Full automated + runtime + manual | `npm test -- convex/posts.test.ts convex/uploadValidation.test.ts src/lib/imageProcessing.test.ts src/lib/memoryDraft.test.ts src/lib/memorySession.test.ts src/lib/stableVisitOrder.test.ts src/content/event.test.ts && npm test && npm run build && npx convex dev --once` | ❌ added with task | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,12 +57,20 @@ created: 2026-07-24
 
 ## Wave 0 Requirements
 
-- [ ] `convex/postTest.ts` — Phase 5 Convex harness with rate-limiter registration.
-- [ ] `convex/posts.test.ts` — schema, public surface, status, dedupe, cleanup and limits.
-- [ ] `convex/uploadValidation.test.ts` — magic bytes, real size and MIME mismatch fixtures.
-- [ ] `src/lib/imageProcessing.test.ts` — dimension/downscale/codec behavior through adapters.
-- [ ] `src/lib/memoryDraft.test.ts` — retry preservation and partial reset after success.
-- [ ] `src/lib/stableVisitOrder.test.ts` — stable per-visit shuffle and new-item handling.
+- [ ] `convex/postTest.ts` + initial `convex/posts.test.ts` — deploy-safe harness smoke with the official limiter adapter; it intentionally imports no not-yet-implemented endpoint.
+- [ ] `convex/posts.test.ts` Wave 0 groups — pure text/capability/limiter precision followed by schema-only valid/invalid/index cases as Tasks 05-01-02/03 implement those seams.
+- [ ] `convex/uploadValidation.test.ts` — created with `uploadValidation.ts` in 05-01-02; magic bytes, exact/+1 size, MIME mismatch, HEIC/PDF/HTML/truncation.
+- [ ] `src/lib/imageProcessing.test.ts` — created with client image helpers in 05-03-01; dimension/downscale/adapter cleanup/codec fallback.
+- [ ] `src/lib/memorySession.test.ts` — created with browser key helpers in 05-03-01; canonical generation, malformed cleanup, denied-storage fallback.
+- [ ] `src/lib/memoryDraft.test.ts` — created with the reducer in 05-03-02; interruption/retry/double-submit and accepted-only partial reset.
+- [ ] `src/lib/stableVisitOrder.test.ts` — created with ordering in 05-04-01; stable per-visit ranks, reactive additions, immutability.
+
+Stateful integration cases are deliberately added with the real implementation that makes them executable:
+
+- [ ] `convex/posts.test.ts` 05-02-01 — text mutation, rate boundaries/refill, approved-only projection, URL/private-field exclusion.
+- [ ] `convex/posts.test.ts` 05-02-02 — reservation/storage/action pipeline, validation, parallel retry/idempotency, safe status.
+- [ ] `convex/posts.test.ts` 05-02-03 — expiry/orphan ownership/pagination/races and public-surface inventory.
+- [ ] `src/content/event.test.ts` 05-04-03 — memory anchor/copy/navigation and shared-file merge assertions.
 
 No new test framework installation is required.
 
@@ -76,11 +89,11 @@ No new test framework installation is required.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verification or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verification
-- [ ] Wave 0 covers all missing test references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All 12 tasks have `<automated>` verification and only reference behavior available by that task boundary
+- [x] Sampling continuity: every task has automated verification
+- [x] Wave 0 and progressive additions cover all test references without premature failing endpoint suites
+- [x] No watch-mode flags
+- [x] Feedback latency target remains < 30s for narrow commands
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** planned; execution statuses remain pending
