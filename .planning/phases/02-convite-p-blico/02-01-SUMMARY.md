@@ -188,3 +188,7 @@ None - no external service configuration required.
 ---
 *Phase: 02-convite-p-blico*
 *Completed: 2026-07-24*
+
+## Self-Check: PASSED
+
+All 7 created/modified source files and the SUMMARY.md itself verified present on disk; all 6 commit hashes (5d4d008, ea8ea08, 78f5222, f43daff, 53c97fa, a9b6ec2) verified present in `git log`.

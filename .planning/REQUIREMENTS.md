@@ -18,9 +18,9 @@
 
 ### Convite Público
 
-- [ ] **INVITE-01**: Hero com sol + contagem regressiva usando offset `-03:00` explícito (correto em qualquer fuso)
-- [ ] **INVITE-02**: Seções de programa e dress code
-- [ ] **INVITE-03**: Local + mapa de Aracaju + guia da cidade/hotéis
+- [x] **INVITE-01**: Hero com sol + contagem regressiva usando offset `-03:00` explícito (correto em qualquer fuso)
+- [x] **INVITE-02**: Seções de programa e dress code
+- [x] **INVITE-03**: Local + mapa de Aracaju + guia da cidade/hotéis
 - [ ] **INVITE-04**: Navegação/topbar + footer, responsivo
 
 ### RSVP
@@ -97,9 +97,9 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | SETUP-03 | Phase 1 | Complete |
 | DESIGN-01 | Phase 1 | Complete |
 | DESIGN-02 | Phase 1 | Complete |
-| INVITE-01 | Phase 2 | Pending |
-| INVITE-02 | Phase 2 | Pending |
-| INVITE-03 | Phase 2 | Pending |
+| INVITE-01 | Phase 2 | Complete |
+| INVITE-02 | Phase 2 | Complete |
+| INVITE-03 | Phase 2 | Complete |
 | INVITE-04 | Phase 2 | Pending |
 | RSVP-01 | Phase 3 | Pending |
 | RSVP-02 | Phase 3 | Pending |
