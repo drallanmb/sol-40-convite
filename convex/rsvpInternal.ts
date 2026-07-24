@@ -13,6 +13,12 @@ import {
   type Attendance,
   type DemoFixtureLabel,
 } from './rsvpModel'
+import {
+  createRsvpSession,
+  encodeOpaqueToken,
+  hashOpaqueToken,
+  validateOpaqueToken,
+} from './rsvpSecurity'
 
 declare const process: {
   env: Record<string, string | undefined>
@@ -423,5 +429,127 @@ export const ensureDemoFixtures = internalMutation({
         guests: fixtures.reduce((total, fixture) => total + fixture.guestCount, 0),
       },
     }
+  },
+})
+
+const demoSessionStateValidator = v.union(
+  v.literal('valid'),
+  v.literal('expired'),
+)
+
+const demoSessionResultValidator = v.object({
+  token: v.string(),
+})
+
+const demoSessionRevocationValidator = v.union(
+  v.object({ kind: v.literal('deleted') }),
+  v.object({ kind: v.literal('not_found') }),
+)
+
+async function findDemoInvitation(
+  ctx: MutationCtx,
+  seed: string,
+  fixture: DemoFixtureLabel,
+) {
+  const definition = (await buildDemoDefinitions(seed)).find(
+    (candidate) => candidate.label === fixture,
+  )
+  if (!definition) {
+    return null
+  }
+
+  const normalized = normalizeInvitationInput(definition)
+  return findLogicalInvitation(ctx, normalized.normalizedPhone)
+}
+
+async function deriveDemoSessionToken(
+  seed: string,
+  fixture: DemoFixtureLabel,
+  now: number,
+  sessionCount: number,
+  attempt: number,
+) {
+  const bytes = await hmacSha256(
+    seed,
+    `rsvp-demo-session:${fixture}:${now}:${sessionCount}:${attempt}`,
+  )
+  return encodeOpaqueToken(bytes)
+}
+
+export const issueDemoSession = internalMutation({
+  args: {
+    fixture: demoFixtureLabelValidator,
+    state: demoSessionStateValidator,
+  },
+  returns: demoSessionResultValidator,
+  handler: async (ctx, args) => {
+    const seed = readDemoSeed()
+    const invitation = await findDemoInvitation(ctx, seed, args.fixture)
+    if (!invitation) {
+      throw new Error('Fixture demo indisponível.')
+    }
+
+    const now = Date.now()
+    const sessionCount = (await ctx.db.query('rsvpSessions').collect()).length
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const token = await deriveDemoSessionToken(
+        seed,
+        args.fixture,
+        now,
+        sessionCount,
+        attempt,
+      )
+      const created = await createRsvpSession(ctx, {
+        rsvpId: invitation._id,
+        token,
+        now,
+        ...(args.state === 'expired' ? { expiresAt: now - 1 } : {}),
+      })
+
+      if (created.kind === 'created') {
+        return { token }
+      }
+    }
+
+    throw new Error('Não foi possível emitir a capability demo.')
+  },
+})
+
+export const revokeDemoSession = internalMutation({
+  args: {
+    token: v.string(),
+  },
+  returns: demoSessionRevocationValidator,
+  handler: async (ctx, args) => {
+    const seed = readDemoSeed()
+    if (!validateOpaqueToken(args.token)) {
+      return { kind: 'not_found' } as const
+    }
+
+    const tokenHash = await hashOpaqueToken(args.token)
+    const sessions = await ctx.db
+      .query('rsvpSessions')
+      .withIndex('by_token_hash', (query) => query.eq('tokenHash', tokenHash))
+      .collect()
+    if (sessions.length !== 1) {
+      return { kind: 'not_found' } as const
+    }
+
+    const demoRsvpIds = new Set<string>()
+    for (const definition of await buildDemoDefinitions(seed)) {
+      const normalized = normalizeInvitationInput(definition)
+      const invitation = await findLogicalInvitation(ctx, normalized.normalizedPhone)
+      if (invitation) {
+        demoRsvpIds.add(String(invitation._id))
+      }
+    }
+
+    if (!demoRsvpIds.has(String(sessions[0].rsvpId))) {
+      return { kind: 'not_found' } as const
+    }
+
+    await ctx.db.delete(sessions[0]._id)
+    return { kind: 'deleted' } as const
   },
 })

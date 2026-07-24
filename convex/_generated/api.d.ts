@@ -10,7 +10,10 @@
 
 import type * as rsvpInternal from "../rsvpInternal.js";
 import type * as rsvpModel from "../rsvpModel.js";
+import type * as rsvpRateLimits from "../rsvpRateLimits.js";
+import type * as rsvpSecurity from "../rsvpSecurity.js";
 import type * as rsvpTest from "../rsvpTest.js";
+import type * as rsvps from "../rsvps.js";
 
 import type {
   ApiFromModules,
@@ -21,7 +24,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   rsvpInternal: typeof rsvpInternal;
   rsvpModel: typeof rsvpModel;
+  rsvpRateLimits: typeof rsvpRateLimits;
+  rsvpSecurity: typeof rsvpSecurity;
   rsvpTest: typeof rsvpTest;
+  rsvps: typeof rsvps;
 }>;
 
 /**

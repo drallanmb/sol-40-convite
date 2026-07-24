@@ -6,6 +6,7 @@ import { insertInvitation } from './rsvpInternal'
 import { RSVP_SESSION_TTL_MS } from './rsvpModel'
 import { RSVP_RATE_LIMITS } from './rsvpRateLimits'
 import {
+  encodeOpaqueToken,
   hashLimiterKey,
   hashOpaqueToken,
   isSessionActive,
@@ -280,7 +281,7 @@ describe('unique RSVP phone invariant', () => {
 })
 
 describe('security helper', () => {
-  const token = Buffer.alloc(32, 7).toString('base64url')
+  const token = encodeOpaqueToken(new Uint8Array(32).fill(7))
 
   it('accepts only canonical unpadded base64url tokens representing 32 bytes', () => {
     expect(token).toHaveLength(43)
@@ -358,9 +359,9 @@ describe('rate policy', () => {
 type RsvpHarness = ReturnType<typeof makeRsvpTest>
 
 function opaqueToken(sequence: number) {
-  const bytes = Buffer.alloc(32)
-  bytes.writeUInt32BE(sequence >>> 0, 28)
-  return bytes.toString('base64url')
+  const bytes = new Uint8Array(32)
+  new DataView(bytes.buffer).setUint32(28, sequence >>> 0)
+  return encodeOpaqueToken(bytes)
 }
 
 async function seedInvitation(
@@ -467,7 +468,7 @@ describe('unlock capability and privacy', () => {
     })
     await t.run(async (ctx) => {
       const legacyRsvpId = await ctx.db.insert('rsvps', {
-        phone: '7998888777',
+        phone: '7988887777',
         displayName: 'Convite Legado Ambíguo',
         updatedAt: 1,
       })
@@ -497,6 +498,15 @@ describe('unlock capability and privacy', () => {
       phone: '(79) 98888-7777',
       token: opaqueToken(112),
     })
+    const ambiguousFollowups = []
+    for (let attempt = 2; attempt <= 6; attempt += 1) {
+      ambiguousFollowups.push(
+        await t.mutation(api.rsvps.unlockByPhone, {
+          phone: '(79) 98888-7777',
+          token: opaqueToken(112 + attempt),
+        }),
+      )
+    }
     const after = await t.run(async (ctx) => ({
       rsvps: await ctx.db.query('rsvps').collect(),
       guests: await ctx.db.query('rsvpGuests').collect(),
@@ -506,6 +516,11 @@ describe('unlock capability and privacy', () => {
     expect(malformed).toEqual({ kind: 'not_found' })
     expect(unknown).toEqual({ kind: 'not_found' })
     expect(ambiguous).toEqual({ kind: 'not_found' })
+    expect(ambiguousFollowups[3]).toEqual({ kind: 'not_found' })
+    expect(ambiguousFollowups[4]).toEqual({
+      kind: 'rate_limited',
+      retryAfterSeconds: expect.any(Number),
+    })
     expect(after).toEqual(before)
   })
 
@@ -809,10 +824,15 @@ describe('lookup rate limits', () => {
 
   it('caps aggregate lookup attempts exactly at 119/120/121 across distinct normalized keys', async () => {
     const t = makeRsvpTest()
-    const results = []
+    const results = [
+      await t.mutation(api.rsvps.unlockByPhone, {
+        phone: 'entrada malformada',
+        token: opaqueToken(299),
+      }),
+    ]
     const ddds = ['11', '21', '31', '41', '51', '61', '71', '81', '91', '99']
 
-    for (let index = 1; index <= 121; index += 1) {
+    for (let index = 1; index <= 120; index += 1) {
       const ddd = ddds[index % ddds.length]
       const subscriber = String(index).padStart(8, '0')
       results.push(
