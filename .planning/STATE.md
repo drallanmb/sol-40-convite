@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-07-24T11:38:48.016Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-07-24T11:43:09.132Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 10
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 02 (convite-p-blico) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 02 execution started
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████░░░░░░] 40%
 | Phase 01-funda-o-design-system-deploy P02 | ~10min | 2 tasks | 3 files |
 | Phase 01 P03 | 25min | 3 tasks | 7 files |
 | Phase 02-convite-p-blico P01 | 20min | 3 tasks | 8 files |
+| Phase 02 P02 | 10min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 1-03]: duration-*/z-* não têm namespace @theme oficial no Tailwind v4 — usar sintaxe de parênteses duration-(--var)/z-(--var) em vez de utilitária nomeada; tracking-*/ease-* são namespaces oficiais e funcionam direto
 - [Phase ?]: [Phase 2-01]: vitest config lives in vite.config.ts (defineConfig from vitest/config) with passWithNoTests: true, not a separate vitest.config.ts
 - [Phase ?]: [Phase 2-01]: Croa do Goré guide URL intentionally uses the .com Tripadvisor host (research-verified) while the other 3 guide cards use .com.br (old project's verbatim URLs)
+- [Phase ?]: [Phase 2-02]: og.jpg (not og.png) ships as the Open Graph image — the source PNG was already at target 1200x630, so re-encoding to JPEG q70 was the only available weight reduction; any reference to /og.png is stale.
+- [Phase ?]: [Phase 2-02]: Absolute og:url deferred to Phase 7 (owners' checklist) until the production domain is fixed — index.html uses a root-relative /og.jpg with a comment documenting the deferral, no literal URL scheme.
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T11:38:48.010Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-07-24T11:43:09.127Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
