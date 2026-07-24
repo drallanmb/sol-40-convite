@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   RSVP_COPY,
   RSVP_DEADLINE_BOUNDARY,
@@ -41,14 +41,18 @@ class ClockStorage implements Storage {
 }
 
 describe('RSVP presentation clock', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('uses the injected system clock without reading storage in production', () => {
+    vi.stubEnv('DEV', false)
     const storage = new ClockStorage()
     storage.setItem(RSVP_DEV_NOW_STORAGE_KEY, '2030-01-01T00:00:00-03:00')
     const systemNow = Date.parse('2026-09-20T12:00:00-03:00')
 
     expect(
       getRsvpNow({
-        development: false,
         storage,
         systemNow: () => systemNow,
       }),
@@ -57,13 +61,13 @@ describe('RSVP presentation clock', () => {
   })
 
   it('uses a valid non-sensitive development override', () => {
+    vi.stubEnv('DEV', true)
     const storage = new ClockStorage()
     const override = '2026-10-01T00:00:00-03:00'
     storage.setItem(RSVP_DEV_NOW_STORAGE_KEY, override)
 
     expect(
       getRsvpNow({
-        development: true,
         storage,
         systemNow: () => 0,
       }),
@@ -73,13 +77,13 @@ describe('RSVP presentation clock', () => {
   it.each(['not-a-date', '', '2026-99-99'])(
     'falls back safely for malformed development override %j',
     (override) => {
+      vi.stubEnv('DEV', true)
       const storage = new ClockStorage()
       const systemNow = Date.parse('2026-09-20T12:00:00-03:00')
       storage.setItem(RSVP_DEV_NOW_STORAGE_KEY, override)
 
       expect(
         getRsvpNow({
-          development: true,
           storage,
           systemNow: () => systemNow,
         }),

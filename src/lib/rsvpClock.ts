@@ -10,7 +10,6 @@ export const RSVP_DEV_CLOCK_CONSOLE_SETUP =
 const RSVP_DEADLINE_TIME = Date.parse(RSVP_DEADLINE_BOUNDARY)
 
 export type RsvpClockOptions = {
-  development?: boolean
   storage?: Pick<Storage, 'getItem'>
   systemNow?: () => number
 }
@@ -26,12 +25,11 @@ function browserSessionStorage() {
 }
 
 export function getRsvpNow({
-  development = import.meta.env.DEV,
   storage,
   systemNow = Date.now,
 }: RsvpClockOptions = {}) {
   const currentTime = systemNow()
-  if (!development) return currentTime
+  if (!import.meta.env.DEV) return currentTime
 
   const clockStorage = storage ?? browserSessionStorage()
   if (!clockStorage) return currentTime
