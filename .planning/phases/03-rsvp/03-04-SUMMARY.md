@@ -59,7 +59,7 @@ coverage:
       - kind: integration
         ref: "Focused RSVP route/component suites plus npm run build"
         status: pass
-      - kind: manual
+      - kind: automated_ui
         ref: "Browser smoke: unlock, reload restoration, new-tab isolation, saved reload, and clean switch"
         status: pass
     human_judgment: false
@@ -73,7 +73,7 @@ coverage:
       - kind: integration
         ref: "npm test: 172 tests passed; production TypeScript/Vite build passed"
         status: pass
-      - kind: manual
+      - kind: automated_ui
         ref: "Browser smoke: accessible group names/order, one-person partial save, shared contact, persistent success, focused submit, and saved reload"
         status: pass
     human_judgment: true

@@ -98,7 +98,7 @@ created: 2026-07-24
 | 320, 360, 390, 640, 1024, and 1440 CSS-pixel viewports | ✅ pass | No horizontal/nested scroll; 320 stacked 44px choices, 360 used three equal choices, 640 centered the card, and 1024 used 257/560 columns with a 64px gap. |
 | Keyboard, focus, live regions, native groups, and privacy/tone | ✅ pass | Visible focus, named fieldsets/radios, polite success, alert errors, thankful all-no copy, neutral pending copy, clean URL/logs, and no admin/password control. |
 | Fixture idempotence and real Convex smoke | ✅ pass | Two guarded fixture runs returned the same 4 RSVP / 16 guest totals; real `npx convex dev --once` passed. |
-| Expired helper in browser | ⚠️ human needed | The internal expired capability was issued and revoked, but Chrome exposed no writable CDP/sessionStorage surface and the in-app browser was unavailable. |
+| Expired helper in browser | ⚠️ human needed | The internal expired capability was issued and revoked, but Chrome exposed no writable CDP/sessionStorage surface; the in-app browser available on retry intentionally allowed only read-only page evaluation. |
 | Post-deadline helper in browser | ⚠️ human needed | Literal deadline and automated dev-clock/backend date tests passed; the documented DEV session key could not be injected in this browser surface. |
 | Save call 31 visual throttle | ⚠️ human needed | Preparation returned exactly 29/30/30/31 and server teardown succeeded; browser token injection, dirty-draft N+1, and rendered retry remain manual. |
 | Browser offline/network retention | ⚠️ human needed | Catch/retry code and automated draft tests are green; this Chrome connector exposes neither CDP nor offline emulation. |

@@ -97,7 +97,7 @@ coverage:
         ref: "Expired capability injection, dev-clock rendering, browser save ordinal 31, and browser offline mode"
         status: unknown
     human_judgment: true
-    rationale: "The available Chrome extension exposes neither writable CDP/sessionStorage nor offline/media emulation, and no in-app browser was available."
+    rationale: "The available Chrome extension exposes neither writable CDP/sessionStorage nor offline/media emulation; the in-app browser was available on retry but intentionally exposes only read-only page evaluation."
 
 duration: 39min
 completed: 2026-07-24
