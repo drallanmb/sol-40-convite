@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
-status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-07-24T12:32:36.602Z"
+status: verifying
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-07-24T12:42:19.128Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 
 Phase: 02 (convite-p-blico) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 — Phase 02 execution started
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [█████████░] 90%
 | Phase 02 P04 | 15min | 2 tasks | 2 files |
 | Phase 02 P05 | 12min | 2 tasks | 2 files |
 | Phase 02 P06 | 15min | 2 tasks | 2 files |
+| Phase 02 P07 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-05]: DressCodeSection reserves each gallery figure's real aspect-ratio via inline style={{ aspectRatio }} (not a static Tailwind class) since the two ported photos have different real proportions (1120x1400 vs 895x1400) that a single static class can't express
 - [Phase ?]: [Phase 2-06]: Guide card border strategy uses a full border on every card (border border-line) rather than divide-x/nth-child tricks — simplest strategy indifferent to item count
 - [Phase ?]: [Phase 2-06]: Guide grid uses grid-cols-1 / sm:grid-cols-2 / lg:grid-cols-4 (never grid-cols-3) so 4 cards always fill complete rows
+- [Phase ?]: [Phase 2-07]: ShellProps gained typed navLinks/showCountdownRail/wordmarkHref props in place of the old untyped nav slot; the topbar's nav set now comes only from src/content/event.ts's NAV_LINKS
+- [Phase ?]: [Phase 2-07]: Countdown-rail reveal threshold is derived from the live DOM position (getBoundingClientRect of the element after the hero) rather than a hardcoded pixel value
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T12:32:36.597Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-07-24T12:42:19.124Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
