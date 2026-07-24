@@ -140,3 +140,7 @@ None - no external service configuration required.
 ---
 *Phase: 02-convite-p-blico*
 *Completed: 2026-07-24*
+
+## Self-Check: PASSED
+
+All claimed files exist (`PalmSvg.tsx`, `SeaWaves.tsx`, `Hero.tsx`, `src/index.css`, this SUMMARY.md) and all four commits (`3f3d8f6`, `e6ce1ac`, `9dda3ff`, `1a2b56b`) are present in git history.
