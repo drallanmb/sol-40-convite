@@ -1,15 +1,94 @@
 import { describe, expect, it } from 'vitest'
+import * as eventContent from './event'
 import {
   DRESS,
   EVENT_DATE,
   EVENT_DAY_START,
   EVENT_END,
   GUIDE,
+  HERO,
   HOTELS,
   NAV_LINKS,
   PROGRAMA,
   VENUE,
 } from './event'
+
+type RsvpCopyContract = {
+  route: {
+    kicker: string
+    heading: string
+    deadline: string
+    deadlinePassed: string
+    supporting: string
+  }
+  phone: {
+    heading: string
+    body: string
+    label: string
+    placeholder: string
+    hint: string
+    submit: string
+    busy: string
+    localInvalid: string
+    notFound: string
+    rateLimited: string
+    connectionError: string
+    privacy: string
+  }
+  session: {
+    restoring: string
+    expired: string
+    unlocked: string
+    switchPhone: string
+  }
+  family: {
+    kicker: string
+    greeting: string
+    formHeading: string
+    zeroGuests: string
+  }
+  attendance: {
+    yes: string
+    pending: string
+    no: string
+  }
+  contact: {
+    label: string
+    placeholder: string
+    hint: string
+  }
+  save: {
+    clean: string
+    dirty: string
+    submit: string
+    busy: string
+    partial: string
+    completeAttending: string
+    completeNotAttending: string
+    rateLimited: string
+    failure: string
+  }
+  discard: {
+    heading: string
+    body: string
+    safeAction: string
+    destructiveAction: string
+  }
+}
+
+const RSVP_COPY = Reflect.get(eventContent, 'RSVP_COPY') as RsvpCopyContract | undefined
+const RSVP_NAV_LINKS = Reflect.get(eventContent, 'RSVP_NAV_LINKS') as
+  | Array<{ label: string; href: string }>
+  | undefined
+const RSVP_DEADLINE_BOUNDARY = Reflect.get(eventContent, 'RSVP_DEADLINE_BOUNDARY') as
+  | string
+  | undefined
+
+function flattenCopy(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  if (!value || typeof value !== 'object') return []
+  return Object.values(value).flatMap(flattenCopy)
+}
 
 describe('event content — PROGRAMA', () => {
   it('has exactly 7 blocks in the locked order', () => {
@@ -45,9 +124,135 @@ describe('event content — HOTELS', () => {
 })
 
 describe('event content — NAV_LINKS', () => {
-  it('has exactly 3 links in page order', () => {
-    expect(NAV_LINKS).toHaveLength(3)
+  it('prepends the RSVP route and preserves the existing home-section order', () => {
+    expect(NAV_LINKS.map((link) => [link.label, link.href])).toEqual([
+      ['Confirmar presença', '/confirmar'],
+      ['Local', '#aracaju'],
+      ['Programação', '#programacao'],
+      ['Traje', '#traje'],
+    ])
+  })
+
+  it('uses absolute home targets in the reduced RSVP navigation', () => {
+    expect(RSVP_NAV_LINKS?.map((link) => [link.label, link.href])).toEqual([
+      ['Convite', '/'],
+      ['Programação', '/#programacao'],
+      ['Local', '/#aracaju'],
+    ])
+  })
+})
+
+describe('event content — RSVP entry and deadline', () => {
+  it('locks the hero primary route action and secondary fragment action', () => {
+    expect(HERO).toMatchObject({
+      primaryCtaLabel: 'Confirmar presença',
+      primaryCtaHref: '/confirmar',
+      secondaryCtaLabel: 'Ver programação ↓',
+      secondaryCtaHref: '#programacao',
+    })
+  })
+
+  it('uses the first instant after 30 September with an explicit event offset', () => {
+    expect(RSVP_DEADLINE_BOUNDARY).toBe('2026-10-01T00:00:00-03:00')
+  })
+})
+
+describe('event content — approved RSVP copy', () => {
+  it('centralizes the complete locked copy matrix', () => {
+    expect(RSVP_COPY).toEqual({
+      route: {
+        kicker: 'CONFIRMAÇÃO DE PRESENÇA',
+        heading: 'Esse pôr do sol tem lugar pra vocês.',
+        deadline: 'Confirme até 30 de setembro',
+        deadlinePassed: 'O prazo passou, mas você ainda pode responder ou editar.',
+        supporting: 'Você pode responder agora e editar depois, sem criar conta.',
+      },
+      phone: {
+        heading: 'Vamos encontrar seu convite.',
+        body: 'Digite o telefone usado no convite. Não precisa criar conta.',
+        label: 'Telefone',
+        placeholder: '(79) 99999-9999',
+        hint: 'Inclua o DDD. Pode digitar com ou sem espaços e pontuação.',
+        submit: 'Buscar convite',
+        busy: 'Buscando…',
+        localInvalid: 'Digite um telefone com DDD.',
+        notFound:
+          'Não foi possível localizar o convite. Confira o telefone com DDD e tente novamente.',
+        rateLimited: 'Muitas tentativas em pouco tempo. Aguarde {tempo} e tente novamente.',
+        connectionError: 'A conexão oscilou. Confira sua internet e tente novamente.',
+        privacy: 'O telefone serve apenas para localizar este convite.',
+      },
+      session: {
+        restoring: 'Reabrindo seu convite…',
+        expired: 'Sua sessão terminou. Digite o telefone novamente para reabrir o convite.',
+        unlocked: 'Convite encontrado.',
+        switchPhone: 'Usar outro telefone',
+      },
+      family: {
+        kicker: 'SEU CONVITE',
+        greeting: 'Olá, {displayName}. Esse pôr do sol tem lugar pra vocês.',
+        formHeading: 'Quem deste convite estará com a gente?',
+        zeroGuests: 'Este convite ainda não tem pessoas cadastradas. Fale com a organização.',
+      },
+      attendance: {
+        yes: 'Vai',
+        pending: 'Pendente',
+        no: 'Não vai',
+      },
+      contact: {
+        label: 'WhatsApp ou e-mail para contato (opcional)',
+        placeholder: 'Para qualquer aviso importante',
+        hint: 'Seu contato fica só com a organização da festa.',
+      },
+      save: {
+        clean: 'Tudo salvo',
+        dirty: 'Alterações ainda não salvas',
+        submit: 'Salvar respostas',
+        busy: 'Salvando…',
+        partial:
+          'Respostas salvas. Ainda há {pending} pessoa(s) pendente(s) — você pode voltar e completar depois.',
+        completeAttending: 'Presenças salvas. Que alegria ter vocês com a Sol!',
+        completeNotAttending: 'Respostas salvas. Obrigada por avisar com carinho.',
+        rateLimited:
+          'Você salvou várias vezes em pouco tempo. Aguarde {tempo}; suas escolhas continuam nesta tela.',
+        failure:
+          'Não foi possível salvar agora. Suas escolhas continuam nesta tela. Tente novamente.',
+      },
+      discard: {
+        heading: 'Descartar alterações?',
+        body:
+          'Você tem respostas que ainda não foram salvas. Quer usar outro telefone mesmo assim?',
+        safeAction: 'Continuar editando',
+        destructiveAction: 'Descartar e usar outro telefone',
+      },
+    })
+  })
+
+  it('contains only the two approved negative account assurances', () => {
+    const copy = flattenCopy(RSVP_COPY)
+    const negativeAssurances = copy.filter((value) => /criar conta/i.test(value))
+
+    expect(negativeAssurances).toEqual([
+      'Você pode responder agora e editar depois, sem criar conta.',
+      'Digite o telefone usado no convite. Não precisa criar conta.',
+    ])
+
+    const withoutApprovedAssurances = copy
+      .join('\n')
+      .replaceAll('sem criar conta', '')
+      .replaceAll('Não precisa criar conta', '')
+
+    expect(withoutApprovedAssurances).not.toMatch(
+      /\b(cadastro|cadastrar|cadastre|login|senha|administrador|admin)\b/i,
+    )
+  })
+})
+
+describe('event content — legacy navigation shape removed', () => {
+  it('does not regress to the three-link home navigation', () => {
+    expect(NAV_LINKS).toHaveLength(4)
     expect(NAV_LINKS.map((link) => link.href)).toEqual([
+      '/confirmar',
       '#aracaju',
       '#programacao',
       '#traje',
