@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: RSVP
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-07-24T18:58:47.841Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-07-24T19:19:39.716Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 3 Wave 0 complete; plan 03-02 ready
+last_activity_desc: Secure public RSVP backend complete; plan 03-03 ready
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -28,17 +28,17 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 3 (RSVP) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
-Last activity: 2026-07-24 — Wave 0 complete; public RSVP backend is next
+Last activity: 2026-07-24 — Secure public RSVP backend complete; plan 03-03 ready
 
-Progress: [████████░░] 75% (12/16 plans complete overall; Phase 3 is 1/5)
+Progress: [████████░░] 81% (13/16 plans complete overall; Phase 3 is 2/5)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: —
 - Total execution time: —
 
@@ -48,7 +48,7 @@ Progress: [████████░░] 75% (12/16 plans complete overall; Ph
 |-------|-------|-------|----------|
 | 1 | 3 | - | - |
 | 02 | 8 | - | - |
-| 03 | 1 | 5 | - |
+| 03 | 2 | 5 | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -65,6 +65,7 @@ Progress: [████████░░] 75% (12/16 plans complete overall; Ph
 | Phase 02 P07 | 12min | 2 tasks | 2 files |
 | Phase 02 P08 | 8min | 1 tasks | 1 files |
 | Phase 03 P01 | 13min | 3 tasks | 16 files |
+| Phase 03 P02 | 16 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 03]: Telefone móvel legado expõe candidatos exato/atual; normalizedKey usa a forma atual e inserts verificam também a inversa legada.
 - [Phase 03]: Fixtures RSVP são internalMutation dev-only, derivadas por HMAC de seed server-only e idempotentes em quatro formatos.
 - [Phase 03]: Harness Convex recebe dependências de teste por injeção de *.test.ts para não levar import.meta ao deploy.
+- [Phase 03]: Telefone libera apenas uma capability RSVP de 8 horas; não cria conta, login persistente ou acesso ao admin. — Separar a chave leve de busca da autorização pós-desbloqueio limita enumeração e mantém o escopo em uma família.
+- [Phase 03]: Save verifica o limite global primeiro; sessões inválidas consomem só global e sessões válidas consomem global mais sessão de forma coerente. — O circuito global não pode ser contornado por rotação de tokens e nenhum bucket aplicável deve ser consumido parcialmente.
+- [Phase 03]: 30 de setembro permanece informativo e não participa da autorização backend de RSVP. — A edição continua disponível antes, no dia e depois do prazo conforme a decisão de produto D-11.
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T18:58:47.837Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-07-24T19:19:39.712Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None

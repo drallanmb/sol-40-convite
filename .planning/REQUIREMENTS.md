@@ -27,8 +27,8 @@
 
 - [x] **RSVP-01**: Módulo `normalizePhone` (telefone brasileiro canônico, tratando o nono dígito) testado isoladamente
 - [x] **RSVP-02**: Schema Convex de convidados/família (`rsvps` + `rsvpGuests`, índice `by_phone`)
-- [ ] **RSVP-03**: Convidado confirma presença por pessoa (vai / não vai) via formulário público sem login
-- [ ] **RSVP-04**: Convidado busca por telefone e edita a resposta já enviada
+- [x] **RSVP-03**: Convidado confirma presença por pessoa (vai / não vai) via formulário público sem login
+- [x] **RSVP-04**: Convidado busca por telefone e edita a resposta já enviada
 - [x] **RSVP-05**: Rate-limit nas mutations públicas de RSVP
 
 ### Presentes (Carta de Vinhos)
@@ -103,8 +103,8 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | INVITE-04 | Phase 2 | Complete |
 | RSVP-01 | Phase 3 | Complete |
 | RSVP-02 | Phase 3 | Complete |
-| RSVP-03 | Phase 3 | Pending |
-| RSVP-04 | Phase 3 | Pending |
+| RSVP-03 | Phase 3 | Complete |
+| RSVP-04 | Phase 3 | Complete |
 | RSVP-05 | Phase 3 | Complete |
 | GIFT-01 | Phase 4 | Pending |
 | GIFT-02 | Phase 4 | Pending |
