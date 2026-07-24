@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-07-24T12:18:18.113Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-07-24T12:32:36.602Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 02 (convite-p-blico) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 02 execution started
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [████████░░] 80%
 | Phase 02 P03 | 11min | 3 tasks | 4 files |
 | Phase 02 P04 | 15min | 2 tasks | 2 files |
 | Phase 02 P05 | 12min | 2 tasks | 2 files |
+| Phase 02 P06 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-04]: min-w-[4ch] for the no-ceiling post-party day count is applied only to the day tile in both Countdown.tsx and CountdownRail.tsx, not all four tiles
 - [Phase ?]: [Phase 2-05]: ProgramaSection renders both a visible label-role kicker AND a separate aria-hidden decorative sun disc (day/month derived from PROGRAMA_KICKER.split(' ')), not just one, per the plan's explicit action text
 - [Phase ?]: [Phase 2-05]: DressCodeSection reserves each gallery figure's real aspect-ratio via inline style={{ aspectRatio }} (not a static Tailwind class) since the two ported photos have different real proportions (1120x1400 vs 895x1400) that a single static class can't express
+- [Phase ?]: [Phase 2-06]: Guide card border strategy uses a full border on every card (border border-line) rather than divide-x/nth-child tricks — simplest strategy indifferent to item count
+- [Phase ?]: [Phase 2-06]: Guide grid uses grid-cols-1 / sm:grid-cols-2 / lg:grid-cols-4 (never grid-cols-3) so 4 cards always fill complete rows
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T12:18:18.109Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-07-24T12:32:36.597Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None

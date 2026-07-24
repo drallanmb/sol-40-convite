@@ -135,3 +135,10 @@ None — the STRIDE threats already registered in `02-06-PLAN.md`'s `<threat_mod
 ---
 *Phase: 02-convite-p-blico*
 *Completed: 2026-07-24*
+
+## Self-Check: PASSED
+- FOUND: src/components/invite/LocalSection.tsx
+- FOUND: src/components/invite/GuideSection.tsx
+- FOUND: .planning/phases/02-convite-p-blico/02-06-SUMMARY.md
+- FOUND commit: 35238fa
+- FOUND commit: 2b633e4
