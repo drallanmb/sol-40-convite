@@ -1,29 +1,184 @@
+import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
+import CountdownRail from '../invite/CountdownRail'
+import { SECTION_IDS, type NavLink } from '../../content/event'
 
 export type ShellProps = {
   children: ReactNode
-  nav?: ReactNode
+  /** Topbar nav entries, sourced from `NAV_LINKS` (content/event.ts). No links → no nav, no hamburger. */
+  navLinks?: NavLink[]
+  /** Mounts the compact countdown rail below the topbar, revealed once the real countdown has scrolled past. */
+  showCountdownRail?: boolean
+  /** Href for the wordmark. Omitted → wordmark renders as a plain (non-link) mark. */
+  wordmarkHref?: string
 }
 
+const MAIN_ID = 'conteudo'
+
 /**
- * Shell base — topbar (wordmark + slot de navegação) + main (children) +
- * footer, mobile-first (empilha no mobile, espaça no desktop). Referência
- * de estilo (adaptada, sem o comportamento de scroll/countdown — Phase 2):
- * `.topbar`/`.site-footer` do globals.css antigo (sol-40-integrado).
+ * Shell base — topbar (wordmark + nav + mobile hamburger + optional compact
+ * countdown rail) + skip link + main (children) + footer, mobile-first.
+ * Reference for scroll/menu behaviour (adapted to React state, not the
+ * original class-toggling): `.topbar`/`.menu-toggle`/`.countdown-rail` in
+ * `globals.css` from `sol-40-integrado` (Phase 2, plan 02-07).
+ *
+ * All three new props are optional so `NotFound.tsx` keeps rendering with no
+ * topbar nav, unchanged.
  */
-export function Shell({ children, nav }: ShellProps) {
+export function Shell({ children, navLinks, showCountdownRail = false, wordmarkHref }: ShellProps) {
+  const [scrolled, setScrolled] = useState(false)
+  const [railRevealed, setRailRevealed] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuId = useId()
+
+  const hasNav = Boolean(navLinks && navLinks.length > 0)
+
+  // Single scroll listener for the whole page: CountdownRail deliberately
+  // has none of its own. Throttled through requestAnimationFrame so a burst
+  // of scroll events never schedules more than one state update per frame,
+  // registered passive so it can never block scrolling.
+  useEffect(() => {
+    let frame = 0
+
+    const readScrollState = () => {
+      frame = 0
+      setScrolled(window.scrollY > 12)
+
+      // Derive the reveal threshold from the countdown section's own
+      // position (the element right after the hero) rather than a magic
+      // pixel number: reveal once its bottom edge has scrolled above the
+      // viewport top, i.e. the real countdown is no longer visible.
+      const heroEl = document.getElementById(SECTION_IDS.hero)
+      const countdownEl = heroEl?.nextElementSibling as HTMLElement | null
+      if (countdownEl) {
+        setRailRevealed(countdownEl.getBoundingClientRect().bottom <= 0)
+      } else {
+        // Fallback for routes without the invite composition (or before the
+        // DOM has settled): roughly a viewport for the hero plus one more
+        // for the countdown section itself.
+        setRailRevealed(window.scrollY > window.innerHeight * 2)
+      }
+    }
+
+    const onScroll = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(readScrollState)
+    }
+
+    readScrollState()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  const headerChromeClasses = scrolled
+    ? 'border-line bg-cream/[.82] shadow-[0_4px_8px_rgba(53,25,42,0.1)] backdrop-blur-xl backdrop-saturate-[1.2]'
+    : 'border-transparent bg-transparent'
+
+  const wordmarkMark = (
+    <img src="/sol-symbol.png" alt="" width={58} height={50} className="h-[50px] w-[58px] object-contain" />
+  )
+
   return (
     <div className="flex min-h-screen flex-col bg-cream text-ink">
-      <header className="sticky top-0 z-(--z-sticky) border-b border-line bg-cream/90 backdrop-blur">
-        <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
-          <span className="font-serif text-lead tracking-display">Sol faz 40</span>
-          {nav ? (
-            <nav className="flex items-center gap-4 text-small uppercase tracking-label sm:gap-6">{nav}</nav>
+      {/* Skip link — visually hidden until focused, first focusable element on the page. */}
+      <a
+        href={`#${MAIN_ID}`}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-(--z-skip) focus:rounded-full focus:bg-plum focus:px-4 focus:py-3 focus:text-small focus:font-bold focus:uppercase focus:tracking-label focus:text-cream"
+      >
+        Pular para o conteúdo
+      </a>
+
+      <header
+        className={`sticky top-0 z-(--z-sticky) border-b text-plum transition-[background-color,border-color,box-shadow] duration-(--duration-medium) ease-out ${headerChromeClasses}`}
+      >
+        <div className="relative mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
+          {wordmarkHref ? (
+            <a
+              href={wordmarkHref}
+              aria-label="Sol faz 40 — voltar ao início"
+              className="flex min-h-[44px] w-[58px] items-center justify-center"
+            >
+              {wordmarkMark}
+            </a>
+          ) : (
+            <span aria-label="Sol faz 40" className="flex min-h-[44px] w-[58px] items-center justify-center">
+              {wordmarkMark}
+            </span>
+          )}
+
+          {hasNav ? (
+            <>
+              <nav
+                aria-label="Navegação principal"
+                className="hidden flex-1 items-center justify-center gap-4 text-small uppercase tracking-label sm:flex sm:gap-6"
+              >
+                {navLinks!.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="flex min-h-[44px] items-center opacity-80 transition-opacity duration-(--duration-fast) ease-out hover:opacity-100"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                aria-controls={menuId}
+                aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
+                className="relative flex h-11 min-h-[44px] w-11 flex-col items-center justify-center gap-[6px] sm:hidden"
+              >
+                <span
+                  className={`block h-0.5 w-[22px] rounded-full bg-current transition-transform duration-(--duration-fast) ease-out ${
+                    menuOpen ? 'translate-y-[8px] rotate-45' : ''
+                  }`}
+                />
+                <span
+                  className={`block h-0.5 w-[22px] rounded-full bg-current transition-opacity duration-(--duration-fast) ease-out ${
+                    menuOpen ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
+                <span
+                  className={`block h-0.5 w-[22px] rounded-full bg-current transition-transform duration-(--duration-fast) ease-out ${
+                    menuOpen ? '-translate-y-[8px] -rotate-45' : ''
+                  }`}
+                />
+              </button>
+            </>
           ) : null}
         </div>
+
+        {hasNav ? (
+          <nav
+            id={menuId}
+            aria-label="Navegação mobile"
+            className={`absolute inset-x-0 top-full ${menuOpen ? 'flex' : 'hidden'} flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label sm:hidden`}
+          >
+            {navLinks!.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-[44px] items-center px-2"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
+
+        {showCountdownRail ? <CountdownRail revealed={railRevealed} /> : null}
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id={MAIN_ID} tabIndex={-1} className="flex-1 outline-none">
+        {children}
+      </main>
 
       <footer className="grid place-content-center gap-2 bg-plum px-4 py-16 text-center text-cream sm:py-24">
         <h2 className="font-serif text-heading leading-[0.9] tracking-display">
