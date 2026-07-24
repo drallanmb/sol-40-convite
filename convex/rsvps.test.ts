@@ -2,10 +2,12 @@ import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, components, internal } from './_generated/api'
+import type { Id } from './_generated/dataModel'
 import { insertInvitation } from './rsvpInternal'
 import { RSVP_SESSION_TTL_MS } from './rsvpModel'
-import { RSVP_RATE_LIMITS } from './rsvpRateLimits'
+import { RSVP_RATE_LIMITS, rsvpRateLimiter } from './rsvpRateLimits'
 import {
+  createRsvpSession,
   encodeOpaqueToken,
   hashLimiterKey,
   hashOpaqueToken,
@@ -922,5 +924,685 @@ describe('demo session internal helpers', () => {
       t.mutation(internal.rsvpInternal.revokeDemoSession, { token }),
     ).resolves.toEqual({ kind: 'not_found' })
     await expect(t.query(api.rsvps.getCurrent, { token })).resolves.not.toBeNull()
+  })
+})
+
+async function readFamilyRows(t: RsvpHarness, rsvpId: Id<'rsvps'>) {
+  return t.run(async (ctx) => ({
+    rsvp: await ctx.db.get(rsvpId),
+    guests: await ctx.db
+      .query('rsvpGuests')
+      .withIndex('by_rsvp_sort', (query) => query.eq('rsvpId', rsvpId))
+      .collect(),
+    counts: {
+      rsvps: (await ctx.db.query('rsvps').collect()).length,
+      guests: (await ctx.db.query('rsvpGuests').collect()).length,
+    },
+  }))
+}
+
+async function createTestSession(
+  t: RsvpHarness,
+  rsvpId: Id<'rsvps'>,
+  token: string,
+  expiresAt?: number,
+) {
+  const result = await t.mutation((ctx) =>
+    createRsvpSession(ctx, {
+      rsvpId,
+      token,
+      ...(expiresAt === undefined ? {} : { expiresAt }),
+    }),
+  )
+  expect(result.kind).toBe('created')
+}
+
+async function readSaveRateValues(t: RsvpHarness, token: string) {
+  const tokenHash = await hashOpaqueToken(token)
+  const sessionKey = await hashLimiterKey('save-session', tokenHash)
+
+  const global = await t.query((ctx) =>
+    rsvpRateLimiter.getValue(ctx, 'saveGlobal'),
+  )
+  const session = await t.query((ctx) =>
+    rsvpRateLimiter.getValue(ctx, 'saveBySession', { key: sessionKey }),
+  )
+
+  return {
+    global: global.value,
+    session: session.value,
+  }
+}
+
+describe('partial save and idempotent behavior', () => {
+  it('patches only submitted people, accepts explicit pending, and preserves omitted rows', async () => {
+    vi.useFakeTimers()
+    const firstSaveAt = Date.UTC(2026, 7, 1, 12, 0, 0)
+    vi.setSystemTime(firstSaveAt)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8001',
+      displayName: 'Convite Parcial',
+      contact: 'original@example.com',
+      guests: [
+        { name: 'Pessoa Pendente', attendance: 'pending' },
+        { name: 'Pessoa Presente', attendance: 'yes' },
+        { name: 'Pessoa Ausente', attendance: 'no' },
+      ],
+    })
+    const token = opaqueToken(600)
+    await createTestSession(t, invitation.rsvpId, token)
+    const initialView = await t.query(api.rsvps.getCurrent, { token })
+    const before = await readFamilyRows(t, invitation.rsvpId)
+    if (!initialView) {
+      throw new Error('missing family view')
+    }
+
+    const first = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [
+        {
+          guestRef: initialView.guests[0].guestRef,
+          attendance: 'yes',
+        },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+    const afterFirst = await readFamilyRows(t, invitation.rsvpId)
+
+    expect(first).toEqual({
+      kind: 'saved',
+      view: expect.objectContaining({
+        contact: 'original@example.com',
+        guests: [
+          expect.objectContaining({ name: 'Pessoa Pendente', attendance: 'yes' }),
+          expect.objectContaining({ name: 'Pessoa Presente', attendance: 'yes' }),
+          expect.objectContaining({ name: 'Pessoa Ausente', attendance: 'no' }),
+        ],
+      }),
+    })
+    expect(afterFirst.guests[1]).toEqual(before.guests[1])
+    expect(afterFirst.guests[2]).toEqual(before.guests[2])
+    expect(afterFirst.guests[0].respondedAt).toBe(firstSaveAt)
+
+    vi.setSystemTime(firstSaveAt + 1_000)
+    const explicitPending = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [
+        {
+          guestRef: initialView.guests[1].guestRef,
+          attendance: 'pending',
+        },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+    const afterPending = await readFamilyRows(t, invitation.rsvpId)
+
+    expect(explicitPending).toEqual({
+      kind: 'saved',
+      view: expect.objectContaining({
+        guests: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Pessoa Presente',
+            attendance: 'pending',
+          }),
+        ]),
+      }),
+    })
+    expect(afterPending.guests[0]).toEqual(afterFirst.guests[0])
+    expect(afterPending.guests[1].respondedAt).toBe(firstSaveAt + 1_000)
+    expect(afterPending.guests[2]).toEqual(afterFirst.guests[2])
+    expect(afterPending.counts).toEqual(before.counts)
+  })
+
+  it('keeps business timestamps and document counts stable on an identical retry', async () => {
+    vi.useFakeTimers()
+    const now = Date.UTC(2026, 7, 2, 12, 0, 0)
+    vi.setSystemTime(now)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8002',
+      displayName: 'Convite Idempotente',
+      guests: [
+        { name: 'Pessoa A', attendance: 'pending' },
+        { name: 'Pessoa B', attendance: 'no' },
+      ],
+    })
+    const token = opaqueToken(601)
+    await createTestSession(t, invitation.rsvpId, token)
+    const view = await t.query(api.rsvps.getCurrent, { token })
+    if (!view) {
+      throw new Error('missing family view')
+    }
+    const command = {
+      token,
+      guestUpdates: [
+        {
+          guestRef: view.guests[0].guestRef,
+          attendance: 'yes' as const,
+        },
+      ],
+      contact: { kind: 'set' as const, value: '  idempotente@example.com  ' },
+    }
+
+    await t.mutation(api.rsvps.saveResponses, command)
+    const afterFirst = await readFamilyRows(t, invitation.rsvpId)
+    vi.setSystemTime(now + 60_000)
+    await t.mutation(api.rsvps.saveResponses, command)
+    const afterRetry = await readFamilyRows(t, invitation.rsvpId)
+
+    expect(afterRetry).toEqual(afterFirst)
+  })
+
+  it('lets two capabilities compose sparse edits to different people', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8003',
+      displayName: 'Convite Duas Abas',
+      guests: [
+        { name: 'Pessoa A', attendance: 'pending' },
+        { name: 'Pessoa B', attendance: 'pending' },
+        { name: 'Pessoa Omitida', attendance: 'no' },
+      ],
+    })
+    const tokenA = opaqueToken(602)
+    const tokenB = opaqueToken(603)
+    await createTestSession(t, invitation.rsvpId, tokenA)
+    await createTestSession(t, invitation.rsvpId, tokenB)
+    const view = await t.query(api.rsvps.getCurrent, { token: tokenA })
+    if (!view) {
+      throw new Error('missing family view')
+    }
+
+    await t.mutation(api.rsvps.saveResponses, {
+      token: tokenA,
+      guestUpdates: [{ guestRef: view.guests[0].guestRef, attendance: 'yes' }],
+      contact: { kind: 'unchanged' },
+    })
+    const second = await t.mutation(api.rsvps.saveResponses, {
+      token: tokenB,
+      guestUpdates: [{ guestRef: view.guests[1].guestRef, attendance: 'no' }],
+      contact: { kind: 'unchanged' },
+    })
+
+    expect(second).toEqual({
+      kind: 'saved',
+      view: expect.objectContaining({
+        guests: [
+          expect.objectContaining({ name: 'Pessoa A', attendance: 'yes' }),
+          expect.objectContaining({ name: 'Pessoa B', attendance: 'no' }),
+          expect.objectContaining({ name: 'Pessoa Omitida', attendance: 'no' }),
+        ],
+      }),
+    })
+  })
+})
+
+describe('contact command boundaries', () => {
+  it('supports set with trim, normalized no-op, clear, and 120/121-character limits', async () => {
+    vi.useFakeTimers()
+    const now = Date.UTC(2026, 7, 3, 12, 0, 0)
+    vi.setSystemTime(now)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8101',
+      displayName: 'Convite Contato',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    const token = opaqueToken(610)
+    await createTestSession(t, invitation.rsvpId, token)
+
+    const set = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'set', value: '  contato@example.com  ' },
+    })
+    expect(set).toEqual({
+      kind: 'saved',
+      view: expect.objectContaining({ contact: 'contato@example.com' }),
+    })
+    const afterSet = await readFamilyRows(t, invitation.rsvpId)
+
+    vi.setSystemTime(now + 1_000)
+    await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'set', value: 'contato@example.com' },
+    })
+    expect(await readFamilyRows(t, invitation.rsvpId)).toEqual(afterSet)
+
+    const cleared = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'clear' },
+    })
+    expect(cleared.kind).toBe('saved')
+    if (cleared.kind === 'saved') {
+      expect('contact' in cleared.view).toBe(false)
+    }
+
+    const maximum = 'x'.repeat(120)
+    const atMaximum = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'set', value: maximum },
+    })
+    expect(atMaximum).toEqual({
+      kind: 'saved',
+      view: expect.objectContaining({ contact: maximum }),
+    })
+    const beforeInvalid = await readFamilyRows(t, invitation.rsvpId)
+
+    const overMaximum = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'set', value: 'x'.repeat(121) },
+    })
+    const emptySet = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'set', value: '   ' },
+    })
+
+    expect(overMaximum).toEqual({ kind: 'invalid_update' })
+    expect(emptySet).toEqual({ kind: 'invalid_update' })
+    expect(await readFamilyRows(t, invitation.rsvpId)).toEqual(beforeInvalid)
+  })
+})
+
+describe('atomic save validation', () => {
+  it('rejects duplicate, foreign, and unknown guest refs before any family write', async () => {
+    const t = makeRsvpTest()
+    const invitationA = await seedInvitation(t, {
+      phone: '(79) 99999-8201',
+      displayName: 'Convite Atômico A',
+      contact: 'a@example.com',
+      guests: [
+        { name: 'Pessoa A1', attendance: 'pending' },
+        { name: 'Pessoa A2', attendance: 'no' },
+      ],
+    })
+    const invitationB = await seedInvitation(t, {
+      phone: '(79) 99999-8202',
+      displayName: 'Convite Atômico B',
+      contact: 'b@example.com',
+      guests: [{ name: 'Pessoa B1', attendance: 'yes' }],
+    })
+    const tokenA = opaqueToken(620)
+    const tokenB = opaqueToken(621)
+    await createTestSession(t, invitationA.rsvpId, tokenA)
+    await createTestSession(t, invitationB.rsvpId, tokenB)
+    const viewA = await t.query(api.rsvps.getCurrent, { token: tokenA })
+    const viewB = await t.query(api.rsvps.getCurrent, { token: tokenB })
+    if (!viewA || !viewB) {
+      throw new Error('missing family view')
+    }
+    const beforeA = await readFamilyRows(t, invitationA.rsvpId)
+    const beforeB = await readFamilyRows(t, invitationB.rsvpId)
+
+    const duplicate = await t.mutation(api.rsvps.saveResponses, {
+      token: tokenA,
+      guestUpdates: [
+        { guestRef: viewA.guests[0].guestRef, attendance: 'yes' },
+        { guestRef: viewA.guests[0].guestRef, attendance: 'no' },
+      ],
+      contact: { kind: 'set', value: 'novo@example.com' },
+    })
+    const foreign = await t.mutation(api.rsvps.saveResponses, {
+      token: tokenA,
+      guestUpdates: [
+        { guestRef: viewA.guests[0].guestRef, attendance: 'yes' },
+        { guestRef: viewB.guests[0].guestRef, attendance: 'no' },
+      ],
+      contact: { kind: 'clear' },
+    })
+    const unknown = await t.mutation(api.rsvps.saveResponses, {
+      token: tokenA,
+      guestUpdates: [
+        { guestRef: viewA.guests[0].guestRef, attendance: 'yes' },
+        { guestRef: 'guest_unknown_opaque_reference', attendance: 'no' },
+      ],
+      contact: { kind: 'clear' },
+    })
+
+    expect(duplicate).toEqual({ kind: 'invalid_update' })
+    expect(foreign).toEqual({ kind: 'invalid_update' })
+    expect(unknown).toEqual({ kind: 'invalid_update' })
+    expect(await readFamilyRows(t, invitationA.rsvpId)).toEqual(beforeA)
+    expect(await readFamilyRows(t, invitationB.rsvpId)).toEqual(beforeB)
+  })
+
+  it('lets args validation reject a malformed later item without committing the earlier valid item', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8203',
+      displayName: 'Convite Validator',
+      guests: [
+        { name: 'Pessoa A', attendance: 'pending' },
+        { name: 'Pessoa B', attendance: 'pending' },
+      ],
+    })
+    const token = opaqueToken(622)
+    await createTestSession(t, invitation.rsvpId, token)
+    const view = await t.query(api.rsvps.getCurrent, { token })
+    if (!view) {
+      throw new Error('missing family view')
+    }
+    const before = await readFamilyRows(t, invitation.rsvpId)
+
+    await expect(
+      t.mutation(api.rsvps.saveResponses, {
+        token,
+        guestUpdates: [
+          { guestRef: view.guests[0].guestRef, attendance: 'yes' },
+          { guestRef: view.guests[1].guestRef, attendance: 'maybe' },
+        ],
+        contact: { kind: 'unchanged' },
+      } as never),
+    ).rejects.toThrow()
+
+    expect(await readFamilyRows(t, invitation.rsvpId)).toEqual(before)
+  })
+})
+
+describe('save rate limits', () => {
+  it('allows save 29 and 30, throttles 31, and leaves global/session consumption coherent', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8301',
+      displayName: 'Convite Limite Sessão',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    const token = opaqueToken(630)
+    await createTestSession(t, invitation.rsvpId, token)
+    const results = []
+
+    for (let attempt = 1; attempt <= 31; attempt += 1) {
+      results.push(
+        await t.mutation(api.rsvps.saveResponses, {
+          token,
+          guestUpdates: [],
+          contact: { kind: 'unchanged' },
+        }),
+      )
+    }
+
+    expect(results[28].kind).toBe('saved')
+    expect(results[29].kind).toBe('saved')
+    expect(results[30]).toEqual({
+      kind: 'rate_limited',
+      retryAfterSeconds: expect.any(Number),
+    })
+    if (results[30].kind === 'rate_limited') {
+      expect(Number.isInteger(results[30].retryAfterSeconds)).toBe(true)
+      expect(results[30].retryAfterSeconds).toBeGreaterThan(0)
+    }
+    expect(await readSaveRateValues(t, token)).toEqual({
+      global: 270,
+      session: 0,
+    })
+  })
+
+  it('isolates sessions and aggregates 300 valid saves globally before throttling 301', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8302',
+      displayName: 'Convite Limite Global Válido',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    const tokens = Array.from({ length: 11 }, (_, index) => opaqueToken(640 + index))
+
+    for (const token of tokens) {
+      await createTestSession(t, invitation.rsvpId, token)
+    }
+
+    for (const token of tokens.slice(0, 10)) {
+      for (let attempt = 1; attempt <= 30; attempt += 1) {
+        const result = await t.mutation(api.rsvps.saveResponses, {
+          token,
+          guestUpdates: [],
+          contact: { kind: 'unchanged' },
+        })
+        expect(result.kind).toBe('saved')
+      }
+    }
+
+    const globalAttempt301 = await t.mutation(api.rsvps.saveResponses, {
+      token: tokens[10],
+      guestUpdates: [],
+      contact: { kind: 'unchanged' },
+    })
+
+    expect(globalAttempt301).toEqual({
+      kind: 'rate_limited',
+      retryAfterSeconds: expect.any(Number),
+    })
+    expect(await readSaveRateValues(t, tokens[10])).toEqual({
+      global: 0,
+      session: 30,
+    })
+  })
+})
+
+describe('global invalid token save limits', () => {
+  it('consumes only global for unknown tokens at 299/300 and throttles 301', async () => {
+    const t = makeRsvpTest()
+    const results = []
+    const tokens = []
+
+    for (let attempt = 1; attempt <= 301; attempt += 1) {
+      const token = opaqueToken(1_000 + attempt)
+      tokens.push(token)
+      results.push(
+        await t.mutation(api.rsvps.saveResponses, {
+          token,
+          guestUpdates: [],
+          contact: { kind: 'unchanged' },
+        }),
+      )
+    }
+
+    expect(results[298]).toEqual({ kind: 'session_expired' })
+    expect(results[299]).toEqual({ kind: 'session_expired' })
+    expect(results[300]).toEqual({
+      kind: 'rate_limited',
+      retryAfterSeconds: expect.any(Number),
+    })
+    for (const index of [298, 299, 300]) {
+      expect((await readSaveRateValues(t, tokens[index])).session).toBe(30)
+    }
+  })
+
+  it('consumes only global for an expired capability at 299/300 and throttles 301', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8401',
+      displayName: 'Convite Expirado Global',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    const token = opaqueToken(1_400)
+    await createTestSession(t, invitation.rsvpId, token, Date.now() - 1)
+    const results = []
+
+    for (let attempt = 1; attempt <= 301; attempt += 1) {
+      results.push(
+        await t.mutation(api.rsvps.saveResponses, {
+          token,
+          guestUpdates: [],
+          contact: { kind: 'unchanged' },
+        }),
+      )
+    }
+
+    expect(results[298]).toEqual({ kind: 'session_expired' })
+    expect(results[299]).toEqual({ kind: 'session_expired' })
+    expect(results[300]).toEqual({
+      kind: 'rate_limited',
+      retryAfterSeconds: expect.any(Number),
+    })
+    expect(await readSaveRateValues(t, token)).toEqual({
+      global: 0,
+      session: 30,
+    })
+  })
+
+  it('treats a malformed well-shaped call token as global-only session expiry', async () => {
+    const t = makeRsvpTest()
+    const result = await t.mutation(api.rsvps.saveResponses, {
+      token: 'malformed-but-string-shaped',
+      guestUpdates: [],
+      contact: { kind: 'unchanged' },
+    })
+
+    expect(result).toEqual({ kind: 'session_expired' })
+    const global = await t.query((ctx) =>
+      rsvpRateLimiter.getValue(ctx, 'saveGlobal'),
+    )
+    expect(global.value).toBe(299)
+  })
+})
+
+describe('prepare throttle internal action', () => {
+  it('performs exactly 30 real saves, leaves ordinal 31 throttled, rejects collision, and tears down', async () => {
+    const t = makeRsvpTest()
+    await t.mutation(internal.rsvpInternal.ensureDemoFixtures, {})
+    const token = opaqueToken(1_500)
+
+    const prepared = await t.action(
+      internal.rsvpInternal.prepareSaveThrottleDemo,
+      {
+        fixture: 'normal',
+        token,
+      },
+    )
+
+    expect(prepared).toEqual({
+      nMinusOne: 29,
+      atLimit: 30,
+      successfulCalls: 30,
+      nextCallOrdinal: 31,
+    })
+    expect(await readSaveRateValues(t, token)).toEqual({
+      global: 270,
+      session: 0,
+    })
+    await expect(
+      t.action(internal.rsvpInternal.prepareSaveThrottleDemo, {
+        fixture: 'normal',
+        token,
+      }),
+    ).rejects.toThrow(/preparar/i)
+
+    const ordinal31 = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [],
+      contact: { kind: 'unchanged' },
+    })
+    expect(ordinal31).toEqual({
+      kind: 'rate_limited',
+      retryAfterSeconds: expect.any(Number),
+    })
+    if (ordinal31.kind === 'rate_limited') {
+      expect(Number.isInteger(ordinal31.retryAfterSeconds)).toBe(true)
+      expect(ordinal31.retryAfterSeconds).toBeGreaterThan(0)
+    }
+    await expect(
+      t.mutation(internal.rsvpInternal.revokeDemoSession, { token }),
+    ).resolves.toEqual({ kind: 'deleted' })
+    await expect(t.query(api.rsvps.getCurrent, { token })).resolves.toBeNull()
+  })
+
+  it('is unavailable without the development-only guard', async () => {
+    const t = makeRsvpTest()
+    delete process.env.RSVP_ENABLE_DEMO_FIXTURES
+
+    await expect(
+      t.action(internal.rsvpInternal.prepareSaveThrottleDemo, {
+        fixture: 'normal',
+        token: opaqueToken(1_501),
+      }),
+    ).rejects.toThrow(/desabilitadas/i)
+  })
+})
+
+describe('deadline policy', () => {
+  it.each([
+    ['before', Date.UTC(2026, 8, 29, 12, 0, 0)],
+    ['on', Date.UTC(2026, 8, 30, 12, 0, 0)],
+    ['after', Date.UTC(2026, 9, 1, 12, 0, 0)],
+  ])('saves with the same contract %s 30 September', async (_label, now) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8501',
+      displayName: 'Convite Prazo Informativo',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    const token = opaqueToken((now / 1_000) % 4_000_000_000)
+    await createTestSession(t, invitation.rsvpId, token)
+    const view = await t.query(api.rsvps.getCurrent, { token })
+    if (!view) {
+      throw new Error('missing family view')
+    }
+
+    const result = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [
+        { guestRef: view.guests[0].guestRef, attendance: 'yes' },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+
+    expect(result.kind).toBe('saved')
+  })
+})
+
+describe('save privacy', () => {
+  it('returns the same safe scoped view without IDs, phone, token, or another invitation contact', async () => {
+    const t = makeRsvpTest()
+    const invitationA = await seedInvitation(t, {
+      phone: '(79) 99999-8601',
+      displayName: 'Convite Privado A',
+      contact: 'a@example.com',
+      guests: [{ name: 'Pessoa A', attendance: 'pending' }],
+    })
+    const invitationB = await seedInvitation(t, {
+      phone: '(79) 99999-8602',
+      displayName: 'Convite Privado B',
+      contact: 'segredo-b@example.com',
+      guests: [{ name: 'Pessoa B', attendance: 'yes' }],
+    })
+    const tokenA = opaqueToken(1_600)
+    const tokenB = opaqueToken(1_601)
+    await createTestSession(t, invitationA.rsvpId, tokenA)
+    await createTestSession(t, invitationB.rsvpId, tokenB)
+    const viewA = await t.query(api.rsvps.getCurrent, { token: tokenA })
+    const viewB = await t.query(api.rsvps.getCurrent, { token: tokenB })
+    if (!viewA || !viewB) {
+      throw new Error('missing family view')
+    }
+
+    const foreignResult = await t.mutation(api.rsvps.saveResponses, {
+      token: tokenA,
+      guestUpdates: [
+        { guestRef: viewB.guests[0].guestRef, attendance: 'no' },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+    const saved = await t.mutation(api.rsvps.saveResponses, {
+      token: tokenA,
+      guestUpdates: [
+        { guestRef: viewA.guests[0].guestRef, attendance: 'yes' },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+
+    expect(foreignResult).toEqual({ kind: 'invalid_update' })
+    expect(saved.kind).toBe('saved')
+    expect(collectForbiddenKeys(saved)).toEqual([])
+    expect(JSON.stringify(saved)).not.toContain('segredo-b@example.com')
+    expect(JSON.stringify(saved)).not.toContain('Pessoa B')
+    expect(JSON.stringify(saved)).not.toContain(tokenA)
   })
 })
