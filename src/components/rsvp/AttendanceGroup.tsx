@@ -62,7 +62,7 @@ export function AttendanceGroup({
             <label
               key={option.value}
               htmlFor={optionId}
-              className={`flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-full border px-3 py-2 text-center font-sans text-small font-bold transition-[background-color,border-color,color] duration-(--duration-fast) ease-out has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-coral has-[:focus-visible]:outline-offset-[3px] ${
+              className={`flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-full border px-3 py-2 text-center font-sans text-small font-bold transition-[background-color,border-color,color] duration-(--duration-fast) ease-out min-[360px]:flex-col min-[360px]:gap-1 min-[360px]:px-1 min-[480px]:flex-row min-[480px]:gap-2 min-[480px]:px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-coral has-[:focus-visible]:outline-offset-[3px] motion-reduce:transition-none ${
                 checked
                   ? option.selectedClasses
                   : 'border-line bg-card text-ink hover:border-plum/45'

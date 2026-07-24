@@ -197,14 +197,14 @@ export function PhoneGate({
         <Button
           type="submit"
           variant="rsvp"
-          className="w-full"
+          className="w-full motion-reduce:transform-none motion-reduce:transition-none"
           disabled={busy || retryBlocked}
           aria-busy={busy}
         >
           {busy ? RSVP_COPY.phone.busy : RSVP_COPY.phone.submit}
         </Button>
 
-        <p className="text-center text-caption opacity-70">
+        <p className="text-center text-small text-plum/80">
           {RSVP_COPY.phone.privacy}
         </p>
       </form>

@@ -113,10 +113,20 @@ function FamilyReadErrorCard({
         {RSVP_COPY.phone.connectionError}
       </p>
       <div className="grid gap-3 min-[420px]:grid-cols-2">
-        <Button type="button" variant="rsvp" onClick={onRetry}>
+        <Button
+          type="button"
+          variant="rsvp"
+          className="motion-reduce:transform-none motion-reduce:transition-none"
+          onClick={onRetry}
+        >
           Tentar novamente
         </Button>
-        <Button type="button" variant="quiet" onClick={onSwitchPhone}>
+        <Button
+          type="button"
+          variant="quiet"
+          className="motion-reduce:transform-none motion-reduce:transition-none"
+          onClick={onSwitchPhone}
+        >
           {RSVP_COPY.session.switchPhone}
         </Button>
       </div>
@@ -301,16 +311,16 @@ function Confirmar() {
       showCountdownRail={false}
       wordmarkHref="/"
     >
-      <section className="px-4 py-12 sm:px-8 sm:py-16">
-        <div className="mx-auto grid max-w-[1120px] gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(560px,1.2fr)] lg:items-start lg:gap-16">
+      <section className="px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-12 sm:px-8 sm:pb-[max(4rem,env(safe-area-inset-bottom))] sm:pt-16">
+        <div className="mx-auto grid max-w-[704px] gap-12 sm:gap-16 lg:max-w-[1120px] lg:grid-cols-[minmax(0,0.8fr)_minmax(560px,1.2fr)] lg:items-start lg:gap-16">
           <div className="grid gap-5 lg:sticky lg:top-[104px]">
-            <p className="text-small font-bold uppercase tracking-label text-orange">
+            <p className="text-small font-bold uppercase tracking-label text-plum/75">
               {RSVP_COPY.route.kicker}
             </p>
             <h1
               ref={routeHeadingRef}
               tabIndex={-1}
-              className="font-serif text-heading leading-[1.02] tracking-display text-plum outline-none"
+              className="font-serif text-heading leading-[1.02] tracking-display text-plum"
             >
               {RSVP_COPY.route.heading.slice(
                 0,

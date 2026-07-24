@@ -77,6 +77,7 @@ export function DiscardDialog({
             id={safeActionId}
             type="button"
             variant="quiet"
+            className="motion-reduce:transform-none motion-reduce:transition-none"
             onClick={continueEditing}
           >
             {RSVP_COPY.discard.safeAction}
@@ -84,7 +85,7 @@ export function DiscardDialog({
           <Button
             type="button"
             variant="quiet"
-            className="border-wine bg-wine text-cream hover:bg-plum"
+            className="border-wine bg-wine text-cream hover:bg-plum motion-reduce:transform-none motion-reduce:transition-none"
             onClick={discardChanges}
           >
             {RSVP_COPY.discard.destructiveAction}

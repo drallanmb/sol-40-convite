@@ -246,14 +246,14 @@ export function FamilyForm({
 
         <div className="grid gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="text-small font-bold uppercase tracking-label text-orange">
+            <p className="text-small font-bold uppercase tracking-label text-plum/75">
               {RSVP_COPY.family.kicker}
             </p>
             <Button
               id={switchPhoneId}
               type="button"
               variant="quiet"
-              className="min-h-11 px-4 py-2"
+              className="min-h-11 px-4 py-2 motion-reduce:transform-none motion-reduce:transition-none"
               onClick={handleSwitchPhone}
             >
               {RSVP_COPY.session.switchPhone}
@@ -263,7 +263,7 @@ export function FamilyForm({
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="break-words font-serif text-subheading leading-[1.2] text-plum outline-none"
+            className="break-words font-serif text-subheading leading-[1.2] text-plum"
           >
             {fillTemplate(RSVP_COPY.family.greeting, {
               displayName: view.displayName,
@@ -331,7 +331,7 @@ export function FamilyForm({
               />
               <p
                 id={contactGuidanceId}
-                className="-mt-3 text-right text-caption text-plum/70"
+                className="-mt-3 text-right text-small text-plum/80"
               >
                 {contactValidation.length}/{CONTACT_MAX_LENGTH} caracteres
               </p>
@@ -355,7 +355,7 @@ export function FamilyForm({
               <Button
                 type="submit"
                 variant="rsvp"
-                className="w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                className="w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-50 motion-reduce:transform-none motion-reduce:transition-none"
                 aria-disabled={
                   saving ||
                   retryBlocked ||
@@ -367,7 +367,7 @@ export function FamilyForm({
                 {saving ? RSVP_COPY.save.busy : RSVP_COPY.save.submit}
               </Button>
 
-              <p className="text-center text-caption opacity-70">
+              <p className="text-center text-small text-plum/80">
                 {RSVP_COPY.contact.hint}
               </p>
             </div>
