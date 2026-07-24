@@ -8,7 +8,7 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
 
 - [x] **Phase 1: Fundação, Design System & Deploy** - Scaffold Convex + Vite/React/TS/Tailwind, pipeline Vercel e identidade visual portada (completed 2026-07-23)
 - [x] **Phase 2: Convite Público** - Página do evento: hero, countdown, programa, dress code, local/Aracaju (completed 2026-07-24)
-- [ ] **Phase 3: RSVP** - Confirmação de presença pública por telefone, com edição
+- [x] **Phase 3: RSVP** - Confirmação de presença pública por telefone, com edição (completed 2026-07-24)
 - [ ] **Phase 4: Carta de Vinhos** - Catálogo de presentes que redireciona para o WhatsApp
 - [ ] **Phase 5: Mural de Memórias + Moderação** - Envio de fotos/recados com fila de moderação
 - [ ] **Phase 6: Dashboard Interno (/admin)** - Painel dos donos: confirmações ao vivo, convidados, moderação, presentes
@@ -186,7 +186,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 |-------|----------------|--------|-----------|
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 8/8 | Complete    | 2026-07-24 |
-| 3. RSVP | 5/5 | In Progress|  |
+| 3. RSVP | 5/5 | Complete    | 2026-07-24 |
 | 4. Carta de Vinhos | 0/2 | Not started | - |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
 | 6. Dashboard Interno (/admin) | 0/2 | Not started | - |
