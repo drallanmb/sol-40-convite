@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import CountdownRail from '../invite/CountdownRail'
 import { SECTION_IDS, type NavLink } from '../../content/event'
@@ -30,8 +30,32 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
   const [railRevealed, setRailRevealed] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuId = useId()
+  const menuToggleRef = useRef<HTMLButtonElement>(null)
+  const mobileNavRef = useRef<HTMLElement>(null)
 
   const hasNav = Boolean(navLinks && navLinks.length > 0)
+
+  // Basic keyboard/focus management for the mobile hamburger panel (WR-03):
+  // Escape closes it and returns focus to the toggle button, and opening it
+  // moves focus to the first link so keyboard/AT users land inside the newly
+  // revealed navigation region instead of being left on the button with no
+  // signal anything changed. Link clicks keep closing the panel through
+  // their own `onClick` below, unaffected by this effect.
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const firstLink = mobileNavRef.current?.querySelector<HTMLAnchorElement>('a')
+    firstLink?.focus()
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMenuOpen(false)
+      menuToggleRef.current?.focus()
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [menuOpen])
 
   // Single scroll listener for the whole page: CountdownRail deliberately
   // has none of its own. Throttled through requestAnimationFrame so a burst
@@ -127,6 +151,7 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
               </nav>
 
               <button
+                ref={menuToggleRef}
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
                 aria-expanded={menuOpen}
@@ -156,6 +181,7 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
 
         {hasNav ? (
           <nav
+            ref={mobileNavRef}
             id={menuId}
             aria-label="Navegação mobile"
             className={`absolute inset-x-0 top-full ${menuOpen ? 'flex' : 'hidden'} flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label sm:hidden`}
