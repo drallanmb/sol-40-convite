@@ -1,7 +1,14 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { buttonClassName } from '../components/ui/Button'
+import buttonSource from '../components/ui/Button.tsx?raw'
+import fieldSource from '../components/ui/Field.tsx?raw'
+import heroSource from '../components/invite/Hero.tsx?raw'
+import shellSource from '../components/layout/Shell.tsx?raw'
+import rsvpClockSource from '../lib/rsvpClock.ts?raw'
+import rsvpDraftSource from '../lib/rsvpDraft.ts?raw'
+import rsvpSessionSource from '../lib/rsvpSession.ts?raw'
 import * as eventContent from './event'
+import eventSource from './event.ts?raw'
 import {
   DRESS,
   EVENT_DATE,
@@ -94,20 +101,16 @@ function flattenCopy(value: unknown): string[] {
   return Object.values(value).flatMap(flattenCopy)
 }
 
-const RSVP_SURFACE_SOURCE_PATHS = [
-  './event.ts',
-  '../components/invite/Hero.tsx',
-  '../components/layout/Shell.tsx',
-  '../components/ui/Button.tsx',
-  '../components/ui/Field.tsx',
-  '../lib/rsvpDraft.ts',
-  '../lib/rsvpSession.ts',
-  '../lib/rsvpClock.ts',
+const RSVP_SURFACE_SOURCES = [
+  eventSource,
+  heroSource,
+  shellSource,
+  buttonSource,
+  fieldSource,
+  rsvpDraftSource,
+  rsvpSessionSource,
+  rsvpClockSource,
 ] as const
-
-function readSource(path: string) {
-  return readFileSync(new URL(path, import.meta.url), 'utf8')
-}
 
 describe('event content — PROGRAMA', () => {
   it('has exactly 7 blocks in the locked order', () => {
@@ -258,7 +261,7 @@ describe('event content — approved RSVP copy', () => {
       'Digite o telefone usado no convite. Não precisa criar conta.',
     ])
 
-    const surfaceSource = RSVP_SURFACE_SOURCE_PATHS.map(readSource).join('\n')
+    const surfaceSource = RSVP_SURFACE_SOURCES.join('\n')
     const withoutApprovedAssurances = surfaceSource
       .replaceAll('sem criar conta', '')
       .replaceAll('Não precisa criar conta', '')
@@ -286,9 +289,7 @@ describe('RSVP primitive contracts', () => {
   })
 
   it('uses a solid AA placeholder color instead of inherited half-opacity ink', () => {
-    expect(readSource('../components/ui/Field.tsx')).toContain(
-      'placeholder:text-wine',
-    )
+    expect(fieldSource).toContain('placeholder:text-wine')
   })
 })
 

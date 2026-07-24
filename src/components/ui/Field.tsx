@@ -17,7 +17,7 @@ export type FieldTextareaProps = FieldOwnProps & {
 export type FieldProps = FieldInputProps | FieldTextareaProps
 
 const controlClasses =
-  'w-full min-h-[44px] border-0 border-b border-line bg-transparent px-0.5 py-3 font-sans text-body text-ink outline-none focus:border-coral'
+  'w-full min-h-[44px] border-0 border-b border-line bg-transparent px-0.5 py-3 font-sans text-body text-ink placeholder:text-wine outline-none focus:border-coral'
 
 /**
  * Campo primitivo — label + input/textarea com borda inferior (foco vira

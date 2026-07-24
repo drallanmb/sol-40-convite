@@ -148,10 +148,12 @@ export const RSVP_COPY = {
   family: {
     kicker: 'SEU CONVITE',
     greeting: 'Olá, {displayName}. Esse pôr do sol tem lugar pra vocês.',
+    savedSummary: 'Vai: {yes} · Não vai: {no} · Pendente: {pending}',
     formHeading: 'Quem deste convite estará com a gente?',
     zeroGuests: 'Este convite ainda não tem pessoas cadastradas. Fale com a organização.',
   },
   attendance: {
+    groupLabel: 'Presença de {name}',
     yes: 'Vai',
     pending: 'Pendente',
     no: 'Não vai',

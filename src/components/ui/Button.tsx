@@ -13,7 +13,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary: 'border-0 bg-orange text-cream hover:bg-plum active:scale-[0.98]',
   quiet: 'border border-plum bg-transparent text-plum hover:bg-plum/5 active:scale-[0.98]',
   rsvp:
-    'border-0 bg-plum text-cream hover:bg-ink active:scale-[0.98] active:bg-ink focus-visible:outline-[3px] focus-visible:outline-sea focus-visible:outline-offset-[3px]',
+    'border-0 bg-plum text-cream hover:bg-ink active:scale-[0.98] active:bg-ink focus-visible:outline-[3px]! focus-visible:outline-sea! focus-visible:outline-offset-[3px]!',
 }
 
 /** Shared primitive classes for both native buttons and semantic route links. */
