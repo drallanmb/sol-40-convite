@@ -1,7 +1,9 @@
-export const RSVP_CAPABILITY_STORAGE_KEY = 'sol40:rsvp-capability:v1'
+import {
+  RSVP_CAPABILITY_BYTE_LENGTH,
+  isRsvpCapability,
+} from './rsvpCapability'
 
-const CAPABILITY_BYTE_LENGTH = 32
-const CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/
+export const RSVP_CAPABILITY_STORAGE_KEY = 'sol40:rsvp-capability:v1'
 
 export type RsvpUnlockServerResult =
   | { kind: 'unlocked' }
@@ -23,10 +25,6 @@ export type RsvpCapabilityFactory = () => string
 
 export type RsvpRandomFill = (bytes: Uint8Array<ArrayBuffer>) => void
 
-function isRsvpCapability(value: string) {
-  return CAPABILITY_PATTERN.test(value)
-}
-
 function encodeBase64Url(bytes: Uint8Array) {
   let binary = ''
   for (const byte of bytes) {
@@ -45,7 +43,7 @@ export function generateRsvpCapability(
   },
 ) {
   const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(
-    new ArrayBuffer(CAPABILITY_BYTE_LENGTH),
+    new ArrayBuffer(RSVP_CAPABILITY_BYTE_LENGTH),
   )
   fillRandom(bytes)
   return encodeBase64Url(bytes)

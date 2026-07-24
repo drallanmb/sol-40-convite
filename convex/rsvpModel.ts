@@ -22,7 +22,6 @@ export const RSVP_DISPLAY_NAME_MAX_LENGTH = 160
 export const RSVP_GUEST_NAME_MAX_LENGTH = 180
 
 export const RSVP_SESSION_TTL_MS = 8 * 60 * 60 * 1_000
-export const RSVP_SESSION_TOKEN_BYTES = 32
 export const RSVP_TOKEN_HASH_HEX_LENGTH = 64
 
 export const RSVP_DEMO_FIXTURE_FLAG = 'development-only'

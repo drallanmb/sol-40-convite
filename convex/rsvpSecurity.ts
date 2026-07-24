@@ -1,12 +1,11 @@
 import type { Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import {
-  RSVP_SESSION_TOKEN_BYTES,
-  RSVP_SESSION_TTL_MS,
-} from './rsvpModel'
+  RSVP_CAPABILITY_BYTE_LENGTH,
+  isRsvpCapability,
+} from '../src/lib/rsvpCapability'
+import { RSVP_SESSION_TTL_MS } from './rsvpModel'
 
-const OPAQUE_TOKEN_LENGTH = Math.ceil((RSVP_SESSION_TOKEN_BYTES * 8) / 6)
-const OPAQUE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/
 const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
 
 type LimiterKeyScope = 'lookup-phone' | 'save-session'
@@ -27,11 +26,11 @@ async function sha256Hex(value: string) {
  * O último caractere restrito também rejeita encodings não canônicos com pad bits.
  */
 export function validateOpaqueToken(token: string) {
-  return token.length === OPAQUE_TOKEN_LENGTH && OPAQUE_TOKEN_PATTERN.test(token)
+  return isRsvpCapability(token)
 }
 
 export function encodeOpaqueToken(bytes: Uint8Array) {
-  if (bytes.byteLength !== RSVP_SESSION_TOKEN_BYTES) {
+  if (bytes.byteLength !== RSVP_CAPABILITY_BYTE_LENGTH) {
     throw new Error('Invalid opaque capability bytes')
   }
 
