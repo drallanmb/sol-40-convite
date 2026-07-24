@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
 status: verifying
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-07-24T12:42:19.128Z"
+stopped_at: Completed 02-08-PLAN.md (gap closure G-02-3)
+last_updated: "2026-07-24T14:19:03.386Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
   completed_phases: 2
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 11
+  completed_plans: 11
 ---
 
 # Project State
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | Phase 02 P05 | 12min | 2 tasks | 2 files |
 | Phase 02 P06 | 15min | 2 tasks | 2 files |
 | Phase 02 P07 | 12min | 2 tasks | 2 files |
+| Phase 02 P08 | 8min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-06]: Guide grid uses grid-cols-1 / sm:grid-cols-2 / lg:grid-cols-4 (never grid-cols-3) so 4 cards always fill complete rows
 - [Phase ?]: [Phase 2-07]: ShellProps gained typed navLinks/showCountdownRail/wordmarkHref props in place of the old untyped nav slot; the topbar's nav set now comes only from src/content/event.ts's NAV_LINKS
 - [Phase ?]: [Phase 2-07]: Countdown-rail reveal threshold is derived from the live DOM position (getBoundingClientRect of the element after the hero) rather than a hardcoded pixel value
+- [Phase ?]: [Phase 2-08]: Hero palm silhouettes scale via base/sm:/md: Tailwind breakpoints (380x228 -> 500x300 -> 600x360) instead of one fixed footprint, restoring the exact original md: values so desktop framing stays byte-identical (closes UAT gap G-02-3)
 
 ### Pending Todos
 
@@ -111,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T12:42:19.124Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-07-24T14:19:03.380Z
+Stopped at: Completed 02-08-PLAN.md (gap closure G-02-3)
 Resume file: None

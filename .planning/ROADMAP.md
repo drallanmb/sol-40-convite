@@ -47,9 +47,12 @@ Plans:
   2. As seções de programa, dress code e local/mapa de Aracaju + guia da cidade aparecem
   3. Topbar e footer funcionam e a página é usável no celular
 
-**Plans**: 7/7 plans executed
+**Plans**: 8/8 plans executed
 
 Plans:
+
+- [x] 02-08-PLAN.md
+
 **Wave 1**
 
 - [x] 02-01-PLAN.md — Wave 0 (vitest) + `src/content/event.ts` + countdown puro (`getEventState`, `pluralizeUnit`, `useCountdown`)
@@ -169,7 +172,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
-| 2. Convite Público | 7/7 | In Progress|  |
+| 2. Convite Público | 8/8 | In Progress|  |
 | 3. RSVP | 0/2 | Not started | - |
 | 4. Carta de Vinhos | 0/2 | Not started | - |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
