@@ -47,12 +47,17 @@ Plans:
   2. As seções de programa, dress code e local/mapa de Aracaju + guia da cidade aparecem
   3. Topbar e footer funcionam e a página é usável no celular
 
-**Plans**: TBD
+**Plans**: 7 plans
 
 Plans:
 
-- [ ] 02-01: Hero + countdown (fuso explícito)
-- [ ] 02-02: Seções de conteúdo (programa, dress code, Aracaju/mapa/guia, topbar/footer)
+- [ ] 02-01-PLAN.md — Wave 0 (vitest) + `src/content/event.ts` + countdown puro (`getEventState`, `pluralizeUnit`, `useCountdown`)
+- [ ] 02-02-PLAN.md — Assets do projeto antigo para `public/` (comprimidos) + metadados do `index.html` (título, description, OG, favicon)
+- [ ] 02-03-PLAN.md — Hero: céu/sol/horizonte, palmeiras em SVG, mar animado + `prefers-reduced-motion`
+- [ ] 02-04-PLAN.md — Countdown UI: seção de 4 estados + trilho compacto do topbar
+- [ ] 02-05-PLAN.md — Seções programa (7 blocos) e dress code (regras + callout + galeria)
+- [ ] 02-06-PLAN.md — Local (card + mapa sob clique) + guia de Aracaju (4 cards) + 3 hotéis
+- [ ] 02-07-PLAN.md — Topbar com scroll/hambúrguer/trilho + skip link + composição da página em `Home.tsx`
 
 ### Phase 3: RSVP
 
@@ -157,7 +162,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
-| 2. Convite Público | 0/2 | Not started | - |
+| 2. Convite Público | 0/7 | Not started | - |
 | 3. RSVP | 0/2 | Not started | - |
 | 4. Carta de Vinhos | 0/2 | Not started | - |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
