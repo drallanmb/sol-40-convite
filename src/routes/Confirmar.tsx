@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { useConvex } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import FamilyForm from '../components/rsvp/FamilyForm'
 import PhoneGate from '../components/rsvp/PhoneGate'
 import Shell from '../components/layout/Shell'
 import Button from '../components/ui/Button'
@@ -64,10 +65,6 @@ function storageContainsCapabilityKey(storage: Storage) {
   }
 
   return false
-}
-
-function fillTemplate(template: string, key: string, value: string) {
-  return template.replace(`{${key}}`, value)
 }
 
 const ROUTE_HEADING_EMPHASIS = 'vocês.'
@@ -270,28 +267,25 @@ function Confirmar() {
       break
     case 'family':
       stateCard = (
-        <Card className="grid gap-5 shadow-[8px_8px_0_var(--color-sand)] min-[640px]:shadow-[14px_14px_0_var(--color-sand)]">
-          {routeState.announce ? (
-            <p className="sr-only" role="status" aria-live="polite">
-              {RSVP_COPY.session.unlocked}
-            </p>
-          ) : null}
-          <p className="text-small font-bold uppercase tracking-label text-orange">
-            {RSVP_COPY.family.kicker}
-          </p>
-          <h2
-            ref={familyHeadingRef}
-            tabIndex={-1}
-            className="font-serif text-subheading leading-[1.2] text-plum outline-none"
-          >
-            {fillTemplate(
-              RSVP_COPY.family.greeting,
-              'displayName',
-              routeState.view.displayName,
-            )}
-          </h2>
-          <p className="text-body">{RSVP_COPY.family.formHeading}</p>
-        </Card>
+        <FamilyForm
+          capability={routeState.capability}
+          view={routeState.view}
+          announceUnlocked={routeState.announce}
+          headingRef={familyHeadingRef}
+          onViewChange={(view) =>
+            setRouteState((current) =>
+              current.kind === 'family'
+                ? {
+                    ...current,
+                    view,
+                    announce: false,
+                  }
+                : current,
+            )
+          }
+          onSessionExpired={expireScopedState}
+          onSwitchPhone={() => clearScopedState(true)}
+        />
       )
   }
 
