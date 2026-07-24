@@ -25,6 +25,7 @@ import Card from '../ui/Card'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
 import AttendanceGroup from './AttendanceGroup'
+import DiscardDialog from './DiscardDialog'
 
 export type FamilyFormProps = {
   capability: string
@@ -70,11 +71,13 @@ export function FamilyForm({
   const [feedback, setFeedback] = useState<SaveFeedback>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [retryBlocked, setRetryBlocked] = useState(false)
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false)
   const busyRef = useRef(false)
   const retryTimerRef = useRef<number | null>(null)
   const toastTimerRef = useRef<number | null>(null)
   const contactId = useId()
   const contactGuidanceId = `${contactId}-limit`
+  const switchPhoneId = useId()
 
   useEffect(() => {
     setDraft((current) =>
@@ -217,14 +220,15 @@ export function FamilyForm({
 
   function handleSwitchPhone() {
     if (dirty) {
-      setFeedback({
-        kind: 'error',
-        text: 'Salve suas alterações antes de usar outro telefone.',
-      })
+      setDiscardDialogOpen(true)
       return
     }
 
     onSwitchPhone()
+  }
+
+  function focusSwitchPhone() {
+    document.getElementById(switchPhoneId)?.focus()
   }
 
   const persistentStatus =
@@ -246,6 +250,7 @@ export function FamilyForm({
               {RSVP_COPY.family.kicker}
             </p>
             <Button
+              id={switchPhoneId}
               type="button"
               variant="quiet"
               className="min-h-11 px-4 py-2"
@@ -371,6 +376,15 @@ export function FamilyForm({
       </Card>
 
       {toastMessage ? <Toast>{toastMessage}</Toast> : null}
+      <DiscardDialog
+        open={discardDialogOpen}
+        onContinueEditing={() => setDiscardDialogOpen(false)}
+        onDiscard={() => {
+          setDiscardDialogOpen(false)
+          onSwitchPhone()
+        }}
+        returnFocus={focusSwitchPhone}
+      />
     </>
   )
 }

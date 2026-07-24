@@ -69,11 +69,15 @@ function storageContainsCapabilityKey(storage: Storage) {
 
 const ROUTE_HEADING_EMPHASIS = 'vocês.'
 
-function RestorationCard() {
+type LoadingCardProps = {
+  label: string
+}
+
+function LoadingCard({ label }: LoadingCardProps) {
   return (
     <Card
       aria-busy="true"
-      className="grid gap-6 shadow-[8px_8px_0_var(--color-sand)] min-[640px]:shadow-[14px_14px_0_var(--color-sand)]"
+      className="grid min-h-[25rem] content-start gap-6 shadow-[8px_8px_0_var(--color-sand)] min-[640px]:shadow-[14px_14px_0_var(--color-sand)]"
     >
       <img
         src="/sol-symbol.png"
@@ -83,7 +87,7 @@ function RestorationCard() {
         className="h-[50px] w-[58px] object-contain"
       />
       <p role="status" aria-live="polite" className="font-serif text-subheading text-plum">
-        {RSVP_COPY.session.restoring}
+        {label}
       </p>
       <div aria-hidden="true" className="grid gap-3">
         <span className="h-12 bg-sand/55" />
@@ -240,8 +244,10 @@ function Confirmar() {
   let stateCard
   switch (routeState.kind) {
     case 'restoring':
+      stateCard = <LoadingCard label={RSVP_COPY.session.restoring} />
+      break
     case 'family-loading':
-      stateCard = <RestorationCard />
+      stateCard = <LoadingCard label="Abrindo seu convite…" />
       break
     case 'phone':
       stateCard = (

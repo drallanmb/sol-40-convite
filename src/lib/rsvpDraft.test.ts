@@ -276,6 +276,20 @@ describe('RSVP counts and saved summaries', () => {
     )
   })
 
+  it('uses the locked singular-safe partial copy for one pending person', () => {
+    const partial = familyView({
+      guests: [
+        { ...familyView().guests[0], attendance: 'pending' },
+        { ...familyView().guests[1], attendance: 'yes' },
+        { ...familyView().guests[2], attendance: 'no' },
+      ],
+    })
+
+    expect(getRsvpSaveSuccessMessage(partial)).toBe(
+      'Respostas salvas. Ainda há 1 pessoa(s) pendente(s) — você pode voltar e completar depois.',
+    )
+  })
+
   it('uses the exact complete-attending success copy', () => {
     const complete = familyView({
       guests: familyView().guests.map((guest, index) => ({
