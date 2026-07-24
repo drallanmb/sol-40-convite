@@ -81,12 +81,25 @@ Plans:
   3. Buscando pelo telefone, o convidado reabre e edita a resposta já enviada (sem virar duplicata)
   4. Mutations públicas de RSVP têm rate-limit
 
-**Plans**: TBD
+**Plans**: 0/5 plans executed
 
 Plans:
+**Wave 1**
 
-- [ ] 03-01: `normalizePhone` + schema `rsvps`/`rsvpGuests` (índice `by_phone`)
-- [ ] 03-02: Formulário público de confirmação + edição por telefone + rate-limit
+- [ ] 03-01-PLAN.md — Wave 0: dependências/harness Convex, `normalizePhone`, schema `rsvps`/`rsvpGuests`/`rsvpSessions` e fixtures internas dev-only
+- [ ] 03-02-PLAN.md — Wave 1: backend público seguro com capability/hash/expiração, leitura escopada, sparse save idempotente e rate limits precisos
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-03-PLAN.md — Wave 2: fundação frontend de copy/entry points/primitivos, modelo sparse, sessionStorage/token retry e clock de prazo
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-04-PLAN.md — Wave 3: rota `/confirmar` com restauração, phone gate, formulário acessível e fluxo normal de salvar/reabrir
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-05-PLAN.md — Wave 4: dialog/estados completos, responsividade/acessibilidade e validação Nyquist/manual final
 
 ### Phase 4: Carta de Vinhos
 
@@ -173,7 +186,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 |-------|----------------|--------|-----------|
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 8/8 | Complete    | 2026-07-24 |
-| 3. RSVP | 0/2 | Not started | - |
+| 3. RSVP | 0/5 | Planned — ready to execute | - |
 | 4. Carta de Vinhos | 0/2 | Not started | - |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
 | 6. Dashboard Interno (/admin) | 0/2 | Not started | - |

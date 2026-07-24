@@ -4,15 +4,15 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 current_phase_name: RSVP
-status: planning
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-07-24T17:50:41.952Z"
+status: planned
+stopped_at: Phase 3 plans 03-01 through 03-05 ready for execution
+last_updated: "2026-07-24T15:22:49-03:00"
 last_activity: 2026-07-24
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
+last_activity_desc: Phase 3 planning complete with five plans ready; no implementation started
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 11
+  total_plans: 16
   completed_plans: 11
 ---
 
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-23)
 
 **Core value:** Convidados confirmam presença e escolhem presente sem atrito; donos veem tudo ao vivo, sem trabalho manual.
-**Current focus:** Phase 02 — convite-p-blico
+**Current focus:** Phase 3 — RSVP
 
 ## Current Position
 
 Phase: 3 — RSVP
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-07-24 — Phase 02 complete, transitioned to Phase 3
+Plan: 0 of 5 — planned, none executed
+Status: Ready to execute Wave 0 (`03-01`)
+Last activity: 2026-07-24 — Phase 3 planning complete; five plans ready, no implementation started
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 69% (11/16 plans complete overall; Phase 3 is 0/5)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 1 | 3 | - | - |
 | 02 | 8 | - | - |
+| 03 | 0 | 5 | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -114,6 +115,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T17:50:41.947Z
-Stopped at: Phase 3 UI-SPEC approved
-Resume file: .planning/phases/03-rsvp/03-UI-SPEC.md
+Last session: 2026-07-24T15:22:49-03:00
+Stopped at: Phase 3 plans 03-01 through 03-05 ready for execution
+Resume file: .planning/phases/03-rsvp/03-01-PLAN.md

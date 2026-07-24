@@ -744,16 +744,16 @@ The planner should explicitly budget for generated Convex files and real-backend
 - Claiming application-level limits are DDoS protection.
 - Testing only with `convex-test` and never running Convex codegen/dev against the real runtime.
 
-## Open Questions for Implementation Discretion
+## Open Questions for Implementation Discretion — RESOLVED
 
-These do not require product clarification and can be resolved during planning:
+All planning-discretion questions are resolved; none remains open for implementation:
 
-- Exact Portuguese not-found/rate-limit/session-expired copy.
-- Whether the RSVP page uses a reduced Shell navigation or absolute home-fragment links.
-- Exact visual arrangement of three per-person choices.
-- Whether a saved confirmation summary is inline, toast-only, or both.
-- Exact 8-hour session TTL and starting rate-limit numbers, provided they are centralized and tested.
-- Whether expired sessions are removed lazily only or also by a scheduled cleanup.
+- **(RESOLVED) Portuguese state copy:** use the exact approved strings in `03-UI-SPEC.md` for generic not-found, lookup/save rate-limit, connection failure, and expired session. Invalid/not-found remain one generic public message; rate-limit copy receives only the rounded `{tempo}` value and never names a bucket/threshold.
+- **(RESOLVED) RSVP Shell navigation:** use the reduced route navigation with absolute home targets: `Convite -> /`, `Programação -> /#programacao`, and `Local -> /#aracaju`; no bare fragment is rendered on `/confirmar`.
+- **(RESOLVED) Per-person choice layout:** preserve the semantic order `Vai`, `Pendente`, `Não vai`; stack as full-width rows at 320–359px, use three equal columns from 360px, and place name/choices side-by-side only from 768px when the name column can remain at least 180px.
+- **(RESOLVED) Saved confirmation feedback:** render a persistent inline status/count summary as the authoritative state and use the existing Toast only as a secondary polite announcement; completion is never toast-only.
+- **(RESOLVED) Session TTL and initial limiter policies:** use an absolute, non-sliding 8-hour server TTL. Centralize fixed-window limits at lookup-per-phone 5/15min, lookup-global 120/15min, save-per-session 30/hour, and save-global 300/hour, with exact boundary/retry tests.
+- **(RESOLVED) Expired-session cleanup:** Phase 3 uses lazy expiration only—every read/write validates `now < expiresAt` and rejects expired capabilities. No cron or scheduled cleanup is added in this phase. The `by_expires_at` index preserves a future cleanup path; scheduled deletion remains out of scope unless storage/operations later demonstrate it is necessary.
 
 The following are **not** open:
 
@@ -807,4 +807,3 @@ The following are **not** open:
 - [OWASP API4:2023 Unrestricted Resource Consumption](https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/)
 - [MDN sessionStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage)
 - [MDN Crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)
-

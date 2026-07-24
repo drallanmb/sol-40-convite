@@ -45,13 +45,13 @@ created: 2026-07-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | 0 | RSVP-01 | T-03-01 | Equivalent formats map to one canonical/candidate set; DDD 55 is preserved | unit | `npx vitest run src/lib/phone.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 0 | RSVP-02 | T-03-02 | Validators and indexes reject invalid shapes; fixture creation preserves logical phone uniqueness | integration | `npx vitest run convex/rsvps.test.ts -t "schema\\|fixture\\|unique"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | RSVP-03 | T-03-03 | Sparse patches affect only scoped guest IDs; contact set/clear is bounded and atomic | integration | `npx vitest run convex/rsvps.test.ts -t "partial\\|contact\\|atomic"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | RSVP-04 | T-03-04 | Capability for family A cannot read/write family B; expired/invalid tokens fail closed | integration | `npx vitest run convex/rsvps.test.ts -t "unlock\\|scope\\|session\\|idempotent"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | RSVP-05 | T-03-05 | Invalid/not-found attempts consume lookup limits; families/sessions remain isolated | integration | `npx vitest run convex/rsvps.test.ts -t "rate limit"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 2 | RSVP-03, RSVP-04 | T-03-03 / T-03-04 | Client sends only dirty changes and clears expired session capability | unit/model | `npx vitest run src/lib/rsvpDraft.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 2 | RSVP-01–05 | T-03-01–05 | Production-shaped schema, component and generated API compile on Convex runtime | smoke | `npx convex dev --once` | ❌ W0 | ⬜ pending |
+| 03-01-02 | 03-01 | 0 | RSVP-01 | T-03-01-A | Exact prefix 2–5/6–9/0–1 rules, raw-control rejection, equivalent formats, and DDD 55 | unit | `npx vitest run src/lib/phone.test.ts` | ❌ W0 | ⬜ pending |
+| 03-01-03 | 03-01 | 0 | RSVP-02 | T-03-01-B/C/D | Validators/indexes plus guarded normal/zero/one/many-long fixtures preserve uniqueness/idempotence | integration | `npx vitest run convex/rsvps.test.ts -t "schema\\|fixture\\|unique"` | ❌ W0 | ⬜ pending |
+| 03-02-03 | 03-02 | 1 | RSVP-03 | T-03-02-D/E/F | Sparse patches affect only scoped guest refs; contact set/clear is bounded and atomic | integration | `npx vitest run convex/rsvps.test.ts -t "partial\\|contact\\|atomic\\|idempotent"` | ❌ W0 | ⬜ pending |
+| 03-02-02 | 03-02 | 1 | RSVP-04 | T-03-02-B/C/J | A token cannot cross families or be reused; expired/invalid tokens fail closed | integration | `npx vitest run convex/rsvps.test.ts -t "unlock\\|scope\\|session\\|token conflict"` | ❌ W0 | ⬜ pending |
+| 03-02-03 | 03-02 | 1 | RSVP-05 | T-03-02-G/K/L | Invalid lookup/save tokens consume global limits at exact N-1/N/N+1; valid buckets remain coherent; guarded helper prepares save call 31 | integration | `npx vitest run convex/rsvps.test.ts -t "rate\\|global invalid token\\|prepare throttle"` | ❌ W0 | ⬜ pending |
+| 03-03-02/03 | 03-03 | 2 | RSVP-03, RSVP-04 | T-03-03-B/C | Client sends dirty changes only, retries token conflict once, and keeps capability session-only | unit/model | `npx vitest run src/lib/rsvpDraft.test.ts src/lib/rsvpSession.test.ts src/lib/rsvpClock.test.ts` | ❌ W0 | ⬜ pending |
+| 03-05-03 | 03-05 | 4 | RSVP-01–05 | T-03-05-A–G | Production-shaped schema/API compile; guarded fixtures, expired session, post-deadline state, and browser matrix execute | smoke/manual | `npm test && npm run build && npx convex dev --once` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -67,6 +67,7 @@ created: 2026-07-24
 - [ ] Convex test setup — register `@convex-dev/rate-limiter/test` in every relevant test instance.
 - [ ] `src/lib/phone.test.ts` — table-driven normalization/candidate cases.
 - [ ] `convex/rsvps.test.ts` — fixtures and public-function integration harness.
+- [ ] Guarded internal demo fixtures — normal, zero, one, many-long; phones derived from server-only seed, no public/committed access value.
 - [ ] Generated Convex API/component types — regenerate; never patch by hand.
 
 ---
@@ -78,9 +79,11 @@ created: 2026-07-24
 | Hero CTA and menu link both open `/confirmar`; direct load and refresh work | RSVP-03 | Browser routing/navigation behavior | Open from both home entry points, then directly load and refresh `/confirmar` |
 | Same browser session restores the unlocked family; a new session/incognito asks for phone | RSVP-04 | `sessionStorage` lifetime is browser behavior | Unlock, reload same tab, then close session/open incognito and compare |
 | Valid, unknown, expired and throttled states have clear Portuguese feedback without exposing other data | RSVP-04, RSVP-05 | Copy/live-region behavior | Exercise each state with keyboard and screen reader; inspect rendered payload |
+| Save throttle preserves a visible dirty draft and renders server retry time on call 31 | RSVP-05 | Browser form state after deterministic limiter preparation | Run the guarded `prepareSaveThrottleDemo` commands from 03-05, assert 30 prepared calls, put the locally generated token in the documented sessionStorage key, make one dirty edit, submit ordinal 31, then run browser/server teardown |
 | Partial response visibly preserves pending people and can be edited later | RSVP-03, RSVP-04 | End-to-end interaction state | Save one person, leave another pending, reopen by phone and edit both |
 | Person controls are usable at 360px and by keyboard, with named groups and 44px targets | RSVP-03 | Responsive/accessibility rendering | Test at 360px, tab through each group, select all three statuses |
 | Literal “Confirme até 30 de setembro” renders while late edits remain available | RSVP-03, RSVP-04 | Date copy plus policy behavior | Set test clock after the deadline and confirm no UI/server block |
+| Normal/zero/one/many-long shapes, expired session, and post-deadline state are reproducible without public seed/debug APIs | RSVP-02–04 | Guarded dev fixtures and browser state | Run `ensureDemoFixtures`, `issueDemoSession(state=expired)`, and the DEV-only clock override documented in 03-05; record the CLI/browser results without committing raw demo phones |
 
 ---
 
