@@ -85,7 +85,7 @@ export function DiscardDialog({
           <Button
             type="button"
             variant="quiet"
-            className="border-wine bg-wine text-cream hover:bg-plum motion-reduce:transform-none motion-reduce:transition-none"
+            className="border-wine! bg-wine! text-cream! hover:bg-plum! motion-reduce:transform-none motion-reduce:transition-none"
             onClick={discardChanges}
           >
             {RSVP_COPY.discard.destructiveAction}
