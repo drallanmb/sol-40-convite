@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { normalizePhone, type NormalizedPhone } from './phone'
+import {
+  formatBrazilianPhoneInput,
+  normalizePhone,
+  type NormalizedPhone,
+} from './phone'
 
 function expectCanonical(raw: unknown, phone: string): Extract<NormalizedPhone, { kind: 'canonical' }> {
   const result = normalizePhone(raw)
@@ -36,6 +40,32 @@ function expectLegacy(
 function expectInvalid(raw: unknown) {
   expect(normalizePhone(raw)).toEqual({ kind: 'invalid' })
 }
+
+describe('formatBrazilianPhoneInput — máscara progressiva', () => {
+  it.each([
+    ['', ''],
+    ['7', '(7'],
+    ['71', '(71'],
+    ['719', '(71) 9'],
+    ['7194083', '(71) 9408-3'],
+    ['11987654321', '(11) 98765-4321'],
+    ['7132222222', '(71) 3222-2222'],
+  ])('formata %j como %j', (raw, formatted) => {
+    expect(formatBrazilianPhoneInput(raw)).toBe(formatted)
+  })
+
+  it('aceita colagem formatada e remove o código +55', () => {
+    expect(formatBrazilianPhoneInput('+55 (11) 98765-4321')).toBe(
+      '(11) 98765-4321',
+    )
+  })
+
+  it('limita a entrada ao tamanho de um telefone nacional', () => {
+    expect(formatBrazilianPhoneInput('119876543219999')).toBe(
+      '(11) 98765-4321',
+    )
+  })
+})
 
 describe('normalizePhone — formatos brasileiros equivalentes', () => {
   const variants = [

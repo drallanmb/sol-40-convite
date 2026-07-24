@@ -96,6 +96,31 @@ const BRAZILIAN_DDDS = new Set([
   '99',
 ])
 
+/**
+ * Aplica uma máscara nacional progressiva sem alterar o valor canônico usado
+ * pelo backend. Colagens com +55 também são reduzidas para DDD + assinante.
+ */
+export function formatBrazilianPhoneInput(raw: string): string {
+  let digits = raw.replace(/\D/gu, '')
+
+  if (digits.length > 11 && digits.startsWith('55')) {
+    digits = digits.slice(2)
+  }
+
+  digits = digits.slice(0, 11)
+
+  if (!digits) return ''
+  if (digits.length < 3) return `(${digits}`
+
+  const ddd = digits.slice(0, 2)
+  const subscriber = digits.slice(2)
+  const prefixLength = digits.length === 11 ? 5 : 4
+  const prefix = subscriber.slice(0, prefixLength)
+  const suffix = subscriber.slice(prefixLength)
+
+  return `(${ddd}) ${prefix}${suffix ? `-${suffix}` : ''}`
+}
+
 function canRemoveDomesticTrunk(digits: string): boolean {
   if (!digits.startsWith('0')) {
     return false

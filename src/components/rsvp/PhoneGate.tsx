@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { RSVP_COPY } from '../../content/event'
+import { formatBrazilianPhoneInput } from '../../lib/phone'
 import {
   unlockRsvpWithFreshCapability,
   type RsvpUnlockClientResult,
@@ -180,7 +181,7 @@ export function PhoneGate({
             aria-invalid={invalid || undefined}
             aria-describedby={messageId}
             onChange={(event) => {
-              setPhone(event.currentTarget.value)
+              setPhone(formatBrazilianPhoneInput(event.currentTarget.value))
               if (message?.kind !== 'rate-limited') {
                 setMessage(null)
               }
