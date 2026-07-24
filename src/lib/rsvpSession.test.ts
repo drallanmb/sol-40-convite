@@ -49,7 +49,7 @@ function decodeBase64Url(value: string) {
 }
 
 const CAPABILITY_A = 'A'.repeat(43)
-const CAPABILITY_B = 'B'.repeat(43)
+const CAPABILITY_B = `${'B'.repeat(42)}E`
 
 describe('RSVP capability generation', () => {
   it('encodes exactly 32 random bytes as canonical unpadded base64url', () => {
@@ -91,6 +91,7 @@ describe('RSVP session-scoped storage', () => {
     ['too short', 'abc'],
     ['padded', `${'A'.repeat(42)}=`],
     ['non-url alphabet', `${'A'.repeat(42)}+`],
+    ['non-canonical pad bits', `${'A'.repeat(42)}B`],
   ])('clears a malformed restored value: %s', (_, malformed) => {
     const storage = new MemoryStorage()
     storage.setItem(RSVP_CAPABILITY_STORAGE_KEY, malformed)

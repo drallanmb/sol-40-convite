@@ -1,7 +1,7 @@
 export const RSVP_CAPABILITY_STORAGE_KEY = 'sol40:rsvp-capability:v1'
 
 const CAPABILITY_BYTE_LENGTH = 32
-const CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{43}$/
+const CAPABILITY_PATTERN = /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/
 
 export type RsvpUnlockServerResult =
   | { kind: 'unlocked' }
