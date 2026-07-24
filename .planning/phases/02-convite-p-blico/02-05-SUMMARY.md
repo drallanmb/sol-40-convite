@@ -111,3 +111,12 @@ None - no external service configuration required.
 ---
 *Phase: 02-convite-p-blico*
 *Completed: 2026-07-24*
+
+## Self-Check: PASSED
+
+- FOUND: src/components/invite/ProgramaSection.tsx
+- FOUND: src/components/invite/DressCodeSection.tsx
+- FOUND: .planning/phases/02-convite-p-blico/02-05-SUMMARY.md
+- FOUND: commit 1d3d7ec
+- FOUND: commit 0335c51
+- FOUND: commit 77b5790

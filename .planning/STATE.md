@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-07-24T12:10:58.412Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-07-24T12:18:18.113Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 10
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 02 (convite-p-blico) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 02 execution started
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [███████░░░] 70%
 | Phase 02 P02 | 10min | 2 tasks | 6 files |
 | Phase 02 P03 | 11min | 3 tasks | 4 files |
 | Phase 02 P04 | 15min | 2 tasks | 2 files |
+| Phase 02 P05 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-03]: PalmSvg left/right instances use distinct crown coordinates and frond curvature (not just CSS scale-x mirror) so the two palms don't read as the same tree mirrored (D-07)
 - [Phase ?]: [Phase 2-04]: Countdown.tsx branches its heading on a switch(phase) helper component (not a single COUNTDOWN_COPY[phase] variable) so TypeScript keeps each per-phase field access (headingLead/headingEm on antes, sub on agora) statically type-safe
 - [Phase ?]: [Phase 2-04]: min-w-[4ch] for the no-ceiling post-party day count is applied only to the day tile in both Countdown.tsx and CountdownRail.tsx, not all four tiles
+- [Phase ?]: [Phase 2-05]: ProgramaSection renders both a visible label-role kicker AND a separate aria-hidden decorative sun disc (day/month derived from PROGRAMA_KICKER.split(' ')), not just one, per the plan's explicit action text
+- [Phase ?]: [Phase 2-05]: DressCodeSection reserves each gallery figure's real aspect-ratio via inline style={{ aspectRatio }} (not a static Tailwind class) since the two ported photos have different real proportions (1120x1400 vs 895x1400) that a single static class can't express
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T12:10:50.439Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-07-24T12:18:18.109Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
