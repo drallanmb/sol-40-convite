@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-07-24T11:55:24.033Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-07-24T12:10:58.412Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 02 (convite-p-blico) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 02 execution started
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████░░░░] 60%
 | Phase 02-convite-p-blico P01 | 20min | 3 tasks | 8 files |
 | Phase 02 P02 | 10min | 2 tasks | 6 files |
 | Phase 02 P03 | 11min | 3 tasks | 4 files |
+| Phase 02 P04 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-02]: Absolute og:url deferred to Phase 7 (owners' checklist) until the production domain is fixed — index.html uses a root-relative /og.jpg with a comment documenting the deferral, no literal URL scheme.
 - [Phase ?]: [Phase 2-03]: SeaWaves wrapper is absolute inset-0 (full hero height) rather than a bottom-anchored strip so the golden-light path can span from the sun's top-54% position down to the hero bottom without clipping
 - [Phase ?]: [Phase 2-03]: PalmSvg left/right instances use distinct crown coordinates and frond curvature (not just CSS scale-x mirror) so the two palms don't read as the same tree mirrored (D-07)
+- [Phase ?]: [Phase 2-04]: Countdown.tsx branches its heading on a switch(phase) helper component (not a single COUNTDOWN_COPY[phase] variable) so TypeScript keeps each per-phase field access (headingLead/headingEm on antes, sub on agora) statically type-safe
+- [Phase ?]: [Phase 2-04]: min-w-[4ch] for the no-ceiling post-party day count is applied only to the day tile in both Countdown.tsx and CountdownRail.tsx, not all four tiles
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T11:55:24.029Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-07-24T12:10:50.439Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
