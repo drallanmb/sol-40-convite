@@ -86,3 +86,53 @@ body {
   outline: 2px solid var(--color-coral);
   outline-offset: 3px;
 }
+
+/* Hero — mar animado (D-08). As três faixas de onda e o caminho de luz
+   dourada rodam via @keyframes puro; cada `.wave-band` recebe uma duração
+   diferente (front 22s / mid 30s / back 38s) para produzir a sensação de
+   paralaxe. Quem pede menos movimento no sistema (media query abaixo)
+   desliga só a animação — a arte (mar + luz) continue visível como
+   imagem estática; nunca escondê-la (P-01). */
+.wave-band {
+  animation: wave-scroll 22s linear infinite;
+}
+
+.wave-band--mid {
+  animation-duration: 30s;
+}
+
+.wave-band--back {
+  animation-duration: 38s;
+}
+
+.golden-light {
+  animation: light-shimmer 3.5s ease-in-out infinite;
+}
+
+@keyframes wave-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes light-shimmer {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-band,
+  .wave-band--mid,
+  .wave-band--back,
+  .golden-light {
+    animation: none;
+  }
+}
