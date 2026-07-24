@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: RSVP
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-07-24T19:49:34.942Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-07-24T20:06:01.836Z"
 last_activity: 2026-07-24
-last_activity_desc: RSVP frontend foundation complete; plan 03-04 ready
+last_activity_desc: RSVP normal flow complete; plan 03-05 ready
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -28,17 +28,17 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 3 (RSVP) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
-Last activity: 2026-07-24 — RSVP frontend foundation complete; plan 03-04 ready
+Last activity: 2026-07-24 — RSVP normal flow complete; plan 03-05 ready
 
-Progress: [█████████░] 88% (14/16 plans complete overall; Phase 3 is 3/5)
+Progress: [█████████░] 94% (15/16 plans complete overall; Phase 3 is 4/5)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 13
+- Total plans completed: 15
 - Average duration: —
 - Total execution time: —
 
@@ -48,7 +48,7 @@ Progress: [█████████░] 88% (14/16 plans complete overall; Ph
 |-------|-------|-------|----------|
 | 1 | 3 | - | - |
 | 02 | 8 | - | - |
-| 03 | 2 | 5 | - |
+| 03 | 4 | 5 | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -67,6 +67,7 @@ Progress: [█████████░] 88% (14/16 plans complete overall; Ph
 | Phase 03 P01 | 13min | 3 tasks | 16 files |
 | Phase 03 P02 | 16 min | 3 tasks | 6 files |
 | Phase 03 P03 | 17min | 3 tasks | 12 files |
+| Phase 03 P04 | 13min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 03]: Client capabilities must be canonical 32-byte unpadded base64url, live under one session key, and retry token_conflict once with a distinct token. — Matches the backend validator and keeps phone/contact data outside browser persistence.
 - [Phase 03]: Deadline state is presentation-only and the browser override is gated directly by import.meta.env.DEV. — Production never reads debug time and post-deadline editing remains available.
 - [Phase 03]: RSVP focus longhands are important because the unlayered global shorthand wins over Tailwind utilities; placeholders use solid wine. — This preserves the ordinary coral focus rule while delivering the contracted 3px sea ring and AA placeholder contrast.
+- [Phase 03]: A restauração de /confirmar usa consulta Convex capturável e nunca exibe dados familiares obsoletos. — Distingue falha de rede de sessão expirada e mantém dados escopados fora do DOM até uma leitura válida.
+- [Phase 03]: Troca de telefone com rascunho sujo falha fechada até o diálogo final de 03-05. — Evita perda silenciosa de respostas; troca limpa já remove capability e DOM escopado.
 
 ### Pending Todos
 
@@ -130,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T19:41:52.589Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-07-24T20:06:01.832Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None

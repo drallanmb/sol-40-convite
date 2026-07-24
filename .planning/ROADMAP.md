@@ -81,7 +81,7 @@ Plans:
   3. Buscando pelo telefone, o convidado reabre e edita a resposta já enviada (sem virar duplicata)
   4. Mutations públicas de RSVP têm rate-limit
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -95,7 +95,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-04-PLAN.md — Wave 3: rota `/confirmar` com restauração, phone gate, formulário acessível e fluxo normal de salvar/reabrir
+- [x] 03-04-PLAN.md — Wave 3: rota `/confirmar` com restauração, phone gate, formulário acessível e fluxo normal de salvar/reabrir
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -186,7 +186,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 |-------|----------------|--------|-----------|
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 8/8 | Complete    | 2026-07-24 |
-| 3. RSVP | 3/5 | In Progress|  |
+| 3. RSVP | 4/5 | In Progress|  |
 | 4. Carta de Vinhos | 0/2 | Not started | - |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
 | 6. Dashboard Interno (/admin) | 0/2 | Not started | - |
