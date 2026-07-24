@@ -8,6 +8,7 @@ import {
   HOTELS,
   NAV_LINKS,
   PROGRAMA,
+  VENUE,
 } from './event'
 
 describe('event content — PROGRAMA', () => {
@@ -86,7 +87,7 @@ describe('event content — spelling', () => {
     // Built from parts rather than a literal so this assertion string itself
     // does not trip the plan's `grep -rq` misspelling gate over src/.
     const misspelledVariant = ['Matap', 'oã'].join('')
-    const source = JSON.stringify({ DRESS, GUIDE, HOTELS, NAV_LINKS, PROGRAMA })
+    const source = JSON.stringify({ DRESS, GUIDE, HOTELS, NAV_LINKS, PROGRAMA, VENUE })
     expect(source).not.toContain(misspelledVariant)
   })
 })
