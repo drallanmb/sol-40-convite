@@ -27,6 +27,7 @@ export const EVENT_END = '2026-10-18T05:00:00-03:00'
 
 export const SECTION_IDS = {
   hero: 'inicio',
+  countdown: 'contagem',
   local: 'aracaju',
   programa: 'programacao',
   traje: 'traje',

@@ -1,6 +1,6 @@
 import { useCountdown } from '../../hooks/useCountdown'
 import { pluralizeUnit, type CountdownUnit, type EventPhase } from '../../lib/countdown'
-import { COUNTDOWN_COPY } from '../../content/event'
+import { COUNTDOWN_COPY, SECTION_IDS } from '../../content/event'
 
 const TILE_ORDER: CountdownUnit[] = ['days', 'hours', 'minutes', 'seconds']
 
@@ -51,7 +51,10 @@ export function Countdown() {
   const copy = COUNTDOWN_COPY[phase]
 
   return (
-    <section className="bg-plum px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-cream">
+    <section
+      id={SECTION_IDS.countdown}
+      className="bg-plum px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-cream"
+    >
       <div className="mx-auto flex w-full max-w-[1440px] flex-col items-start gap-[clamp(50px,8vw,120px)] sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-caption font-bold uppercase tracking-label">{copy.kicker}</p>

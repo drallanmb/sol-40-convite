@@ -69,11 +69,12 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
       setScrolled(window.scrollY > 12)
 
       // Derive the reveal threshold from the countdown section's own
-      // position (the element right after the hero) rather than a magic
-      // pixel number: reveal once its bottom edge has scrolled above the
-      // viewport top, i.e. the real countdown is no longer visible.
-      const heroEl = document.getElementById(SECTION_IDS.hero)
-      const countdownEl = heroEl?.nextElementSibling as HTMLElement | null
+      // position via its stable id (WR-05) rather than DOM adjacency to the
+      // hero (`heroEl.nextElementSibling`), which would silently degrade if
+      // a future change ever reorders sections: reveal once its bottom edge
+      // has scrolled above the viewport top, i.e. the real countdown is no
+      // longer visible.
+      const countdownEl = document.getElementById(SECTION_IDS.countdown)
       if (countdownEl) {
         setRailRevealed(countdownEl.getBoundingClientRect().bottom <= 0)
       } else {
