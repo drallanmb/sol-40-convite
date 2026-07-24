@@ -1,0 +1,427 @@
+import { v } from 'convex/values'
+import { normalizePhone, type NormalizedPhone } from '../src/lib/phone'
+import type { Id } from './_generated/dataModel'
+import { internalMutation, type MutationCtx } from './_generated/server'
+import {
+  CONTACT_MAX_LENGTH,
+  demoFixtureLabelValidator,
+  MAX_RSVP_GUESTS,
+  RSVP_DEMO_FIXTURE_FLAG,
+  RSVP_DEMO_SEED_MIN_BYTES,
+  RSVP_DISPLAY_NAME_MAX_LENGTH,
+  RSVP_GUEST_NAME_MAX_LENGTH,
+  type Attendance,
+  type DemoFixtureLabel,
+} from './rsvpModel'
+
+declare const process: {
+  env: Record<string, string | undefined>
+}
+
+type InvitationGuestInput = {
+  name: string
+  attendance: Attendance
+}
+
+export type InvitationInput = {
+  phone: string
+  displayName: string
+  contact?: string
+  guests: InvitationGuestInput[]
+}
+
+type InsertedInvitation = {
+  rsvpId: Id<'rsvps'>
+  guestIds: Id<'rsvpGuests'>[]
+  phone: string
+}
+
+type DemoDefinition = {
+  label: DemoFixtureLabel
+  phone: string
+  displayName: string
+  guests: InvitationGuestInput[]
+}
+
+const encoder = new TextEncoder()
+
+// A seleção continua derivada do seed; a lista contém somente DDDs, nunca telefones.
+const DEMO_DDDS = ['11', '21', '31', '41', '51', '61', '71', '79', '81', '91']
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function sha256(value: string): Promise<Uint8Array> {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value))
+  return new Uint8Array(digest)
+}
+
+async function hmacSha256(seed: string, value: string): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(seed),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(value))
+  return new Uint8Array(signature)
+}
+
+async function derivePublicRef(
+  canonicalPhone: string,
+  sortOrder: number,
+  guestName: string,
+): Promise<string> {
+  const digest = await sha256(`${canonicalPhone}\u0000${sortOrder}\u0000${guestName}`)
+  return `guest_${bytesToHex(digest.slice(0, 16))}`
+}
+
+function normalizedLookupCandidates(normalized: Exclude<NormalizedPhone, { kind: 'invalid' }>) {
+  const candidates = new Set(normalized.lookupCandidates)
+
+  // Dados importados antigos podem ter guardado a forma de oito dígitos.
+  // A forma atual também consulta essa inversa para impedir uma segunda família.
+  if (normalized.kind === 'canonical' && normalized.phone.length === 11) {
+    candidates.add(`${normalized.phone.slice(0, 2)}${normalized.phone.slice(3)}`)
+  }
+
+  return [...candidates]
+}
+
+async function findLogicalInvitation(
+  ctx: MutationCtx,
+  normalized: Exclude<NormalizedPhone, { kind: 'invalid' }>,
+) {
+  const matches = new Map<string, Awaited<ReturnType<typeof ctx.db.get<'rsvps'>>>>()
+
+  for (const candidate of normalizedLookupCandidates(normalized)) {
+    const candidateMatches = await ctx.db
+      .query('rsvps')
+      .withIndex('by_phone', (query) => query.eq('phone', candidate))
+      .collect()
+
+    if (candidateMatches.length > 1) {
+      throw new Error('Invariante violada: telefone duplicado no RSVP.')
+    }
+
+    for (const match of candidateMatches) {
+      matches.set(String(match._id), match)
+    }
+  }
+
+  if (matches.size > 1) {
+    throw new Error('Invariante violada: candidatos equivalentes apontam para convites distintos.')
+  }
+
+  return [...matches.values()][0] ?? null
+}
+
+function normalizeInvitationInput(input: InvitationInput) {
+  const normalizedPhone = normalizePhone(input.phone)
+  if (normalizedPhone.kind === 'invalid') {
+    throw new Error('Telefone inválido para o convite.')
+  }
+
+  const displayName = input.displayName.trim()
+  if (!displayName || displayName.length > RSVP_DISPLAY_NAME_MAX_LENGTH) {
+    throw new Error('Nome do convite inválido.')
+  }
+
+  if (input.guests.length > MAX_RSVP_GUESTS) {
+    throw new Error(`O convite excede o limite de ${MAX_RSVP_GUESTS} pessoas.`)
+  }
+
+  const guests = input.guests.map((guest) => {
+    const name = guest.name.trim()
+    if (!name || name.length > RSVP_GUEST_NAME_MAX_LENGTH) {
+      throw new Error('Nome de pessoa inválido.')
+    }
+    if (
+      guest.attendance !== 'pending' &&
+      guest.attendance !== 'yes' &&
+      guest.attendance !== 'no'
+    ) {
+      throw new Error('Resposta de presença inválida.')
+    }
+    return { name, attendance: guest.attendance }
+  })
+
+  const contact = input.contact?.trim()
+  if (contact && contact.length > CONTACT_MAX_LENGTH) {
+    throw new Error(`Contato excede ${CONTACT_MAX_LENGTH} caracteres.`)
+  }
+
+  return {
+    normalizedPhone,
+    displayName,
+    contact: contact || undefined,
+    guests,
+  }
+}
+
+/**
+ * Única costura de criação desta fase. É uma função interna de módulo, não uma
+ * função Convex pública; importadores administrativos futuros devem reutilizá-la.
+ */
+export async function insertInvitation(
+  ctx: MutationCtx,
+  input: InvitationInput,
+): Promise<InsertedInvitation> {
+  const normalized = normalizeInvitationInput(input)
+  const existing = await findLogicalInvitation(ctx, normalized.normalizedPhone)
+  if (existing) {
+    throw new Error('Já existe um convite para um telefone equivalente.')
+  }
+
+  const now = Date.now()
+  const rsvpId = await ctx.db.insert('rsvps', {
+    phone: normalized.normalizedPhone.phone,
+    displayName: normalized.displayName,
+    ...(normalized.contact ? { contact: normalized.contact } : {}),
+    updatedAt: now,
+  })
+
+  const guestIds: Id<'rsvpGuests'>[] = []
+  const publicRefs = new Set<string>()
+
+  for (const [sortOrder, guest] of normalized.guests.entries()) {
+    const publicRef = await derivePublicRef(
+      normalized.normalizedPhone.phone,
+      sortOrder,
+      guest.name,
+    )
+    if (publicRefs.has(publicRef)) {
+      throw new Error('Invariante violada: referência pública de pessoa duplicada.')
+    }
+    publicRefs.add(publicRef)
+
+    const guestId = await ctx.db.insert('rsvpGuests', {
+      rsvpId,
+      publicRef,
+      name: guest.name,
+      attendance: guest.attendance,
+      sortOrder,
+      ...(guest.attendance === 'pending' ? {} : { respondedAt: now }),
+    })
+    guestIds.push(guestId)
+  }
+
+  return {
+    rsvpId,
+    guestIds,
+    phone: normalized.normalizedPhone.phone,
+  }
+}
+
+function readDemoSeed(): string {
+  if (process.env.RSVP_ENABLE_DEMO_FIXTURES !== RSVP_DEMO_FIXTURE_FLAG) {
+    throw new Error('Fixtures de RSVP estão desabilitadas.')
+  }
+
+  const seed = process.env.RSVP_DEMO_SEED
+  if (!seed || encoder.encode(seed).byteLength < RSVP_DEMO_SEED_MIN_BYTES) {
+    throw new Error(`RSVP_DEMO_SEED deve ter ao menos ${RSVP_DEMO_SEED_MIN_BYTES} bytes.`)
+  }
+
+  return seed
+}
+
+async function deriveDemoPhones(seed: string, labels: DemoFixtureLabel[]) {
+  const used = new Set<string>()
+  const phones = new Map<DemoFixtureLabel, string>()
+
+  for (const label of labels) {
+    let attempt = 0
+    while (true) {
+      const digest = await hmacSha256(seed, `rsvp-demo:${label}:${attempt}`)
+      const ddd = DEMO_DDDS[digest[0] % DEMO_DDDS.length]
+      const subscriber = Array.from(digest.slice(1, 9), (byte) => String(byte % 10)).join('')
+      const phone = `${ddd}9${subscriber}`
+
+      if (!used.has(phone)) {
+        used.add(phone)
+        phones.set(label, phone)
+        break
+      }
+      attempt += 1
+    }
+  }
+
+  return phones
+}
+
+async function buildDemoDefinitions(seed: string): Promise<DemoDefinition[]> {
+  const labels: DemoFixtureLabel[] = ['normal', 'zero', 'one', 'many-long']
+  const phones = await deriveDemoPhones(seed, labels)
+  const phoneFor = (label: DemoFixtureLabel) => {
+    const phone = phones.get(label)
+    if (!phone) {
+      throw new Error(`Invariante violada: telefone demo ausente para ${label}.`)
+    }
+    return phone
+  }
+
+  return [
+    {
+      label: 'normal',
+      phone: phoneFor('normal'),
+      displayName: 'Convite Demo Normal',
+      guests: [
+        { name: 'Pessoa Demo Pendente', attendance: 'pending' },
+        { name: 'Pessoa Demo Presente', attendance: 'yes' },
+        { name: 'Pessoa Demo Ausente', attendance: 'no' },
+      ],
+    },
+    {
+      label: 'zero',
+      phone: phoneFor('zero'),
+      displayName: 'Convite Demo Sem Pessoas',
+      guests: [],
+    },
+    {
+      label: 'one',
+      phone: phoneFor('one'),
+      displayName: 'Convite Demo Individual',
+      guests: [{ name: 'Pessoa Demo Única', attendance: 'pending' }],
+    },
+    {
+      label: 'many-long',
+      phone: phoneFor('many-long'),
+      displayName:
+        'Convite Demo para um Grupo Deliberadamente Numeroso com Nome Muito Longo de Validação',
+      guests: Array.from({ length: 12 }, (_, index) => ({
+        name:
+          index === 7
+            ? 'Pessoa Demo com um Nome Deliberadamente Muito Longo para Validar Quebras de Linha em Português'
+            : `Pessoa Demo Numerosa ${index + 1}`,
+        attendance: 'pending' as const,
+      })),
+    },
+  ]
+}
+
+async function reconcileFixture(ctx: MutationCtx, definition: DemoDefinition) {
+  const normalized = normalizeInvitationInput(definition)
+  const existing = await findLogicalInvitation(ctx, normalized.normalizedPhone)
+
+  if (!existing) {
+    const inserted = await insertInvitation(ctx, definition)
+    return {
+      label: definition.label,
+      phone: inserted.phone,
+      rsvpId: inserted.rsvpId,
+      guestCount: inserted.guestIds.length,
+      created: true,
+    }
+  }
+
+  const existingGuests = await ctx.db
+    .query('rsvpGuests')
+    .withIndex('by_rsvp_sort', (query) => query.eq('rsvpId', existing._id))
+    .collect()
+
+  const bySortOrder = new Map<number, (typeof existingGuests)[number]>()
+  for (const guest of existingGuests) {
+    if (bySortOrder.has(guest.sortOrder)) {
+      throw new Error('Invariante violada: duas pessoas têm a mesma ordem no convite.')
+    }
+    bySortOrder.set(guest.sortOrder, guest)
+  }
+
+  const now = Date.now()
+  let changed = existing.phone !== normalized.normalizedPhone.phone ||
+    existing.displayName !== normalized.displayName
+
+  for (const [sortOrder, expected] of normalized.guests.entries()) {
+    const stored = bySortOrder.get(sortOrder)
+    if (!stored) {
+      await ctx.db.insert('rsvpGuests', {
+        rsvpId: existing._id,
+        publicRef: await derivePublicRef(
+          normalized.normalizedPhone.phone,
+          sortOrder,
+          expected.name,
+        ),
+        name: expected.name,
+        attendance: expected.attendance,
+        sortOrder,
+        ...(expected.attendance === 'pending' ? {} : { respondedAt: now }),
+      })
+      changed = true
+      continue
+    }
+
+    if (stored.name !== expected.name || stored.attendance !== expected.attendance) {
+      await ctx.db.patch(stored._id, {
+        name: expected.name,
+        attendance: expected.attendance,
+        ...(expected.attendance === 'pending'
+          ? { respondedAt: undefined }
+          : { respondedAt: now }),
+      })
+      changed = true
+    }
+  }
+
+  for (const stored of existingGuests) {
+    if (stored.sortOrder >= normalized.guests.length) {
+      await ctx.db.delete(stored._id)
+      changed = true
+    }
+  }
+
+  if (changed) {
+    await ctx.db.patch(existing._id, {
+      phone: normalized.normalizedPhone.phone,
+      displayName: normalized.displayName,
+      updatedAt: now,
+    })
+  }
+
+  return {
+    label: definition.label,
+    phone: normalized.normalizedPhone.phone,
+    rsvpId: existing._id,
+    guestCount: normalized.guests.length,
+    created: false,
+  }
+}
+
+const fixtureResultValidator = v.object({
+  fixtures: v.array(
+    v.object({
+      label: demoFixtureLabelValidator,
+      phone: v.string(),
+      rsvpId: v.id('rsvps'),
+      guestCount: v.number(),
+      created: v.boolean(),
+    }),
+  ),
+  totals: v.object({
+    rsvps: v.number(),
+    guests: v.number(),
+  }),
+})
+
+export const ensureDemoFixtures = internalMutation({
+  args: {},
+  returns: fixtureResultValidator,
+  handler: async (ctx) => {
+    const definitions = await buildDemoDefinitions(readDemoSeed())
+    const fixtures = []
+
+    for (const definition of definitions) {
+      fixtures.push(await reconcileFixture(ctx, definition))
+    }
+
+    return {
+      fixtures,
+      totals: {
+        rsvps: fixtures.length,
+        guests: fixtures.reduce((total, fixture) => total + fixture.guestCount, 0),
+      },
+    }
+  },
+})

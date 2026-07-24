@@ -1,15 +1,33 @@
-import { defineSchema } from 'convex/server'
+import { defineSchema, defineTable } from 'convex/server'
+import { v } from 'convex/values'
+import { attendanceValidator } from './rsvpModel'
 
-// Fundação do backend Convex (Fase 1 / plano 01-01).
-//
-// As tabelas do modelo de dados (rsvps, rsvpGuests, wines, posts, settings)
-// entram nas fases seguintes conforme a "Ordem de Build" documentada em
-// .planning/research/ARCHITECTURE.md:
-//   - Fase 3: rsvps / rsvpGuests (RSVP público)
-//   - Fase 4: wines (carta de vinhos)
-//   - Fase 5: posts (mural com upload + moderação)
-//   - Fase 6: settings + auth do dono (requireOwner)
-//
-// Mantido vazio de propósito aqui — este stub só estabelece a fundação
-// (defineSchema aplicado no deploy do Convex) para o cliente conectar.
-export default defineSchema({})
+export default defineSchema({
+  rsvps: defineTable({
+    phone: v.string(),
+    displayName: v.string(),
+    contact: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index('by_phone', ['phone']),
+
+  rsvpGuests: defineTable({
+    rsvpId: v.id('rsvps'),
+    publicRef: v.string(),
+    name: v.string(),
+    attendance: attendanceValidator,
+    sortOrder: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index('by_rsvp', ['rsvpId'])
+    .index('by_rsvp_sort', ['rsvpId', 'sortOrder'])
+    .index('by_rsvp_public_ref', ['rsvpId', 'publicRef']),
+
+  rsvpSessions: defineTable({
+    tokenHash: v.string(),
+    rsvpId: v.id('rsvps'),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index('by_token_hash', ['tokenHash'])
+    .index('by_expires_at', ['expiresAt']),
+})

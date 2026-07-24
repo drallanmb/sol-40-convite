@@ -8,13 +8,21 @@
  * @module
  */
 
+import type * as rsvpInternal from "../rsvpInternal.js";
+import type * as rsvpModel from "../rsvpModel.js";
+import type * as rsvpTest from "../rsvpTest.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  rsvpInternal: typeof rsvpInternal;
+  rsvpModel: typeof rsvpModel;
+  rsvpTest: typeof rsvpTest;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

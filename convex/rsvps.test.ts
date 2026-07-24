@@ -1,7 +1,23 @@
+import rateLimiterTest from '@convex-dev/rate-limiter/test'
+import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { components, internal } from './_generated/api'
 import { insertInvitation } from './rsvpInternal'
-import { makeRsvpTest } from './rsvpTest'
+import { makeRsvpTest as makeRsvpTestHarness } from './rsvpTest'
+
+declare const process: {
+  env: Record<string, string | undefined>
+}
+
+const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
+
+function makeRsvpTest() {
+  return makeRsvpTestHarness({
+    convexTest,
+    modules,
+    registerRateLimiter: (testInstance) => rateLimiterTest.register(testInstance),
+  })
+}
 
 const DEMO_FLAG = 'development-only'
 const DEMO_SEED = 'convex-rsvp-test-seed-with-at-least-thirty-two-bytes'
