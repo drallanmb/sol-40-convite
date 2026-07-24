@@ -3,6 +3,14 @@ import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { components, internal } from './_generated/api'
 import { insertInvitation } from './rsvpInternal'
+import { RSVP_RATE_LIMITS } from './rsvpRateLimits'
+import {
+  hashLimiterKey,
+  hashOpaqueToken,
+  isSessionActive,
+  toRetryAfterSeconds,
+  validateOpaqueToken,
+} from './rsvpSecurity'
 import { makeRsvpTest as makeRsvpTestHarness } from './rsvpTest'
 
 declare const process: {
@@ -265,5 +273,81 @@ describe('unique RSVP phone invariant', () => {
 
     const rsvps = await t.run((ctx) => ctx.db.query('rsvps').collect())
     expect(rsvps).toHaveLength(1)
+  })
+})
+
+describe('security helper', () => {
+  const token = Buffer.alloc(32, 7).toString('base64url')
+
+  it('accepts only canonical unpadded base64url tokens representing 32 bytes', () => {
+    expect(token).toHaveLength(43)
+    expect(validateOpaqueToken(token)).toBe(true)
+
+    expect(validateOpaqueToken('')).toBe(false)
+    expect(validateOpaqueToken(token.slice(0, -1))).toBe(false)
+    expect(validateOpaqueToken(`${token}A`)).toBe(false)
+    expect(validateOpaqueToken(`${token}=`)).toBe(false)
+    expect(validateOpaqueToken(`${token.slice(0, -1)}+`)).toBe(false)
+    expect(validateOpaqueToken(`${'A'.repeat(42)}B`)).toBe(false)
+  })
+
+  it('hashes capabilities and limiter identities deterministically without reflection', async () => {
+    const tokenHash = await hashOpaqueToken(token)
+    const repeatedTokenHash = await hashOpaqueToken(token)
+    const phoneKey = await hashLimiterKey('lookup-phone', '79999999999')
+    const sessionKey = await hashLimiterKey('save-session', tokenHash)
+
+    expect(tokenHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(repeatedTokenHash).toBe(tokenHash)
+    expect(tokenHash).not.toContain(token)
+
+    expect(phoneKey).toMatch(/^[a-f0-9]{64}$/)
+    expect(phoneKey).not.toContain('79999999999')
+    expect(sessionKey).toMatch(/^[a-f0-9]{64}$/)
+    expect(sessionKey).not.toContain(token)
+    expect(phoneKey).not.toBe(sessionKey)
+  })
+
+  it('uses exact expiry semantics at expiry minus one, at expiry, and after expiry', () => {
+    const expiresAt = 10_000
+
+    expect(isSessionActive(expiresAt, expiresAt - 1)).toBe(true)
+    expect(isSessionActive(expiresAt, expiresAt)).toBe(false)
+    expect(isSessionActive(expiresAt, expiresAt + 1)).toBe(false)
+  })
+
+  it('rounds retry milliseconds up to a positive whole second', () => {
+    expect(toRetryAfterSeconds(0)).toBe(1)
+    expect(toRetryAfterSeconds(1)).toBe(1)
+    expect(toRetryAfterSeconds(999)).toBe(1)
+    expect(toRetryAfterSeconds(1_000)).toBe(1)
+    expect(toRetryAfterSeconds(1_001)).toBe(2)
+  })
+})
+
+describe('rate policy', () => {
+  it('centralizes the four fixed-window policies and exact boundaries', () => {
+    expect(RSVP_RATE_LIMITS).toEqual({
+      lookupByPhone: {
+        kind: 'fixed window',
+        rate: 5,
+        period: 15 * 60 * 1_000,
+      },
+      lookupGlobal: {
+        kind: 'fixed window',
+        rate: 120,
+        period: 15 * 60 * 1_000,
+      },
+      saveBySession: {
+        kind: 'fixed window',
+        rate: 30,
+        period: 60 * 60 * 1_000,
+      },
+      saveGlobal: {
+        kind: 'fixed window',
+        rate: 300,
+        period: 60 * 60 * 1_000,
+      },
+    })
   })
 })
