@@ -440,14 +440,16 @@ function PalmSvg({ side }: { side: "left" | "right" }) {
 | A2 | Whether the guide grid ships with 3 or 4 cards (Croa do Goré inclusion) is still open per UI-SPEC — this research treated it as "planner/human decides," not settled | Copywriting Contract / Open Questions | Affects the grid-border pitfall (Pitfall 6) and layout verification scope — low risk either way, both counts are covered in UI-SPEC's UI Considerations |
 | A3 | Tripadvisor review counts/ranking ("#6 of 94 things to do in Aracaju," 2,729 reviews) reflect a live, changing number and will drift from whatever is baked into static copy at build time | Code Examples / Don't Hand-Roll | Low — these numbers are informational copy on an external-link card, not something the site claims to keep live; no action needed beyond not over-promising exact figures in on-page copy if they're included verbatim |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does the guide grid ship with 3 or 4 cards (Croa do Goré)?**
+Both questions below were open at research time and have since been settled during planning. Markers record where.
+
+1. **Does the guide grid ship with 3 or 4 cards (Croa do Goré)?** — **RESOLVED: four cards.** Settled in plan 02-06 ("Resolved open question… this plan settles it at four") and delivered by plan 02-01's content module, which ships four `GUIDE` cards. D-13 asked to widen the guide with best-rated attractions, research surfaced exactly one strong verified candidate, and 02-06's count-indifferent grid-border strategy renders deliberately at both three and four cards. The fourth card keeps the research-verified `.com` host; the unverified `.com.br` variant is not used (prohibition P-04).
    - What we know: The `.com` Tripadvisor URL for Croa do Goré is confirmed real (`#6 of 94 things to do in Aracaju`, 4.3★, 2,729 reviews, boat tour to a sandbank via Orla do Pôr do Sol). UI-SPEC frames the copy as "quem tiver um dia a mais" (day-trip framing, distinct from the "aprox. X km" framing of the other 3).
    - What's unclear: Whether the dono wants a 4th card at all (D-13 says "amplify with best-rated," this research surfaces one strong candidate but doesn't finalize inclusion), and whether the `.com.br` URL variant resolves identically.
    - Recommendation: Planner should keep both a 3-card and 4-card layout path viable (Pitfall 6's grid-border fix works for either), and treat final inclusion as a `checkpoint:human-verify`-style confirmation before the guide section ships, or default to including it (research supports it as legitimate/well-reviewed) with a fast manual link check.
 
-2. **Exact compressed size/format for the two dress-code photos.**
+2. **Exact compressed size/format for the two dress-code photos.** — **RESOLVED: manual re-compression, no new dependency.** Settled in plan 02-02 Task 1, whose recipe was executed against the real source files during planning and lands the `public/` directory at 604 KB total with a 203 KB worst file (both dress-code JPEGs under the 250 KB per-file budget) — a low-effort re-export, not a build-pipeline image-optimization dependency, exactly as recommended below.
    - What we know: Source JPEGs are ~500KB each at high resolution (Pitfall 7).
    - What's unclear: Whether the planner should introduce an image-optimization step (manual re-export, or a build-time tool) versus just copying as-is and accepting the weight since both images are `loading="lazy"` and below the fold.
    - Recommendation: Low-effort manual re-compression (no new library) during the D-09 asset-porting task is sufficient; not worth a build-pipeline image-optimization dependency for 2 static photos.

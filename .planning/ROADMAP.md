@@ -50,13 +50,20 @@ Plans:
 **Plans**: 7 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 02-01-PLAN.md — Wave 0 (vitest) + `src/content/event.ts` + countdown puro (`getEventState`, `pluralizeUnit`, `useCountdown`)
 - [ ] 02-02-PLAN.md — Assets do projeto antigo para `public/` (comprimidos) + metadados do `index.html` (título, description, OG, favicon)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-03-PLAN.md — Hero: céu/sol/horizonte, palmeiras em SVG, mar animado + `prefers-reduced-motion`
 - [ ] 02-04-PLAN.md — Countdown UI: seção de 4 estados + trilho compacto do topbar
 - [ ] 02-05-PLAN.md — Seções programa (7 blocos) e dress code (regras + callout + galeria)
 - [ ] 02-06-PLAN.md — Local (card + mapa sob clique) + guia de Aracaju (4 cards) + 3 hotéis
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-07-PLAN.md — Topbar com scroll/hambúrguer/trilho + skip link + composição da página em `Home.tsx`
 
 ### Phase 3: RSVP
