@@ -6,7 +6,7 @@ current_phase: 3
 current_phase_name: RSVP
 status: executing
 stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-07-24T19:42:30.577Z"
+last_updated: "2026-07-24T19:49:34.942Z"
 last_activity: 2026-07-24
 last_activity_desc: RSVP frontend foundation complete; plan 03-04 ready
 progress:
@@ -109,6 +109,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 03]: Latest server snapshot, local draft, and dirty guest/contact intent remain distinct. — Reconciliation can preserve local edits while sparse commands never overwrite omitted people.
 - [Phase 03]: Client capabilities must be canonical 32-byte unpadded base64url, live under one session key, and retry token_conflict once with a distinct token. — Matches the backend validator and keeps phone/contact data outside browser persistence.
 - [Phase 03]: Deadline state is presentation-only and the browser override is gated directly by import.meta.env.DEV. — Production never reads debug time and post-deadline editing remains available.
+- [Phase 03]: RSVP focus longhands are important because the unlayered global shorthand wins over Tailwind utilities; placeholders use solid wine. — This preserves the ordinary coral focus rule while delivering the contracted 3px sea ring and AA placeholder contrast.
 
 ### Pending Todos
 
