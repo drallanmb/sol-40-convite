@@ -19,13 +19,15 @@ export type PalmSvgProps = {
  */
 export function PalmSvg({ side }: PalmSvgProps) {
   const positionClasses =
-    side === 'left' ? 'left-[-82px]' : 'right-[-82px] scale-x-[-1]'
+    side === 'left'
+      ? 'left-[-64px] sm:left-[-72px] md:left-[-82px]'
+      : 'right-[-64px] sm:right-[-72px] md:right-[-82px] scale-x-[-1]'
 
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 360 600"
-      className={`pointer-events-none absolute bottom-[-130px] z-[2] h-[600px] w-[360px] drop-shadow-[0_12px_30px_rgba(18,15,22,0.2)] ${positionClasses}`}
+      className={`pointer-events-none absolute bottom-[-82px] z-[2] h-[380px] w-[228px] drop-shadow-[0_12px_30px_rgba(18,15,22,0.2)] sm:bottom-[-108px] sm:h-[500px] sm:w-[300px] md:bottom-[-130px] md:h-[600px] md:w-[360px] ${positionClasses}`}
     >
       {side === 'left' ? (
         <>
