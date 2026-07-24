@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 current_phase_name: RSVP
-status: planned
-stopped_at: Phase 3 plans 03-01 through 03-05 ready for execution
-last_updated: "2026-07-24T15:22:49-03:00"
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-07-24T18:58:47.841Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 3 planning complete with five plans ready; no implementation started
+last_activity_desc: Phase 3 Wave 0 complete; plan 03-02 ready
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 16
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -27,18 +27,18 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 
 ## Current Position
 
-Phase: 3 — RSVP
-Plan: 0 of 5 — planned, none executed
-Status: Ready to execute Wave 0 (`03-01`)
-Last activity: 2026-07-24 — Phase 3 planning complete; five plans ready, no implementation started
+Phase: 3 (RSVP) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-07-24 — Wave 0 complete; public RSVP backend is next
 
-Progress: [███████░░░] 69% (11/16 plans complete overall; Phase 3 is 0/5)
+Progress: [████████░░] 75% (12/16 plans complete overall; Phase 3 is 1/5)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: —
 - Total execution time: —
 
@@ -48,7 +48,7 @@ Progress: [███████░░░] 69% (11/16 plans complete overall; Ph
 |-------|-------|-------|----------|
 | 1 | 3 | - | - |
 | 02 | 8 | - | - |
-| 03 | 0 | 5 | - |
+| 03 | 1 | 5 | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -64,6 +64,7 @@ Progress: [███████░░░] 69% (11/16 plans complete overall; Ph
 | Phase 02 P06 | 15min | 2 tasks | 2 files |
 | Phase 02 P07 | 12min | 2 tasks | 2 files |
 | Phase 02 P08 | 8min | 1 tasks | 1 files |
+| Phase 03 P01 | 13min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-07]: ShellProps gained typed navLinks/showCountdownRail/wordmarkHref props in place of the old untyped nav slot; the topbar's nav set now comes only from src/content/event.ts's NAV_LINKS
 - [Phase ?]: [Phase 2-07]: Countdown-rail reveal threshold is derived from the live DOM position (getBoundingClientRect of the element after the hero) rather than a hardcoded pixel value
 - [Phase ?]: [Phase 2-08]: Hero palm silhouettes scale via base/sm:/md: Tailwind breakpoints (380x228 -> 500x300 -> 600x360) instead of one fixed footprint, restoring the exact original md: values so desktop framing stays byte-identical (closes UAT gap G-02-3)
+- [Phase 03]: convex-test 0.0.54 exige apenas Convex como peer; @edge-runtime/vm não foi adicionado sem necessidade.
+- [Phase 03]: Telefone móvel legado expõe candidatos exato/atual; normalizedKey usa a forma atual e inserts verificam também a inversa legada.
+- [Phase 03]: Fixtures RSVP são internalMutation dev-only, derivadas por HMAC de seed server-only e idempotentes em quatro formatos.
+- [Phase 03]: Harness Convex recebe dependências de teste por injeção de *.test.ts para não levar import.meta ao deploy.
 
 ### Pending Todos
 
@@ -115,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T15:22:49-03:00
-Stopped at: Phase 3 plans 03-01 through 03-05 ready for execution
-Resume file: .planning/phases/03-rsvp/03-01-PLAN.md
+Last session: 2026-07-24T18:58:47.837Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None
