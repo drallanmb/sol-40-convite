@@ -1,7 +1,7 @@
 ---
 phase: 2
 slug: convite-p-blico
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-23
@@ -127,23 +127,56 @@ All copy is pt-BR and, per D-01/D-02, ported verbatim from `sol-40-integrado/app
 
 ## UI Considerations
 
-Applicable state considerations resolved: 9 covered, 3 backstop, 1 unresolved.
+> Populated by the ui-phase UI-consideration probe (Step 9.5), run after checker approval.
+> Shape-rooted UI *state* coverage only. Empty-state and error-state COPY lives in
+> `## Copywriting Contract` above — these rows reference it rather than restate it.
+
+**Elements probed** (10 surfaces, 70 applicable considerations, 0 unclassified):
+
+| id | Surface | Element kinds |
+|----|---------|---------------|
+| E1 | Hero — sky/sun/palmeiras/mar art + 4 text layers + "Ver programação ↓" CTA | interactive-control, static-content, media |
+| E2 | Countdown — 4 numeric tiles, 4 states (antes / é hoje / tá rolando / depois) | list-collection, static-content |
+| E3 | Countdown rail — compact sticky tiles in the topbar | static-content, nav, list-collection |
+| E4 | Programa — 7 schedule blocks | list-collection, nav, static-content |
+| E5 | Traje — rules, Homens/Mulheres blocks, callout, 2-photo gallery | media, static-content, list-collection |
+| E6 | Local/mapa — card + click-to-load Google Maps iframe + "Abrir rota ↗" | list-collection, nav, interactive-control, media, static-content |
+| E7 | Guia da cidade — 3 or 4 cards with external Tripadvisor links | list-collection, static-content, nav, interactive-control |
+| E8 | Onde ficar — 3 hotéis with external links | list-collection, nav, static-content |
+| E9 | Topbar nav — 3 anchor links + mobile hamburger | nav, media, interactive-control |
+| E10 | Footer — wordmark + one static line | interactive-control, static-content |
+
+Applicable state considerations resolved: **57 covered, 13 backstop, 0 unresolved.**
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| overflow | Countdown tiles (depois state) | 🧪 backstop | Uncapped day count in the "depois" state (D-10) can exceed the 2-digit width the old `.countdown strong` layout assumed at large fonts. Tiles must use `tabular-nums` (already in old CSS) and a `min-width` that does not clip 3+ digit day counts; visual test: render with `days: 999` and confirm no clipping/overlap. |
-| zero-one-many | Programa list (7 items) | ✅ covered | Fixed, hardcoded content (D-02) — always exactly 7 blocks, never 0/1/many. No pagination or empty state needed. |
-| zero-one-many | Hotel list (3 items) | ✅ covered | Fixed, hardcoded content (D-14) — always exactly 3 hotels this phase. |
-| zero-one-many | Guia da cidade grid (3 or 4 items) | ✅ covered | Fixed, hardcoded content; count is 3 (confirmed) or 4 (pending the Croa do Goré confirmation above) — grid CSS must handle both 3-col and a 4th wrapping card without a broken border edge (old `.guide-grid > *:last-child { border-right: 0 }` only handles exact multiples of the column count — recheck for 4 items in a 3-col grid). |
-| long-text | Guia/hotel card copy | ⚠ unresolved | Place/hotel names and descriptions are Portuguese proper nouns that can run long ("Museu da Gente Sergipana", "Quality Hotel Aracaju"); old CSS has no explicit truncation rule (`overflow-wrap: anywhere` is only declared for `.wine-copy h3/h4, .map-card h2, .guide-grid h3, .hotel-list strong` — carries forward, but not verified against the new 4th card's name). Planner should verify wrap behavior with the longest real string, not assume. |
-| media (loading) | Dress-code gallery (2 photos) | ✅ covered | `loading="lazy" decoding="async"` ports from the old `<img>` attributes; images are local `public/` assets (not remote), so load is fast and doesn't need a skeleton. |
-| media (error) | Dress-code gallery (2 photos), sol-symbol wordmark | ✅ covered | Descriptive `alt` text ports verbatim from the old site (e.g. "Homem com camisa e bermuda brancas..."); if an asset fails to load, the alt text is the fallback — no custom broken-image UI needed since these are build-time-bundled local assets, not user uploads. |
-| nav (loading) | Map iframe (D-12, click-to-load) | 🧪 backstop | Google Maps iframe loads asynchronously after "Ver mapa" is tapped; on a slow connection the iframe area is blank until it paints. Spec: reserve the iframe's final height (`map-wrap` `height: 610px` desktop / `540px` mobile per old CSS) before mount so the page doesn't jump, and show the "Abrir rota" link as an always-available fallback next to it. Verification: throttle network, confirm no layout shift when the iframe mounts. |
-| interactive-control | Topbar hamburger (mobile) | ✅ covered | Open/closed states port from `.menu-toggle[aria-expanded]` — icon morphs to an X via the existing `::before`/`::after` transforms; `aria-expanded`/`aria-controls` carry forward for a11y. |
-| interactive-control | "Ver mapa" toggle | ✅ covered | Binary state (card-only ⇄ card+iframe); no intermediate loading spinner required per D-12 — the iframe's own native load is the only async part (see nav/loading row above). |
-| static-content (overflow) | Section headings with `<em>` emphasis | ✅ covered | `text-heading`/`text-display` are already `clamp()`-based fluid tokens from Phase 1; wrapping at narrow widths is expected and matches the old design (multi-line hero H1 already stacks "Sol" / "40 anos"). |
-| static-content (long-text) | Countdown "depois" heading | ✅ covered | "JÁ QUE VOCÊ NÃO FOI, PERDEU!" is long for an `em`-accented `h2` at `text-heading` size — must be checked at the smallest supported viewport (360px) to confirm it wraps to 2–3 lines cleanly rather than overflowing; treat like the existing multi-word old headings (e.g. "Um fim de semana com gosto de Aracaju."), same pattern, not a new risk. |
-| loading | Countdown ticking (all 4 states) | ✅ covered | `setInterval`-driven re-render every second, ported from `useCountdown()` in the old `EventSite.tsx`; always has a value from first paint (computed synchronously against `EVENT_DATE`/`EVENT_END`), so there's no loading/skeleton state to design — first paint already shows the correct numbers. |
+| empty | E2, E3, E4, E5, E7, E8, E9 | ✅ covered | Every collection is a non-empty literal in `src/content/event.ts`, checked into the repo and bundled at build time — no fetch, no user input, no Convex query on this route — so a zero-item render is unreachable. The content module exports fixed-length literals, never `T[] \| undefined`, so an empty render would be a build error rather than a runtime state. |
+| empty | E1 | ✅ covered | Hero sky, sun, palmeiras, waves and light path are inline SVG + CSS drawn in-component (D-06/D-07/D-08) — there is no asset that can be absent, so the hero has no empty state. |
+| empty | E6 | ✅ covered | The pre-"Ver mapa" state is intentional absence, not missing data: the card renders venue name + corrected address + the always-visible "Abrir rota ↗" link, which is by itself a complete way to reach the venue (D-12). |
+| loading | E2, E3 | ✅ covered | Countdown values are computed synchronously against the hardcoded `2026-10-17T00:00:00-03:00` timestamp during the first render, so first paint already shows correct digits; `setInterval` only advances them. There is no skeleton or spinner state to design. |
+| loading | E4, E7, E8, E9 | ✅ covered | Static bundled content — painted with the first HTML/JS chunk. No per-section loading state exists. |
+| loading | E5 | ✅ covered | Both dress-code photos are local `public/` assets carrying `loading="lazy" decoding="async"`, and each `<img>` declares explicit `width`/`height` (or a CSS `aspect-ratio`) so the grid cell is reserved before decode — lazy loading cannot shift the section. |
+| loading | E6 | 🧪 backstop | The Google Maps iframe is remote third-party content that paints blank until it resolves. Reserve its final height (610px desktop / 540px mobile) before mount. Verify by throttling to Slow 3G, tapping "Ver mapa", and confirming zero layout shift in the sections below it. |
+| loading | E1 | 🧪 backstop | The hero display lockup uses self-hosted variable fonts (Alegreya/Gabarito via `@fontsource-variable`), so a fallback→webfont swap can reflow the largest type on the page. Verify with a throttled first load at 360px and 1440px that the "Sol / 40 anos" lockup does not visibly jump. |
+| error | E1, E4, E8, E9 | ✅ covered | No network dependency — inline SVG/CSS art and bundled pt-BR strings. There is no failure path to design. Under `prefers-reduced-motion` the hero art stays fully visible as static art (D-08), which is a rendering mode, not an error state. |
+| error | E2, E3 | ✅ covered | Countdown math is pure local `Date` arithmetic against a hardcoded `-03:00` timestamp — no call can fail. A `NaN`/invalid delta must never reach the DOM: the component clamps to the "depois" state rather than rendering `NaN`. |
+| error | E5 | ✅ covered | Descriptive pt-BR `alt` text ports verbatim from the old site; a failed decode falls back to that alt text. Assets are build-bundled, so a missing file is a build failure, not a runtime state — no custom broken-image UI needed. |
+| error | E6 | ✅ covered | If the iframe is blocked (tracking blocker, offline, CSP) the always-visible "Abrir rota ↗" link is the designed fallback — the guest still has a working route. The embedded map is additive and never the only path to the venue. |
+| error | E7 | 🧪 backstop | The 4th guide card's Tripadvisor URL is still flagged `[AUTO — needs planner confirmation]` in the Copywriting Contract, and the `.com` vs `.com.br` convention is unverified. Every external URL in the guide grid and hotel list must be link-checked (HTTP 200, no redirect into a 404) before this phase verifies. |
+| populated | E1, E2, E3 | ✅ covered | Hero has one populated state (full-viewport art + 4 text layers + 1 CTA), verified at 360px / 768px / 1440px. Countdown and rail populated = the 4 "antes" tiles, the state effectively every guest sees before the party. |
+| populated | E4, E5, E6, E7, E8, E9 | ✅ covered | Typical volume is the only volume: 7 programa blocks, 2 traje photos + both rule blocks + callout, card + mounted iframe + rota link, 3–4 guide cards, 3 hotéis, 3 nav links (hamburger on mobile). All fixed by D-02/D-13/D-14 and D-05. |
+| partial | E2, E3, E4, E5, E7, E8 | ✅ covered | No element can render partially — every record in `src/content/event.ts` is a complete literal with all required fields (time/title/description, name/distance/url), and the TypeScript types make a missing field a build error rather than a runtime partial state. |
+| partial | E6 | ✅ covered | The only partial rendering is card-without-map, which is the designed default state (see the `empty` row above), not degraded output. |
+| overflow | E1, E4, E5, E6, E8, E10 | ✅ covered | Fluid `clamp()` type tokens from Phase 1 plus a max-width content column mean sections wrap rather than overflow; no fixed-width container exists that content can exceed. The hero H1 already stacks "Sol" / "40 anos" by design. |
+| overflow | E2, E3 | 🧪 backstop | The "depois" state counts up with no ceiling (D-10), so the day tile can exceed the 2-digit width the old `.countdown strong` layout assumed. Tiles use `tabular-nums` and a `min-width` sized for 4 digits. Verify by rendering both the full tiles and the compact rail with `days: 9999` and confirming no clipping, overlap, or rail wrap. |
+| overflow | E7 | 🧪 backstop | The old `.guide-grid > *:last-child { border-right: 0 }` rule only resolves cleanly when the item count is an exact multiple of the column count — a 4th card in a 3-column grid breaks it. Verify the grid renders at both 3 and 4 cards on desktop, tablet and 360px with no orphaned border edge and no stranded single card on the last row. |
+| overflow | E9 | 🧪 backstop | At 360px the sticky topbar must carry the wordmark, 3 nav links (or the hamburger) *and* the compact countdown rail simultaneously. Verify in the "antes" state with the rail visible that the topbar does not wrap to two lines or push the wordmark off-screen. |
+| zero-one-many | E4, E5, E6, E8 | ✅ covered | Counts are fixed and hardcoded — always 7 programa blocks, 2 traje photos, 1 map, 3 hotéis — so no singular/plural copy branch is reachable and spacing is authored against the real count. |
+| zero-one-many | E2, E3 | 🧪 backstop | pt-BR unit labels must agree with the number: `1 dia` / `1 hora` / `1 minuto` / `1 segundo` at one, `0 dias` / `2 dias` otherwise — "1 dias" is a visible grammar bug and the countdown passes through 1 for every unit on its way down. Verify with a unit test over the label function at 0, 1 and 2 for all four units, in both the full tiles and the compact rail. |
+| zero-one-many | E7 | 🧪 backstop | The guide grid ships at either 3 or 4 cards depending on whether the Croa do Goré card is confirmed. Both counts must read as a deliberate layout, not a broken row — verified together with the `overflow` row above. |
+| long-text | E1, E3, E4, E5, E6, E9, E10 | ✅ covered | All copy is fixed pt-BR strings in `src/content/event.ts`, reviewed at authoring time; the fluid `clamp()` type scale and wrapping containers absorb the longest of them at 360px. No user-generated text reaches this phase. |
+| long-text | E2 | 🧪 backstop | "JÁ QUE VOCÊ NÃO FOI, PERDEU!" is long for an `<em>`-accented `h2` at `text-heading` size and is locked verbatim (must not be softened). Verify at 360px that it wraps to 2–3 lines cleanly with no horizontal scroll and no mid-word break. |
+| long-text | E7, E8 | 🧪 backstop | Place and hotel names are long Portuguese proper nouns ("Museu da Gente Sergipana", "Passarela do Caranguejo", "Quality Hotel Aracaju", plus the pending "Croa do Goré" card). `overflow-wrap: anywhere` carries forward from the old CSS and must be applied to the new 4th card too. Verify at 360px using the longest *real* string, never placeholder text. |
 
 ---
 
@@ -158,11 +191,13 @@ Applicable state considerations resolved: 9 covered, 3 backstop, 1 unresolved.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS — all CTAs actionable ("Ver programação ↓", "Ver mapa", "Abrir rota ↗"); empty/error/destructive states explicitly addressed
+- [x] Dimension 2 Visuals: PASS — hero established as focal point; no unlabeled icon-only actions (hamburger carries `aria-expanded`/`aria-controls`)
+- [x] Dimension 3 Color: PASS — accent reserved for 5 named roles, not "all interactive"; 60/30/10 split explicit; destructive token declared but unused
+- [x] Dimension 4 Typography: PASS — 4 size roles, exactly 2 weights (400/700), all line heights declared
+- [x] Dimension 5 Spacing: PASS — 6 tokens, all multiples of 4; the `clamp()` section-padding and 44px touch-target exceptions are declared and justified
+- [x] Dimension 6 Registry Safety: PASS — no shadcn, no third-party registries; bespoke Phase 1 design system only
 
-**Approval:** pending
+**Approval:** APPROVED — 6/6 dimensions passed, 0 blocking issues, 0 recommendations (gsd-ui-checker, 2026-07-23). No revision iterations were needed.
+
+**UI-consideration probe:** 10 surfaces, 70 applicable considerations, 0 unclassified → 57 covered, 13 backstop, 0 unresolved. Each 🧪 backstop carries a named verification; with no wired evidence at verify time it routes to `human_needed` rather than passing silently.
