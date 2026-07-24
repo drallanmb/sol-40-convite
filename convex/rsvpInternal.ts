@@ -1,7 +1,12 @@
 import { v } from 'convex/values'
 import { normalizePhone, type NormalizedPhone } from '../src/lib/phone'
+import { api, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
-import { internalMutation, type MutationCtx } from './_generated/server'
+import {
+  internalAction,
+  internalMutation,
+  type MutationCtx,
+} from './_generated/server'
 import {
   CONTACT_MAX_LENGTH,
   demoFixtureLabelValidator,
@@ -551,5 +556,96 @@ export const revokeDemoSession = internalMutation({
 
     await ctx.db.delete(sessions[0]._id)
     return { kind: 'deleted' } as const
+  },
+})
+
+const throttleSessionResultValidator = v.union(
+  v.object({ kind: v.literal('created') }),
+  v.object({ kind: v.literal('token_conflict') }),
+  v.object({ kind: v.literal('invalid_token') }),
+  v.object({ kind: v.literal('fixture_unavailable') }),
+)
+
+export const createDemoThrottleSession = internalMutation({
+  args: {
+    fixture: v.literal('normal'),
+    token: v.string(),
+  },
+  returns: throttleSessionResultValidator,
+  handler: async (ctx, args) => {
+    const seed = readDemoSeed()
+    if (!validateOpaqueToken(args.token)) {
+      return { kind: 'invalid_token' } as const
+    }
+
+    const invitation = await findDemoInvitation(ctx, seed, args.fixture)
+    if (!invitation) {
+      return { kind: 'fixture_unavailable' } as const
+    }
+
+    const result = await createRsvpSession(ctx, {
+      rsvpId: invitation._id,
+      token: args.token,
+    })
+    if (result.kind === 'created') {
+      return { kind: 'created' } as const
+    }
+    if (result.kind === 'token_conflict') {
+      return { kind: 'token_conflict' } as const
+    }
+    return { kind: 'invalid_token' } as const
+  },
+})
+
+const throttlePreparationResultValidator = v.object({
+  nMinusOne: v.number(),
+  atLimit: v.number(),
+  successfulCalls: v.number(),
+  nextCallOrdinal: v.number(),
+})
+
+export const prepareSaveThrottleDemo = internalAction({
+  args: {
+    fixture: v.literal('normal'),
+    token: v.string(),
+  },
+  returns: throttlePreparationResultValidator,
+  handler: async (ctx, args) => {
+    readDemoSeed()
+
+    const session = await ctx.runMutation(
+      internal.rsvpInternal.createDemoThrottleSession,
+      args,
+    )
+    if (session.kind !== 'created') {
+      throw new Error('Não foi possível preparar o limite demo.')
+    }
+
+    let successfulCalls = 0
+    try {
+      for (let ordinal = 1; ordinal <= 30; ordinal += 1) {
+        const result = await ctx.runMutation(api.rsvps.saveResponses, {
+          token: args.token,
+          guestUpdates: [],
+          contact: { kind: 'unchanged' },
+        })
+        if (result.kind !== 'saved') {
+          throw new Error('Throttle preparation stopped')
+        }
+        successfulCalls = ordinal
+      }
+    } catch {
+      await ctx.runMutation(internal.rsvpInternal.revokeDemoSession, {
+        token: args.token,
+      })
+      throw new Error('Não foi possível preparar o limite demo.')
+    }
+
+    return {
+      nMinusOne: 29,
+      atLimit: 30,
+      successfulCalls,
+      nextCallOrdinal: 31,
+    }
   },
 })

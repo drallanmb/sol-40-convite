@@ -2,7 +2,11 @@ import { v } from 'convex/values'
 import { normalizePhone, type NormalizedPhone } from '../src/lib/phone'
 import type { Doc } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
-import { attendanceValidator } from './rsvpModel'
+import {
+  attendanceValidator,
+  CONTACT_MAX_LENGTH,
+  MAX_RSVP_GUESTS,
+} from './rsvpModel'
 import { rsvpRateLimiter } from './rsvpRateLimits'
 import {
   createRsvpSession,
@@ -13,6 +17,8 @@ import {
 } from './rsvpSecurity'
 
 const GLOBAL_LOOKUP_KEY = undefined
+const GLOBAL_SAVE_KEY = undefined
+const PUBLIC_GUEST_REF_PATTERN = /^guest_[a-f0-9]{32}$/
 
 const rateLimitedValidator = v.object({
   kind: v.literal('rate_limited'),
@@ -24,6 +30,15 @@ const unlockResultValidator = v.union(
   v.object({ kind: v.literal('not_found') }),
   v.object({ kind: v.literal('token_conflict') }),
   rateLimitedValidator,
+)
+
+const contactCommandValidator = v.union(
+  v.object({ kind: v.literal('unchanged') }),
+  v.object({
+    kind: v.literal('set'),
+    value: v.string(),
+  }),
+  v.object({ kind: v.literal('clear') }),
 )
 
 const guestViewValidator = v.object({
@@ -38,6 +53,16 @@ export const familyViewValidator = v.object({
   guests: v.array(guestViewValidator),
   updatedAt: v.number(),
 })
+
+const saveResultValidator = v.union(
+  v.object({
+    kind: v.literal('saved'),
+    view: familyViewValidator,
+  }),
+  v.object({ kind: v.literal('session_expired') }),
+  v.object({ kind: v.literal('invalid_update') }),
+  rateLimitedValidator,
+)
 
 type ReadContext = Pick<QueryCtx, 'db'>
 
@@ -128,6 +153,56 @@ async function consumeLookupLimits(
   return { kind: 'consumed' } as const
 }
 
+async function authorizeSaveCall(ctx: MutationCtx, token: string) {
+  const globalStatus = await rsvpRateLimiter.check(ctx, 'saveGlobal', {
+    key: GLOBAL_SAVE_KEY,
+  })
+  if (!globalStatus.ok) {
+    return {
+      kind: 'rate_limited',
+      retryAfterSeconds: retrySeconds(globalStatus.retryAfter),
+    } as const
+  }
+
+  const scoped = await resolveActiveRsvpSession(ctx, token)
+  if (!scoped) {
+    const globalConsumption = await rsvpRateLimiter.limit(ctx, 'saveGlobal', {
+      key: GLOBAL_SAVE_KEY,
+    })
+    if (!globalConsumption.ok) {
+      throw new Error('RSVP global save limiter invariant failed')
+    }
+
+    return { kind: 'session_expired' } as const
+  }
+
+  const sessionKey = await hashLimiterKey('save-session', scoped.tokenHash)
+  const sessionStatus = await rsvpRateLimiter.check(ctx, 'saveBySession', {
+    key: sessionKey,
+  })
+  if (!sessionStatus.ok) {
+    return {
+      kind: 'rate_limited',
+      retryAfterSeconds: retrySeconds(sessionStatus.retryAfter),
+    } as const
+  }
+
+  const globalConsumption = await rsvpRateLimiter.limit(ctx, 'saveGlobal', {
+    key: GLOBAL_SAVE_KEY,
+  })
+  const sessionConsumption = await rsvpRateLimiter.limit(ctx, 'saveBySession', {
+    key: sessionKey,
+  })
+  if (!globalConsumption.ok || !sessionConsumption.ok) {
+    throw new Error('RSVP save limiter transaction invariant failed')
+  }
+
+  return {
+    kind: 'authorized',
+    scoped,
+  } as const
+}
+
 export async function buildFamilyView(ctx: ReadContext, rsvp: Doc<'rsvps'>) {
   const guests = await ctx.db
     .query('rsvpGuests')
@@ -196,5 +271,107 @@ export const getCurrent = query({
     }
 
     return buildFamilyView(ctx, scoped.rsvp)
+  },
+})
+
+export const saveResponses = mutation({
+  args: {
+    token: v.string(),
+    guestUpdates: v.array(
+      v.object({
+        guestRef: v.string(),
+        attendance: attendanceValidator,
+      }),
+    ),
+    contact: contactCommandValidator,
+  },
+  returns: saveResultValidator,
+  handler: async (ctx, args) => {
+    const authorization = await authorizeSaveCall(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
+
+    if (args.guestUpdates.length > MAX_RSVP_GUESTS) {
+      return { kind: 'invalid_update' } as const
+    }
+
+    const seenGuestRefs = new Set<string>()
+    for (const update of args.guestUpdates) {
+      if (
+        !PUBLIC_GUEST_REF_PATTERN.test(update.guestRef) ||
+        seenGuestRefs.has(update.guestRef)
+      ) {
+        return { kind: 'invalid_update' } as const
+      }
+      seenGuestRefs.add(update.guestRef)
+    }
+
+    let nextContact = authorization.scoped.rsvp.contact
+    if (args.contact.kind === 'set') {
+      const normalizedContact = args.contact.value.trim()
+      if (
+        !normalizedContact ||
+        normalizedContact.length > CONTACT_MAX_LENGTH
+      ) {
+        return { kind: 'invalid_update' } as const
+      }
+      nextContact = normalizedContact
+    } else if (args.contact.kind === 'clear') {
+      nextContact = undefined
+    }
+
+    const guestChanges: Array<{
+      guest: Doc<'rsvpGuests'>
+      attendance: Doc<'rsvpGuests'>['attendance']
+    }> = []
+
+    for (const update of args.guestUpdates) {
+      const matches = await ctx.db
+        .query('rsvpGuests')
+        .withIndex('by_rsvp_public_ref', (index) =>
+          index
+            .eq('rsvpId', authorization.scoped.rsvp._id)
+            .eq('publicRef', update.guestRef),
+        )
+        .collect()
+      if (matches.length !== 1) {
+        return { kind: 'invalid_update' } as const
+      }
+
+      if (matches[0].attendance !== update.attendance) {
+        guestChanges.push({
+          guest: matches[0],
+          attendance: update.attendance,
+        })
+      }
+    }
+
+    const contactChanged = nextContact !== authorization.scoped.rsvp.contact
+    if (guestChanges.length > 0 || contactChanged) {
+      const now = Date.now()
+
+      for (const change of guestChanges) {
+        await ctx.db.patch(change.guest._id, {
+          attendance: change.attendance,
+          respondedAt: now,
+        })
+      }
+
+      await ctx.db.patch(authorization.scoped.rsvp._id, {
+        ...(contactChanged ? { contact: nextContact } : {}),
+        updatedAt: now,
+      })
+    }
+
+    const currentRsvp = await ctx.db.get(authorization.scoped.rsvp._id)
+    if (!currentRsvp) {
+      throw new Error('RSVP scope invariant failed')
+    }
+
+    return {
+      kind: 'saved',
+      view: await buildFamilyView(ctx, currentRsvp),
+    } as const
   },
 })
