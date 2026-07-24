@@ -10,18 +10,22 @@ Evento: **17 de outubro de 2026, 16h · Matapuã Eventos · Aracaju/SE.**
 
 Os convidados confirmam presença e escolhem presente **sem atrito**, e os donos veem quem vem e quais vinhos já foram escolhidos **consolidado e ao vivo, sem trabalho manual**. Se tudo mais falhar, isto precisa funcionar: uma confirmação de presença ou escolha de presente sempre chega ao dashboard.
 
+## Current State
+
+Fases 1–3 concluídas. O convite público e o RSVP por telefone estão
+implementados e verificados; o foco atual é a Fase 4 — Carta de Vinhos.
+
 ## Requirements
 
 ### Validated
 
-(Nenhum ainda — projeto novo, valida ao entregar)
+- [x] **Convite público** com identidade "hora dourada / pôr do sol" — validado na Fase 2
+- [x] **RSVP público por telefone** (sem login) — confirmação por pessoa, edição posterior, contato opcional e rate limit validados na Fase 3
 
 ### Active
 
 <!-- Escopo v1. Hipóteses até serem entregues e validadas. -->
 
-- [ ] **Convite público** com identidade "hora dourada / pôr do sol" — hero, countdown, programa, dress code, local + mapa de Aracaju, guia da cidade/hotéis
-- [ ] **RSVP público por telefone** (sem login) — convidado informa telefone e nome(s), confirma "vai / não vai"; resultado alimenta o dashboard
 - [ ] **Carta de vinhos** — catálogo de vinhos; cada card com botão "Presentear pelo WhatsApp" (`wa.me` com mensagem pronta); status "já presenteado" controlado no dashboard para evitar repetição
 - [ ] **Mural de memórias** — convidados enviam fotos + recados; **moderação** dos donos antes de publicar; galeria/álbum público
 - [ ] **Dashboard interno** (senha única dos donos) — visão geral com contagem de confirmações ao vivo, lista de convidados/RSVP, fila de moderação do mural, controle de presentes
@@ -51,7 +55,7 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 ## Constraints
 
 - **Tech stack**: React + Tailwind + TypeScript (frontend), **Convex** (backend/DB/storage/auth), **Vercel** (hosting) — decisão do dono; a base React exata (Vite / Next / TanStack Start) e a estratégia de auth serão validadas na pesquisa
-- **Timeline**: festa em **17/10/2026**; site pronto e testado antes, com margem para RSVP (prazo de confirmação a definir, ~30/09 no projeto antigo)
+- **Timeline**: festa em **17/10/2026**; 30/09 é prazo informativo do RSVP e nunca bloqueia edição posterior
 - **Design**: seguir a identidade "hora dourada / pôr do sol" já definida (paleta cream/peach/coral/orange/plum/wine + teal na adega; Alegreya display + Gabarito corpo)
 - **Escopo**: manter o v1 enxuto; telão e Instagram são v2
 - **Acessibilidade**: o design antigo já mira contraste AA — manter
@@ -61,7 +65,7 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Stack Convex + React/Tailwind + Vercel | Dono quer Convex; substitui infra custom (D1/R2/sessões/rate-limit) por primitivas reativas | — Pending |
-| RSVP público sem login | Festa de uma noite não justifica sessões de convidado | — Pending |
+| RSVP público sem login | Festa de uma noite não justifica contas individuais; capability efêmera escopa uma família | ✓ Good — validado na Fase 3 |
 | Presente = redirect WhatsApp (sem checkout) | Venda é externa, pelo vendedor "Mistral" | — Pending |
 | Mural com moderação antes de publicar | Evitar conteúdo indevido no álbum/telão público | — Pending |
 | Dashboard com senha única dos donos | 2 donos; contas nomeadas já foram descartadas no projeto antigo | ✓ Good (herdado) |
@@ -86,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-23 after initialization*
+*Last updated: 2026-07-24 after Phase 3 completion*
