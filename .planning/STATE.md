@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: RSVP
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-07-24T19:19:39.716Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-07-24T19:41:52.593Z"
 last_activity: 2026-07-24
 last_activity_desc: Secure public RSVP backend complete; plan 03-03 ready
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 3 (RSVP) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-24 — Secure public RSVP backend complete; plan 03-03 ready
 
-Progress: [████████░░] 81% (13/16 plans complete overall; Phase 3 is 2/5)
+Progress: [█████████░] 88% (13/16 plans complete overall; Phase 3 is 2/5)
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [████████░░] 81% (13/16 plans complete overall; Ph
 | Phase 02 P08 | 8min | 1 tasks | 1 files |
 | Phase 03 P01 | 13min | 3 tasks | 16 files |
 | Phase 03 P02 | 16 min | 3 tasks | 6 files |
+| Phase 03 P03 | 17min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 03]: Telefone libera apenas uma capability RSVP de 8 horas; não cria conta, login persistente ou acesso ao admin. — Separar a chave leve de busca da autorização pós-desbloqueio limita enumeração e mantém o escopo em uma família.
 - [Phase 03]: Save verifica o limite global primeiro; sessões inválidas consomem só global e sessões válidas consomem global mais sessão de forma coerente. — O circuito global não pode ser contornado por rotação de tokens e nenhum bucket aplicável deve ser consumido parcialmente.
 - [Phase 03]: 30 de setembro permanece informativo e não participa da autorização backend de RSVP. — A edição continua disponível antes, no dia e depois do prazo conforme a decisão de produto D-11.
+- [Phase 03]: RSVP route copy, entry labels, absolute navigation, and the explicit -03:00 boundary share one source in event.ts. — Keeps Hero, Shell, and the future /confirmar route aligned to the approved UI contract.
+- [Phase 03]: Latest server snapshot, local draft, and dirty guest/contact intent remain distinct. — Reconciliation can preserve local edits while sparse commands never overwrite omitted people.
+- [Phase 03]: Client capabilities must be canonical 32-byte unpadded base64url, live under one session key, and retry token_conflict once with a distinct token. — Matches the backend validator and keeps phone/contact data outside browser persistence.
+- [Phase 03]: Deadline state is presentation-only and the browser override is gated directly by import.meta.env.DEV. — Production never reads debug time and post-deadline editing remains available.
 
 ### Pending Todos
 
@@ -124,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T19:19:39.712Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-07-24T19:41:52.589Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
