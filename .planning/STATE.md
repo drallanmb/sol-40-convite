@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: convite-p-blico
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-07-24T11:43:09.132Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-07-24T11:55:24.033Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 10
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-23)
 ## Current Position
 
 Phase: 02 (convite-p-blico) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 02 execution started
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01 P03 | 25min | 3 tasks | 7 files |
 | Phase 02-convite-p-blico P01 | 20min | 3 tasks | 8 files |
 | Phase 02 P02 | 10min | 2 tasks | 6 files |
+| Phase 02 P03 | 11min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: [Phase 2-01]: Croa do Goré guide URL intentionally uses the .com Tripadvisor host (research-verified) while the other 3 guide cards use .com.br (old project's verbatim URLs)
 - [Phase ?]: [Phase 2-02]: og.jpg (not og.png) ships as the Open Graph image — the source PNG was already at target 1200x630, so re-encoding to JPEG q70 was the only available weight reduction; any reference to /og.png is stale.
 - [Phase ?]: [Phase 2-02]: Absolute og:url deferred to Phase 7 (owners' checklist) until the production domain is fixed — index.html uses a root-relative /og.jpg with a comment documenting the deferral, no literal URL scheme.
+- [Phase ?]: [Phase 2-03]: SeaWaves wrapper is absolute inset-0 (full hero height) rather than a bottom-anchored strip so the golden-light path can span from the sun's top-54% position down to the hero bottom without clipping
+- [Phase ?]: [Phase 2-03]: PalmSvg left/right instances use distinct crown coordinates and frond curvature (not just CSS scale-x mirror) so the two palms don't read as the same tree mirrored (D-07)
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-24T11:43:09.127Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-07-24T11:55:24.029Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
