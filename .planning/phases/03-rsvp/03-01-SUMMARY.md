@@ -145,14 +145,16 @@ Each task was committed atomically; TDD tasks have separate RED and GREEN commit
 
 ## Development Fixture Evidence
 
-The random seed remains only in the Convex development environment. The internal CLI returned this synthetic mapping, recorded here for local acceptance only:
+The random seed remains only in the Convex development environment. The
+internal CLI confirmed all four shapes without persisting their access
+telephones in this artifact:
 
-| Shape | Synthetic phone | Guests | Repeat |
-|-------|-----------------|--------|--------|
-| normal | `[redacted]` | 3 | same RSVP ID, `created: false` |
-| zero | `[redacted]` | 0 | same RSVP ID, `created: false` |
-| one | `[redacted]` | 1 | same RSVP ID, `created: false` |
-| many-long | `[redacted]` | 12 | same RSVP ID, `created: false` |
+| Shape | Guests | Repeat |
+|-------|--------|--------|
+| normal | 3 | same RSVP ID, `created: false` |
+| zero | 0 | same RSVP ID, `created: false` |
+| one | 1 | same RSVP ID, `created: false` |
+| many-long | 12 | same RSVP ID, `created: false` |
 
 Totals remained **4 RSVPs / 16 guests** on the second and final verification runs. No public query, mutation, seed, create, or list function exposes these values.
 
