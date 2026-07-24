@@ -19,6 +19,8 @@ export const EVENT_DAY_START = '2026-10-17T00:00:00-03:00'
 export const EVENT_DATE = '2026-10-17T16:00:00-03:00'
 /** 05:00 the following morning — the end of "agora" and the start of "depois". */
 export const EVENT_END = '2026-10-18T05:00:00-03:00'
+/** First instant after the informational RSVP date has fully elapsed in Aracaju. */
+export const RSVP_DEADLINE_BOUNDARY = '2026-10-01T00:00:00-03:00'
 
 // ---------------------------------------------------------------------------
 // Section anchors — every downstream component derives its `id`/`href` from
@@ -79,9 +81,17 @@ export type Hotel = {
 // ---------------------------------------------------------------------------
 
 export const NAV_LINKS: NavLink[] = [
+  { label: 'Confirmar presença', href: '/confirmar' },
   { label: 'Local', href: '#aracaju' },
   { label: 'Programação', href: '#programacao' },
   { label: 'Traje', href: '#traje' },
+]
+
+/** Reduced navigation for `/confirmar`; home fragments stay absolute. */
+export const RSVP_NAV_LINKS: NavLink[] = [
+  { label: 'Convite', href: '/' },
+  { label: 'Programação', href: '/#programacao' },
+  { label: 'Local', href: '/#aracaju' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -96,9 +106,82 @@ export const HERO = {
   taglineEm: 'pôr do sol.',
   metaLeft: 'MATAPUÃ EVENTOS',
   metaRight: 'ARACAJU · SERGIPE',
-  ctaLabel: 'Ver programação ↓',
-  ctaHref: '#programacao',
-}
+  primaryCtaLabel: 'Confirmar presença',
+  primaryCtaHref: '/confirmar',
+  secondaryCtaLabel: 'Ver programação ↓',
+  secondaryCtaHref: '#programacao',
+} as const
+
+// ---------------------------------------------------------------------------
+// RSVP — complete route/state copy contract
+// ---------------------------------------------------------------------------
+
+export const RSVP_COPY = {
+  route: {
+    kicker: 'CONFIRMAÇÃO DE PRESENÇA',
+    heading: 'Esse pôr do sol tem lugar pra vocês.',
+    deadline: 'Confirme até 30 de setembro',
+    deadlinePassed: 'O prazo passou, mas você ainda pode responder ou editar.',
+    supporting: 'Você pode responder agora e editar depois, sem criar conta.',
+  },
+  phone: {
+    heading: 'Vamos encontrar seu convite.',
+    body: 'Digite o telefone usado no convite. Não precisa criar conta.',
+    label: 'Telefone',
+    placeholder: '(79) 99999-9999',
+    hint: 'Inclua o DDD. Pode digitar com ou sem espaços e pontuação.',
+    submit: 'Buscar convite',
+    busy: 'Buscando…',
+    localInvalid: 'Digite um telefone com DDD.',
+    notFound:
+      'Não foi possível localizar o convite. Confira o telefone com DDD e tente novamente.',
+    rateLimited: 'Muitas tentativas em pouco tempo. Aguarde {tempo} e tente novamente.',
+    connectionError: 'A conexão oscilou. Confira sua internet e tente novamente.',
+    privacy: 'O telefone serve apenas para localizar este convite.',
+  },
+  session: {
+    restoring: 'Reabrindo seu convite…',
+    expired: 'Sua sessão terminou. Digite o telefone novamente para reabrir o convite.',
+    unlocked: 'Convite encontrado.',
+    switchPhone: 'Usar outro telefone',
+  },
+  family: {
+    kicker: 'SEU CONVITE',
+    greeting: 'Olá, {displayName}. Esse pôr do sol tem lugar pra vocês.',
+    formHeading: 'Quem deste convite estará com a gente?',
+    zeroGuests: 'Este convite ainda não tem pessoas cadastradas. Fale com a organização.',
+  },
+  attendance: {
+    yes: 'Vai',
+    pending: 'Pendente',
+    no: 'Não vai',
+  },
+  contact: {
+    label: 'WhatsApp ou e-mail para contato (opcional)',
+    placeholder: 'Para qualquer aviso importante',
+    hint: 'Seu contato fica só com a organização da festa.',
+  },
+  save: {
+    clean: 'Tudo salvo',
+    dirty: 'Alterações ainda não salvas',
+    submit: 'Salvar respostas',
+    busy: 'Salvando…',
+    partial:
+      'Respostas salvas. Ainda há {pending} pessoa(s) pendente(s) — você pode voltar e completar depois.',
+    completeAttending: 'Presenças salvas. Que alegria ter vocês com a Sol!',
+    completeNotAttending: 'Respostas salvas. Obrigada por avisar com carinho.',
+    rateLimited:
+      'Você salvou várias vezes em pouco tempo. Aguarde {tempo}; suas escolhas continuam nesta tela.',
+    failure: 'Não foi possível salvar agora. Suas escolhas continuam nesta tela. Tente novamente.',
+  },
+  discard: {
+    heading: 'Descartar alterações?',
+    body:
+      'Você tem respostas que ainda não foram salvas. Quer usar outro telefone mesmo assim?',
+    safeAction: 'Continuar editando',
+    destructiveAction: 'Descartar e usar outro telefone',
+  },
+} as const
 
 // ---------------------------------------------------------------------------
 // Countdown copy per phase (D-10)

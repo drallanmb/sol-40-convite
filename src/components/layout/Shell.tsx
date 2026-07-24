@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { AnchorHTMLAttributes, ReactNode } from 'react'
+import { Link } from 'react-router'
 import CountdownRail from '../invite/CountdownRail'
 import { SECTION_IDS, type NavLink } from '../../content/event'
 
@@ -14,6 +15,14 @@ export type ShellProps = {
 }
 
 const MAIN_ID = 'conteudo'
+
+type NavigationAnchorProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
+  href: string
+}
+
+function NavigationAnchor({ href, ...props }: NavigationAnchorProps) {
+  return href.startsWith('/') ? <Link to={href} {...props} /> : <a href={href} {...props} />
+}
 
 /**
  * Shell base — topbar (wordmark + nav + mobile hamburger + optional compact
@@ -121,13 +130,13 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
       >
         <div className="relative mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
           {wordmarkHref ? (
-            <a
+            <NavigationAnchor
               href={wordmarkHref}
               aria-label="Sol faz 40 — voltar ao início"
               className="flex min-h-[44px] w-[58px] items-center justify-center"
             >
               {wordmarkMark}
-            </a>
+            </NavigationAnchor>
           ) : (
             <span aria-label="Sol faz 40" className="flex min-h-[44px] w-[58px] items-center justify-center">
               {wordmarkMark}
@@ -141,13 +150,13 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
                 className="hidden flex-1 items-center justify-center gap-4 text-small uppercase tracking-label sm:flex sm:gap-6"
               >
                 {navLinks!.map((link) => (
-                  <a
+                  <NavigationAnchor
                     key={link.href}
                     href={link.href}
                     className="flex min-h-[44px] items-center opacity-80 transition-opacity duration-(--duration-fast) ease-out hover:opacity-100"
                   >
                     {link.label}
-                  </a>
+                  </NavigationAnchor>
                 ))}
               </nav>
 
@@ -188,14 +197,14 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
             className={`absolute inset-x-0 top-full ${menuOpen ? 'flex' : 'hidden'} flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label sm:hidden`}
           >
             {navLinks!.map((link) => (
-              <a
+              <NavigationAnchor
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
                 className="flex min-h-[44px] items-center px-2"
               >
                 {link.label}
-              </a>
+              </NavigationAnchor>
             ))}
           </nav>
         ) : null}

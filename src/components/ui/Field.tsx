@@ -27,6 +27,8 @@ const controlClasses =
 export function Field(props: FieldProps) {
   const { label, hint, id, multiline, className = '', ...rest } = props
   const hintId = hint ? `${id}-hint` : undefined
+  const describedBy =
+    [hintId, rest['aria-describedby']].filter(Boolean).join(' ') || undefined
 
   return (
     <div className="mb-[22px] grid gap-[9px]">
@@ -35,17 +37,17 @@ export function Field(props: FieldProps) {
       </label>
       {multiline ? (
         <textarea
-          id={id}
-          aria-describedby={hintId}
-          className={`${controlClasses} min-h-[110px] resize-y leading-normal ${className}`.trim()}
           {...(rest as TextareaHTMLAttributes<HTMLTextAreaElement>)}
+          id={id}
+          aria-describedby={describedBy}
+          className={`${controlClasses} min-h-[110px] resize-y leading-normal ${className}`.trim()}
         />
       ) : (
         <input
-          id={id}
-          aria-describedby={hintId}
-          className={`${controlClasses} ${className}`.trim()}
           {...(rest as InputHTMLAttributes<HTMLInputElement>)}
+          id={id}
+          aria-describedby={describedBy}
+          className={`${controlClasses} ${className}`.trim()}
         />
       )}
       {hint ? (

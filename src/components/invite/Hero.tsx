@@ -1,4 +1,6 @@
+import { Link } from 'react-router'
 import { HERO, SECTION_IDS } from '../../content/event'
+import { buttonClassName } from '../ui/Button'
 import { PalmSvg } from './PalmSvg'
 import { SeaWaves } from './SeaWaves'
 
@@ -6,15 +8,14 @@ import { SeaWaves } from './SeaWaves'
  * Hero do convite — céu/sol/horizonte em gradiente pôr do sol, duas
  * palmeiras em SVG, mar animado com caminho de luz dourada e as quatro
  * camadas de texto (eyebrow, lockup Sol/40 anos, tagline, meta de canto)
- * mais o CTA "Ver programação ↓" (D-06/D-07/D-08). Gradientes e keyframes
+ * mais as ações do RSVP/programa (D-06/D-07/D-08). Gradientes e keyframes
  * são portados 1:1 do `.hero`/`.hero-sky`/`.hero-sun`/`.hero-horizon` do
  * `globals.css` antigo — não achatáveis em utilitária pura.
  *
  * O foco programático (tabIndex negativo) permite que o skip link (plan
  * 02-07) mova o foco para cá. Todo texto vem de `HERO`; nenhuma string é
- * hardcoded neste componente. Um único CTA aparece nesta fase — o link de
- * RSVP não tem destino até a Phase 3 e não deve aparecer aqui em nenhuma
- * forma.
+ * hardcoded neste componente. A ação primária usa navegação do Router para
+ * `/confirmar`; a secundária continua sendo o fragmento da programação.
  */
 export function Hero() {
   return (
@@ -77,9 +78,20 @@ export function Hero() {
           <em className="not-italic text-coral">{HERO.taglineEm}</em>
         </p>
 
-        <a href={HERO.ctaHref} className="mt-11 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[100px] border border-plum bg-transparent px-6 py-4 font-sans text-small font-bold uppercase tracking-label text-plum transition-[transform,background-color,border-color,color] duration-(--duration-fast) ease-out hover:bg-plum/5 active:scale-[0.98]">
-          {HERO.ctaLabel}
-        </a>
+        <div className="mt-11 flex w-full max-w-sm flex-col gap-4 sm:w-auto sm:max-w-none sm:flex-row sm:gap-6">
+          <Link
+            to={HERO.primaryCtaHref}
+            className={buttonClassName('rsvp', 'w-full sm:w-auto')}
+          >
+            {HERO.primaryCtaLabel}
+          </Link>
+          <a
+            href={HERO.secondaryCtaHref}
+            className={buttonClassName('quiet', 'w-full sm:w-auto')}
+          >
+            {HERO.secondaryCtaLabel}
+          </a>
+        </div>
       </div>
 
       {/* meta de canto — inferior esquerda/direita */}
