@@ -6,6 +6,11 @@ import {
   uploadStateValidator,
 } from './postModel'
 import { attendanceValidator } from './rsvpModel'
+import {
+  wineCategoryValidator,
+  wineStatusValidator,
+  wineToneValidator,
+} from './wineModel'
 
 export default defineSchema({
   rsvps: defineTable({
@@ -68,4 +73,21 @@ export default defineSchema({
   })
     .index('by_storage_id', ['storageId'])
     .index('by_expires_at', ['expiresAt']),
+
+  wines: defineTable({
+    productCode: v.string(),
+    name: v.string(),
+    producer: v.string(),
+    description: v.string(),
+    tone: wineToneValidator,
+    priceCents: v.number(),
+    category: wineCategoryValidator,
+    imageUrl: v.string(),
+    status: wineStatusValidator,
+    giftedBy: v.optional(v.string()),
+    giftedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index('by_product_code', ['productCode'])
+    .index('by_category_price_code', ['category', 'priceCents', 'productCode']),
 })
