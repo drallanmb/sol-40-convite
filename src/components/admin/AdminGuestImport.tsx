@@ -225,7 +225,7 @@ export function AdminGuestImport({
             })),
           })
           if (stateGeneration !== stateGenerationRef.current) return
-          if (response.kind === 'unauthorized') {
+          if (response.kind !== 'ready') {
             eraseSensitiveState()
             onUnauthorized()
             return

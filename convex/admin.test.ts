@@ -866,6 +866,8 @@ describe('authorization matrix by public endpoint', () => {
     await insertRoleSession(t, sellerToken, 'seller')
     const family = await seedAdminFamily(t)
     const [guestId] = family.guestIds
+    const storedFamily = await t.run((ctx) => ctx.db.get(family.rsvpId))
+    if (!storedFamily) throw new Error('missing family')
     const postId = await t.run((ctx) =>
       ctx.db.insert('posts', {
         message: 'Protegida',
@@ -904,14 +906,14 @@ describe('authorization matrix by public endpoint', () => {
         t.mutation(api.adminRsvps.updateFamily, {
           token: sellerToken,
           familyId: family.rsvpId,
-          expectedUpdatedAt: family.updatedAt,
+          expectedUpdatedAt: storedFamily.updatedAt,
           patch: { displayName: 'Não editar' },
         }),
       () =>
         t.mutation(api.adminRsvps.addGuest, {
           token: sellerToken,
           familyId: family.rsvpId,
-          expectedUpdatedAt: family.updatedAt,
+          expectedUpdatedAt: storedFamily.updatedAt,
           name: 'Não adicionar',
           attendance: 'pending',
         }),
@@ -920,7 +922,7 @@ describe('authorization matrix by public endpoint', () => {
           token: sellerToken,
           familyId: family.rsvpId,
           guestId,
-          expectedUpdatedAt: family.updatedAt,
+          expectedUpdatedAt: storedFamily.updatedAt,
           patch: { name: 'Não editar' },
         }),
       () =>
@@ -928,13 +930,13 @@ describe('authorization matrix by public endpoint', () => {
           token: sellerToken,
           familyId: family.rsvpId,
           guestId,
-          expectedUpdatedAt: family.updatedAt,
+          expectedUpdatedAt: storedFamily.updatedAt,
         }),
       () =>
         t.mutation(api.adminRsvps.removeFamily, {
           token: sellerToken,
           familyId: family.rsvpId,
-          expectedUpdatedAt: family.updatedAt,
+          expectedUpdatedAt: storedFamily.updatedAt,
         }),
       () =>
         t.query(api.adminPosts.listByStatus, {

@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import type { Doc } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
+import { requireAnyAdmin } from './adminAccountModel'
 import { requireAdminSession } from './adminSecurity'
 import {
   WINE_CATEGORY_ORDER,
@@ -66,7 +67,11 @@ function compareWines(left: Doc<'wines'>, right: Doc<'wines'>) {
 }
 
 async function authorize(ctx: QueryCtx | MutationCtx, token: string) {
-  return requireAdminSession(ctx, token)
+  const authorization = await requireAdminSession(ctx, token)
+  if (authorization.kind === 'unauthorized') return authorization
+  return requireAnyAdmin(authorization.principal)
+    ? ({ kind: 'authorized' } as const)
+    : ({ kind: 'forbidden' } as const)
 }
 
 export const listAdmin = query({

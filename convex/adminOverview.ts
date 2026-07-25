@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { query } from './_generated/server'
+import { requireOperational } from './adminAccountModel'
 import { requireAdminSession } from './adminSecurity'
 
 const overviewReadyValidator = v.object({
@@ -21,12 +22,16 @@ export const get = query({
   args: { token: v.string() },
   returns: v.union(
     v.object({ kind: v.literal('unauthorized') }),
+    v.object({ kind: v.literal('forbidden') }),
     overviewReadyValidator,
   ),
   handler: async (ctx, args) => {
     const authorization = await requireAdminSession(ctx, args.token)
     if (authorization.kind === 'unauthorized') {
       return { kind: 'unauthorized' } as const
+    }
+    if (!requireOperational(authorization.principal)) {
+      return { kind: 'forbidden' } as const
     }
 
     const [families, guests, pendingMemories, wines] = await Promise.all([

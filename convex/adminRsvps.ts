@@ -4,6 +4,7 @@ import { normalizePhone } from '../src/lib/phone'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
+import { requireOperational } from './adminAccountModel'
 import { requireAdminSession } from './adminSecurity'
 import {
   createUniqueGuestPublicRef,
@@ -59,6 +60,7 @@ export const adminFamilyValidator = v.object({
 })
 
 const unauthorizedValidator = v.object({ kind: v.literal('unauthorized') })
+const forbiddenValidator = v.object({ kind: v.literal('forbidden') })
 const conflictValidator = v.object({
   kind: v.literal('conflict'),
   family: adminFamilyValidator,
@@ -75,6 +77,7 @@ const savedValidator = v.object({
 })
 const mutationResultValidator = v.union(
   unauthorizedValidator,
+  forbiddenValidator,
   conflictValidator,
   notFoundValidator,
   invalidValidator,
@@ -82,6 +85,7 @@ const mutationResultValidator = v.union(
 )
 const removedValidator = v.union(
   unauthorizedValidator,
+  forbiddenValidator,
   conflictValidator,
   notFoundValidator,
   invalidValidator,
@@ -110,6 +114,7 @@ const importFamilyGroupValidator = v.object({
 
 const importFamiliesResultValidator = v.union(
   unauthorizedValidator,
+  forbiddenValidator,
   v.object({
     kind: v.literal('ready'),
     created: v.array(
@@ -172,7 +177,18 @@ async function projectFamily(ctx: ReadCtx, family: Doc<'rsvps'>) {
 }
 
 async function authorize(ctx: QueryCtx | MutationCtx, token: string) {
-  return requireAdminSession(ctx, token)
+  const authorization = await requireAdminSession(ctx, token)
+  if (authorization.kind === 'unauthorized') return authorization
+  return requireOperational(authorization.principal)
+    ? ({ kind: 'authorized', authorization } as const)
+    : ({ kind: 'forbidden' } as const)
+}
+
+async function requireRsvpAccess(ctx: QueryCtx | MutationCtx, token: string) {
+  const authorization = await authorize(ctx, token)
+  return authorization.kind === 'authorized'
+    ? null
+    : ({ kind: authorization.kind } as const)
 }
 
 async function readExpectedFamily(
@@ -225,12 +241,12 @@ export const listFamilies = query({
   args: { token: v.string() },
   returns: v.union(
     unauthorizedValidator,
+    forbiddenValidator,
     v.object({ kind: v.literal('ready'), families: v.array(adminFamilyValidator) }),
   ),
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
-      return { kind: 'unauthorized' } as const
-    }
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     const families = await ctx.db.query('rsvps').collect()
     const projected = await Promise.all(
       families
@@ -249,11 +265,15 @@ export const createFamily = mutation({
     contact: v.optional(v.string()),
     guests: v.array(v.object({ name: v.string(), attendance: attendanceValidator })),
   },
-  returns: v.union(unauthorizedValidator, invalidValidator, savedValidator),
+  returns: v.union(
+    unauthorizedValidator,
+    forbiddenValidator,
+    invalidValidator,
+    savedValidator,
+  ),
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
-      return { kind: 'unauthorized' } as const
-    }
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     try {
       const inserted = await insertInvitation(ctx, {
         displayName: args.displayName,
@@ -281,9 +301,8 @@ export const importFamilies = mutation({
   },
   returns: importFamiliesResultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
-      return { kind: 'unauthorized' } as const
-    }
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
 
     if (args.groups.length > IMPORT_MAX_FAMILIES) {
       throw new Error(`Cada lote aceita no máximo ${IMPORT_MAX_FAMILIES} famílias.`)
@@ -452,7 +471,8 @@ export const updateFamily = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') return { kind: 'unauthorized' } as const
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const clean = cleanFamilyPatch(args.patch)
@@ -507,7 +527,8 @@ export const addGuest = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') return { kind: 'unauthorized' } as const
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const name = args.name.trim()
@@ -552,7 +573,8 @@ export const updateGuest = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') return { kind: 'unauthorized' } as const
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const guest = await ctx.db.get(args.guestId)
@@ -588,7 +610,8 @@ export const removeGuest = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') return { kind: 'unauthorized' } as const
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const guest = await ctx.db.get(args.guestId)
@@ -611,7 +634,8 @@ export const removeFamily = mutation({
   },
   returns: removedValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') return { kind: 'unauthorized' } as const
+    const denied = await requireRsvpAccess(ctx, args.token)
+    if (denied) return denied
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const guests = await ctx.db

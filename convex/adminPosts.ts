@@ -1,10 +1,12 @@
 import { v } from 'convex/values'
 import type { Doc, Id } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
+import { requireOperational } from './adminAccountModel'
 import { postStatusValidator, type PostStatus } from './postModel'
 import { requireAdminSession } from './adminSecurity'
 
 const unauthorizedValidator = v.object({ kind: v.literal('unauthorized') })
+const forbiddenValidator = v.object({ kind: v.literal('forbidden') })
 const moderationPostValidator = v.object({
   id: v.id('posts'),
   author: v.string(),
@@ -19,6 +21,7 @@ const moderationPostValidator = v.object({
 
 const mutationResultValidator = v.union(
   unauthorizedValidator,
+  forbiddenValidator,
   v.object({ kind: v.literal('not_found') }),
   v.object({
     kind: v.literal('conflict'),
@@ -79,22 +82,26 @@ function comparePosts(status: PostStatus) {
 }
 
 async function authorize(ctx: QueryCtx | MutationCtx, token: string) {
-  return requireAdminSession(ctx, token)
+  const authorization = await requireAdminSession(ctx, token)
+  if (authorization.kind === 'unauthorized') return authorization
+  return requireOperational(authorization.principal)
+    ? ({ kind: 'authorized' } as const)
+    : ({ kind: 'forbidden' } as const)
 }
 
 export const listByStatus = query({
   args: { token: v.string(), status: postStatusValidator },
   returns: v.union(
     unauthorizedValidator,
+    forbiddenValidator,
     v.object({
       kind: v.literal('ready'),
       posts: v.array(moderationPostValidator),
     }),
   ),
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
-      return { kind: 'unauthorized' } as const
-    }
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') return authorization
     const rows = await ctx.db
       .query('posts')
       .withIndex('by_status', (index) => index.eq('status', args.status))
@@ -164,9 +171,8 @@ export const transitionPost = mutation({
     v.object({ kind: v.literal('invalid_transition') }),
   ),
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
-      return { kind: 'unauthorized' } as const
-    }
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') return authorization
     if (!isLegalModerationTransition(args.expectedStatus, args.targetStatus)) {
       return { kind: 'invalid_transition' } as const
     }
@@ -203,9 +209,8 @@ export const undoPost = mutation({
     v.object({ kind: v.literal('invalid_transition') }),
   ),
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
-      return { kind: 'unauthorized' } as const
-    }
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') return authorization
     // Undo is legal only when it is the exact inverse of a legal owner action.
     if (!isLegalModerationTransition(args.priorStatus, args.expectedStatus)) {
       return { kind: 'invalid_transition' } as const
