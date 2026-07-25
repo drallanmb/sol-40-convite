@@ -2,12 +2,14 @@ import {
   MAX_FINAL_IMAGE_BYTES,
   type PostMediaType,
 } from './postModel'
+import { unzlibSync } from 'fflate'
 
 export type DetectedImageType = PostMediaType | 'image/heic' | 'image/heif'
 
 const HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'heim', 'heis', 'hevm', 'hevs'])
 const HEIF_BRANDS = new Set(['mif1', 'msf1'])
 const MAX_IMAGE_DIMENSION = 16_384
+const MAX_DECODED_IMAGE_BYTES = 32 * 1024 * 1024
 const PNG_SIGNATURE = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ])
@@ -64,6 +66,9 @@ function hasValidJpegStructure(bytes: Uint8Array) {
 
   let offset = 2
   let hasFrame = false
+  let hasQuantizationTable = false
+  let hasHuffmanTable = false
+  const frameComponents = new Set<number>()
   while (offset < bytes.byteLength - 2) {
     if (bytes[offset] !== 0xff) {
       return false
@@ -113,12 +118,84 @@ function hasValidJpegStructure(bytes: Uint8Array) {
       ) {
         return false
       }
+      frameComponents.clear()
+      for (let component = 0; component < components; component += 1) {
+        const componentId = bytes[offset + 8 + component * 3]
+        if (frameComponents.has(componentId)) return false
+        frameComponents.add(componentId)
+      }
       hasFrame = true
+    }
+
+    if (marker === 0xdb) {
+      let tableOffset = offset + 2
+      const tableEnd = offset + segmentLength
+      while (tableOffset < tableEnd) {
+        const precision = bytes[tableOffset] >>> 4
+        const tableId = bytes[tableOffset] & 0x0f
+        if (precision > 1 || tableId > 3) return false
+        tableOffset += 1 + (precision === 0 ? 64 : 128)
+      }
+      if (tableOffset !== tableEnd) return false
+      hasQuantizationTable = true
+    }
+
+    if (marker === 0xc4) {
+      let tableOffset = offset + 2
+      const tableEnd = offset + segmentLength
+      while (tableOffset < tableEnd) {
+        if (tableOffset + 17 > tableEnd || (bytes[tableOffset] >>> 4) > 1) {
+          return false
+        }
+        let symbolCount = 0
+        for (let index = 1; index <= 16; index += 1) {
+          symbolCount += bytes[tableOffset + index]
+        }
+        tableOffset += 17 + symbolCount
+      }
+      if (tableOffset !== tableEnd) return false
+      hasHuffmanTable = true
     }
 
     if (marker === 0xda) {
       const scanStart = offset + segmentLength
-      return hasFrame && scanStart < bytes.byteLength - 2
+      const scanComponents = bytes[offset + 2]
+      if (
+        !hasFrame ||
+        !hasQuantizationTable ||
+        !hasHuffmanTable ||
+        scanComponents === 0 ||
+        segmentLength !== 6 + 2 * scanComponents ||
+        bytes[offset + segmentLength - 3] !== 0 ||
+        bytes[offset + segmentLength - 2] !== 0x3f ||
+        bytes[offset + segmentLength - 1] !== 0 ||
+        scanStart >= bytes.byteLength - 2
+      ) {
+        return false
+      }
+      for (let component = 0; component < scanComponents; component += 1) {
+        if (!frameComponents.has(bytes[offset + 3 + component * 2])) {
+          return false
+        }
+      }
+
+      let scanOffset = scanStart
+      let hasEntropyByte = false
+      while (scanOffset < bytes.byteLength - 2) {
+        if (bytes[scanOffset] !== 0xff) {
+          hasEntropyByte = true
+          scanOffset += 1
+          continue
+        }
+        const next = bytes[scanOffset + 1]
+        if (next === 0x00 || (next >= 0xd0 && next <= 0xd7)) {
+          hasEntropyByte = true
+          scanOffset += 2
+          continue
+        }
+        return false
+      }
+      return hasEntropyByte
     }
     offset += segmentLength
   }
@@ -145,6 +222,14 @@ function validPngColorMode(bitDepth: number, colorType: number) {
   return false
 }
 
+function pngChannelCount(colorType: number) {
+  if (colorType === 0 || colorType === 3) return 1
+  if (colorType === 2) return 3
+  if (colorType === 4) return 2
+  if (colorType === 6) return 4
+  return 0
+}
+
 function hasValidPngStructure(bytes: Uint8Array) {
   if (
     bytes.byteLength < 57 ||
@@ -157,6 +242,12 @@ function hasValidPngStructure(bytes: Uint8Array) {
   let chunkIndex = 0
   let hasIdat = false
   let idatEnded = false
+  let width = 0
+  let height = 0
+  let bitDepth = 0
+  let colorType = 0
+  const idatParts: Uint8Array[] = []
+  let idatLength = 0
   while (offset < bytes.byteLength) {
     if (offset + 12 > bytes.byteLength) {
       return false
@@ -180,16 +271,16 @@ function hasValidPngStructure(bytes: Uint8Array) {
       if (type !== 'IHDR' || length !== 13) {
         return false
       }
-      const width = readUint32BigEndian(bytes, dataOffset)
-      const height = readUint32BigEndian(bytes, dataOffset + 4)
-      const bitDepth = bytes[dataOffset + 8]
-      const colorType = bytes[dataOffset + 9]
+      width = readUint32BigEndian(bytes, dataOffset)
+      height = readUint32BigEndian(bytes, dataOffset + 4)
+      bitDepth = bytes[dataOffset + 8]
+      colorType = bytes[dataOffset + 9]
       if (
         !hasSaneDimensions(width, height) ||
         !validPngColorMode(bitDepth, colorType) ||
         bytes[dataOffset + 10] !== 0 ||
         bytes[dataOffset + 11] !== 0 ||
-        (bytes[dataOffset + 12] !== 0 && bytes[dataOffset + 12] !== 1)
+        bytes[dataOffset + 12] !== 0
       ) {
         return false
       }
@@ -202,13 +293,48 @@ function hasValidPngStructure(bytes: Uint8Array) {
         return false
       }
       hasIdat = true
+      idatLength += length
+      if (idatLength > MAX_FINAL_IMAGE_BYTES) return false
+      idatParts.push(bytes.slice(dataOffset, dataOffset + length))
     } else if (hasIdat && type !== 'IEND') {
       idatEnded = true
     }
 
     const nextOffset = crcOffset + 4
     if (type === 'IEND') {
-      return length === 0 && hasIdat && nextOffset === bytes.byteLength
+      if (
+        length !== 0 ||
+        !hasIdat ||
+        nextOffset !== bytes.byteLength
+      ) {
+        return false
+      }
+      const channels = pngChannelCount(colorType)
+      const rowBytes = Math.ceil(width * channels * bitDepth / 8)
+      const expectedLength = height * (rowBytes + 1)
+      if (
+        channels === 0 ||
+        !Number.isSafeInteger(expectedLength) ||
+        expectedLength > MAX_DECODED_IMAGE_BYTES
+      ) {
+        return false
+      }
+      const compressed = new Uint8Array(idatLength)
+      let compressedOffset = 0
+      for (const part of idatParts) {
+        compressed.set(part, compressedOffset)
+        compressedOffset += part.byteLength
+      }
+      try {
+        const decoded = unzlibSync(compressed)
+        if (decoded.byteLength !== expectedLength) return false
+        for (let row = 0; row < height; row += 1) {
+          if (decoded[row * (rowBytes + 1)] > 4) return false
+        }
+      } catch {
+        return false
+      }
+      return true
     }
     offset = nextOffset
     chunkIndex += 1
@@ -237,8 +363,15 @@ function parseWebpDimensions(
     }
   }
   if (type === 'VP8 ') {
+    const frameTag = readUint24LittleEndian(bytes, dataOffset)
+    const firstPartitionLength = frameTag >>> 5
     if (
       length < 10 ||
+      (frameTag & 1) !== 0 ||
+      ((frameTag >>> 1) & 7) > 3 ||
+      ((frameTag >>> 4) & 1) !== 1 ||
+      firstPartitionLength === 0 ||
+      10 + firstPartitionLength > length ||
       bytes[dataOffset + 3] !== 0x9d ||
       bytes[dataOffset + 4] !== 0x01 ||
       bytes[dataOffset + 5] !== 0x2a
@@ -257,7 +390,11 @@ function parseWebpDimensions(
     }
   }
   if (type === 'VP8L') {
-    if (length < 5 || bytes[dataOffset] !== 0x2f) {
+    if (
+      length < 10 ||
+      bytes[dataOffset] !== 0x2f ||
+      (bytes[dataOffset + 4] >>> 5) !== 0
+    ) {
       return null
     }
     const packed = readUint32LittleEndian(bytes, dataOffset + 1)
@@ -280,7 +417,8 @@ function hasValidWebpStructure(bytes: Uint8Array) {
   }
 
   let offset = 12
-  let dimensions: { width: number; height: number } | undefined
+  let metadataDimensions: { width: number; height: number } | undefined
+  let imageDimensions: { width: number; height: number } | undefined
   while (offset < bytes.byteLength) {
     if (offset + 8 > bytes.byteLength) {
       return false
@@ -301,14 +439,30 @@ function hasValidWebpStructure(bytes: Uint8Array) {
       return false
     }
     if (parsed !== undefined) {
-      if (dimensions !== undefined || !hasSaneDimensions(parsed.width, parsed.height)) {
+      if (!hasSaneDimensions(parsed.width, parsed.height)) {
         return false
       }
-      dimensions = parsed
+      if (type === 'VP8X') {
+        if (metadataDimensions !== undefined) return false
+        metadataDimensions = parsed
+      } else {
+        if (imageDimensions !== undefined) return false
+        imageDimensions = parsed
+      }
     }
     offset = dataOffset + paddedLength
   }
-  return offset === bytes.byteLength && dimensions !== undefined
+  return (
+    offset === bytes.byteLength &&
+    imageDimensions !== undefined &&
+    (
+      metadataDimensions === undefined ||
+      (
+        metadataDimensions.width === imageDimensions.width &&
+        metadataDimensions.height === imageDimensions.height
+      )
+    )
+  )
 }
 
 export function detectImageType(bytes: Uint8Array): DetectedImageType | null {

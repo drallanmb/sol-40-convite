@@ -247,7 +247,7 @@ describe('bounded structural image validation', () => {
 
   it.each(Object.entries(validImages))(
     'accepts independently decodable %s at small and exact 5 MiB sizes',
-    (type, bytes) => {
+    async (type, bytes) => {
       const exactLimit =
         type === 'image/jpeg'
           ? padEncodedJpeg(bytes, MAX_FINAL_IMAGE_BYTES)
@@ -266,6 +266,22 @@ describe('bounded structural image validation', () => {
         mediaType: type,
         mediaSize: MAX_FINAL_IMAGE_BYTES,
       })
+      if (type === 'image/jpeg') {
+        expect(jpeg.decode(exactLimit, { useTArray: true })).toMatchObject({
+          width: 2,
+          height: 2,
+        })
+      } else if (type === 'image/png') {
+        await expect(decodePng(exactLimit.slice().buffer)).resolves.toMatchObject({
+          width: 2,
+          height: 2,
+        })
+      } else {
+        await expect(decodeWebp(exactLimit.slice().buffer)).resolves.toMatchObject({
+          width: 2,
+          height: 2,
+        })
+      }
     },
   )
 
@@ -344,10 +360,14 @@ describe('bounded structural image validation', () => {
     )],
     ['VP8X metadata without VP8 image data', validWebp()],
     ['truncated VP8L bitstream', (() => {
-      const bytes = validImages['image/webp'].slice(0, -6)
-      bytes.set(u32le(bytes.byteLength - 8), 4)
-      bytes.set(u32le(bytes.byteLength - 20), 16)
-      return bytes
+      const vp8l = concat(
+        encoder.encode('VP8L'),
+        u32le(9),
+        validImages['image/webp'].slice(20, 29),
+        new Uint8Array([0]),
+      )
+      const body = concat(encoder.encode('WEBP'), vp8l)
+      return concat(encoder.encode('RIFF'), u32le(body.byteLength), body)
     })()],
   ])('rejects structurally invalid WebP: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/webp' })).toEqual({
