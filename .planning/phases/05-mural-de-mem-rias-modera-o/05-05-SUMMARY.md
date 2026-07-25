@@ -214,6 +214,7 @@ status: complete
 - Production build — **passed**.
 - Convex production TypeScript check — **passed**.
 - `npx convex dev --once` — **passed twice**, including server installation of external sharp and publication of the Node decoder action.
+- Live development-deployment smoke — **passed**: public reserve/upload/submit returned `processing`, the deployed Node action decoded a corrupt JPEG, and status converged to safe `rejected/unsupported_type`.
 - Secret/raw-HTML/log source prohibition scan — **passed**.
 - Indexed-source prohibition scan — **passed**, with no tokenHash table filter.
 - Phase 5 commit-range `git diff --check` and all fifteen implementation/test commit checks — **passed**.
