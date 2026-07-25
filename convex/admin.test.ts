@@ -809,6 +809,88 @@ describe('admin auth audit, account audit, session audit and atomic writes', () 
   })
 })
 
+describe('operational audit', () => {
+  it('audits RSVP and moderation writes with minimal diffs and never audits reads', async () => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
+    const created = await t.mutation(api.adminRsvps.createFamily, {
+      token: TOKEN_A,
+      displayName: 'Família Auditável',
+      phone: '(79) 99999-8877',
+      guests: [{ name: 'Convidada', attendance: 'pending' }],
+    })
+    if (created.kind !== 'saved') throw new Error('family not created')
+    await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    const updated = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: created.family.id,
+      expectedUpdatedAt: created.family.updatedAt,
+      patch: { displayName: 'Família Corrigida' },
+    })
+    if (updated.kind !== 'saved') throw new Error('family not updated')
+    await t.mutation(api.adminRsvps.removeFamily, {
+      token: TOKEN_A,
+      familyId: updated.family.id,
+      expectedUpdatedAt: updated.family.updatedAt,
+    })
+
+    const postId = await t.run((ctx) =>
+      ctx.db.insert('posts', {
+        author: 'Convidada',
+        message: 'Uma memória',
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: 1_000,
+      }),
+    )
+    const transitioned = await t.mutation(api.adminPosts.transitionPost, {
+      token: TOKEN_A,
+      postId,
+      expectedStatus: 'pendente',
+      expectedRevision: 0,
+      targetStatus: 'aprovado',
+    })
+    if (transitioned.kind !== 'updated') {
+      throw new Error('post not transitioned')
+    }
+    await t.query(api.adminPosts.listByStatus, {
+      token: TOKEN_A,
+      status: 'aprovado',
+    })
+    await t.mutation(api.adminPosts.undoPost, {
+      token: TOKEN_A,
+      postId,
+      priorStatus: 'pendente',
+      expectedStatus: 'aprovado',
+      expectedRevision: transitioned.post.moderationRevision,
+    })
+
+    const audit = await t.run((ctx) =>
+      ctx.db.query('adminAuditEvents').collect(),
+    )
+    expect(audit.map((event) => event.action)).toEqual([
+      'rsvp_created',
+      'rsvp_updated',
+      'rsvp_deleted',
+      'moderation_transitioned',
+      'moderation_undone',
+    ])
+    expect(audit[1].changes).toEqual([
+      {
+        field: 'displayName',
+        before: 'Família Auditável',
+        after: 'Família Corrigida',
+      },
+    ])
+    expect(audit[3].changes).toEqual([
+      { field: 'status', before: 'pendente', after: 'aprovado' },
+    ])
+    expect(JSON.stringify(audit)).not.toMatch(
+      /99999-8877|token|password|hash/iu,
+    )
+  })
+})
+
 describe('admin access link activation and reset', () => {
   it('accepts a link at 72h-1ms, rejects it at 72h and permits only one consumption', async () => {
     vi.useFakeTimers()

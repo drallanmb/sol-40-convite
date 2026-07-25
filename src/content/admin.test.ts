@@ -52,11 +52,17 @@ describe('admin canonical route contract', () => {
         badge: null,
         roles: ['owner'],
       },
+      {
+        shortLabel: 'Auditoria',
+        route: '/admin/auditoria',
+        badge: null,
+        roles: ['owner'],
+      },
     ])
   })
 
   it.each([
-    ['owner', ['/admin/visao', '/admin/convidados', '/admin/moderacao', '/admin/presentes', '/admin/gestores']],
+    ['owner', ['/admin/visao', '/admin/convidados', '/admin/moderacao', '/admin/presentes', '/admin/gestores', '/admin/auditoria']],
     ['manager', ['/admin/visao', '/admin/convidados', '/admin/moderacao', '/admin/presentes']],
     ['seller', ['/admin/presentes']],
   ] as const)('filters navigation for %s', (role, expected) => {
@@ -89,6 +95,7 @@ describe('admin canonical route contract', () => {
       moderationPending: '/admin/moderacao?status=pendente',
       giftsGifted: '/admin/presentes?status=gifted',
       managers: '/admin/gestores',
+      audit: '/admin/auditoria',
     })
   })
 
