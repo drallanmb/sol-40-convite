@@ -59,6 +59,15 @@ function buttonWithText(scope: ParentNode, text: string) {
   return button as HTMLButtonElement
 }
 
+function setInputValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value',
+  )?.set
+  setter?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 function csvFile(contents: string) {
   const file = new File([contents], 'convidados-ficticios.csv', {
     type: 'text/csv;charset=utf-8',
@@ -393,5 +402,14 @@ describe('admin guest csv importer', () => {
     expect(
       container.querySelector<HTMLDialogElement>('dialog[open] h2')?.textContent,
     ).toBe('Adicionar família')
+
+    const dialog = container.querySelector<HTMLDialogElement>('dialog[open]')!
+    await act(async () => buttonWithText(dialog, 'Adicionar pessoa').click())
+    const guestInput =
+      dialog.querySelector<HTMLInputElement>('#new-guest-0')!
+    await act(async () => setInputValue(guestInput, 'Pessoa Fictícia'))
+
+    expect(guestInput.value).toBe('Pessoa Fictícia')
+    expect(container.textContent).toContain('Adicionar família')
   })
 })

@@ -157,7 +157,21 @@ function CreateFamilyDialog({
             {guests.map((guest, index) => (
               <div key={index} className="flex items-end gap-2">
                 <div className="flex-1">
-                  <Field id={`new-guest-${index}`} appearance="outline" label={`Pessoa ${index + 1}`} value={guest} disabled={busy} onChange={(event) => setGuests((current) => current.map((value, guestIndex) => guestIndex === index ? event.currentTarget.value : value))} />
+                  <Field
+                    id={`new-guest-${index}`}
+                    appearance="outline"
+                    label={`Pessoa ${index + 1}`}
+                    value={guest}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const nextName = event.currentTarget.value
+                      setGuests((current) =>
+                        current.map((value, guestIndex) =>
+                          guestIndex === index ? nextName : value,
+                        ),
+                      )
+                    }}
+                  />
                 </div>
                 <Button variant="adminSecondary" aria-label={`Remover pessoa ${index + 1}`} disabled={busy} onClick={() => setGuests((current) => current.filter((_, guestIndex) => guestIndex !== index))}>×</Button>
               </div>
