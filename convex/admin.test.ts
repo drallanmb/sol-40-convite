@@ -1054,6 +1054,151 @@ describe('individual login, rate limit and seven day session', () => {
   })
 })
 
+describe('own session, revoke session, change password and owner email', () => {
+  it('lists allowlisted own sessions and lets self revoke exactly one device', async () => {
+    const t = makeAdminTest()
+    const seeded = await insertActiveAdminAccount(t)
+    for (const [token, label] of [
+      [TOKEN_A, 'Celular'],
+      [TOKEN_B, 'Computador'],
+    ] as const) {
+      const result = await t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: seeded.password,
+        token,
+        deviceLabel: label,
+      })
+      expect(result.kind).toBe('authenticated')
+    }
+
+    const own = await t.query(api.adminSessions.listOwnSessions, {
+      token: TOKEN_A,
+    })
+    expect(own.kind).toBe('ready')
+    if (own.kind !== 'ready') return
+    expect(own.sessions).toHaveLength(2)
+    expect(own.sessions.filter((session) => session.isCurrent)).toHaveLength(1)
+    expect(JSON.stringify(own)).not.toMatch(/tokenHash|passwordHash|AAAA/iu)
+
+    const other = own.sessions.find((session) => !session.isCurrent)
+    if (!other) throw new Error('missing second session')
+    await expect(
+      t.mutation(api.adminSessions.revokeSession, {
+        token: TOKEN_A,
+        sessionId: other.id,
+      }),
+    ).resolves.toEqual({ kind: 'revoked', revokedCurrent: false })
+    await expect(
+      t.query(api.adminAuth.getSessionStatus, { token: TOKEN_A }),
+    ).resolves.toMatchObject({ kind: 'valid' })
+    await expect(
+      t.query(api.adminAuth.getSessionStatus, { token: TOKEN_B }),
+    ).resolves.toEqual({ kind: 'invalid' })
+  })
+
+  it('allows only owner to list another account sessions', async () => {
+    const t = makeAdminTest()
+    const owner = await insertActiveAdminAccount(t)
+    const manager = await insertActiveAdminAccount(t, {
+      email: 'gestora@example.com',
+      displayName: 'Gestora',
+      role: 'manager',
+      password: 'Outra frase longa com vento e mar',
+    })
+    await t.action(api.adminAuthActions.login, {
+      email: 'allanmesquitab@gmail.com',
+      password: owner.password,
+      token: TOKEN_A,
+      deviceLabel: 'Owner',
+    })
+    await t.action(api.adminAuthActions.login, {
+      email: 'gestora@example.com',
+      password: manager.password,
+      token: TOKEN_B,
+      deviceLabel: 'Gestora',
+    })
+
+    await expect(
+      t.query(api.adminSessions.listAccountSessions, {
+        token: TOKEN_A,
+        accountId: manager.accountId,
+      }),
+    ).resolves.toMatchObject({ kind: 'ready', sessions: [{ label: 'Gestora' }] })
+    await expect(
+      t.query(api.adminSessions.listAccountSessions, {
+        token: TOKEN_B,
+        accountId: owner.accountId,
+      }),
+    ).resolves.toEqual({ kind: 'forbidden' })
+  })
+
+  it('changes password while preserving only the current session', async () => {
+    const t = makeAdminTest()
+    const seeded = await insertActiveAdminAccount(t)
+    for (const token of [TOKEN_A, TOKEN_B]) {
+      await t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: seeded.password,
+        token,
+        deviceLabel: 'Teste',
+      })
+    }
+    const changed = await t.action(api.adminAuthActions.changeOwnPassword, {
+      token: TOKEN_A,
+      currentPassword: seeded.password,
+      newPassword: 'Uma nova frase ainda mais segura',
+    })
+    expect(changed).toEqual({ kind: 'changed' })
+    await expect(
+      t.query(api.adminAuth.getSessionStatus, { token: TOKEN_A }),
+    ).resolves.toMatchObject({ kind: 'valid' })
+    await expect(
+      t.query(api.adminAuth.getSessionStatus, { token: TOKEN_B }),
+    ).resolves.toEqual({ kind: 'invalid' })
+    await expect(
+      t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: seeded.password,
+        token: TOKEN_B,
+        deviceLabel: 'Teste',
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+  })
+
+  it('changes only the authenticated owner email after current-password verification', async () => {
+    const t = makeAdminTest()
+    const seeded = await insertActiveAdminAccount(t)
+    await t.action(api.adminAuthActions.login, {
+      email: 'allanmesquitab@gmail.com',
+      password: seeded.password,
+      token: TOKEN_A,
+      deviceLabel: 'Owner',
+    })
+
+    await expect(
+      t.action(api.adminAuthActions.changeOwnerEmail, {
+        token: TOKEN_A,
+        currentPassword: 'senha incorreta mas longa',
+        email: 'novo@example.com',
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+    await expect(
+      t.action(api.adminAuthActions.changeOwnerEmail, {
+        token: TOKEN_A,
+        currentPassword: seeded.password,
+        email: ' NOVO@EXAMPLE.COM ',
+      }),
+    ).resolves.toEqual({ kind: 'changed', email: 'novo@example.com' })
+    const account = await t.run((ctx) => ctx.db.get(seeded.accountId))
+    expect(account).toMatchObject({
+      email: 'novo@example.com',
+      role: 'owner',
+      state: 'active',
+      credentialVersion: 1,
+    })
+  })
+})
+
 describe('admin login, status and logout lifecycle', () => {
   it('creates an absolute seven-day session and exposes no token or hash', async () => {
     vi.useFakeTimers()
