@@ -219,7 +219,7 @@ Plans:
   3. Checklist dos donos concluído (domínio/origem canônica, senha forte e lista real importada/revisada, sem introduzir variável não consumida)
   4. O site está no ar em produção e verificado ao vivo
 
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 
 Plans:
 
@@ -237,7 +237,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 07-04-PLAN.md — Core de publicação: Cloudflare/domínio/redirect, verificações executáveis, smokes e rollback
+- [x] 07-04-PLAN.md — Core de publicação: Cloudflare/domínio/redirect, verificações executáveis, smokes e rollback
 
 **Wave 5** *(07-05 e 07-06 independentes entre si; blocked on Wave 4 completion)*
 
@@ -263,4 +263,4 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
 | 6. Dashboard Interno (/admin) | 7/7 | Complete    | 2026-07-25 |
-| 7. Endurecimento & Lançamento | 3/6 | In Progress|  |
+| 7. Endurecimento & Lançamento | 4/6 | In Progress|  |

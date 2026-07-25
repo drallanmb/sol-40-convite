@@ -60,7 +60,7 @@
 - [ ] **LAUNCH-01**: Testes manuais em dispositivo real — `wa.me` em WebView iOS/Android, countdown em fuso diferente, upload HEIC no Safari iOS
 - [ ] **LAUNCH-02**: Acessibilidade AA + revisão mobile-first
 - [ ] **LAUNCH-03**: Settings + checklist-donos (domínio, `PUBLIC_ORIGIN`, senha forte, lista real de convidados importada)
-- [ ] **LAUNCH-04**: Deploy de produção verificado ao vivo
+- [x] **LAUNCH-04**: Deploy de produção verificado ao vivo
 
 ## v2 Requirements
 
@@ -124,7 +124,7 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | LAUNCH-01 | Phase 7 | Pending |
 | LAUNCH-02 | Phase 7 | Pending |
 | LAUNCH-03 | Phase 7 | Pending |
-| LAUNCH-04 | Phase 7 | Pending |
+| LAUNCH-04 | Phase 7 | Complete |
 
 **Coverage:**
 
