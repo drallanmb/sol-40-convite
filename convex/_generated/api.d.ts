@@ -12,6 +12,7 @@ import type * as adminAuth from "../adminAuth.js";
 import type * as adminInternal from "../adminInternal.js";
 import type * as adminModel from "../adminModel.js";
 import type * as adminOverview from "../adminOverview.js";
+import type * as adminPosts from "../adminPosts.js";
 import type * as adminRateLimits from "../adminRateLimits.js";
 import type * as adminRsvps from "../adminRsvps.js";
 import type * as adminSecurity from "../adminSecurity.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   adminInternal: typeof adminInternal;
   adminModel: typeof adminModel;
   adminOverview: typeof adminOverview;
+  adminPosts: typeof adminPosts;
   adminRateLimits: typeof adminRateLimits;
   adminRsvps: typeof adminRsvps;
   adminSecurity: typeof adminSecurity;

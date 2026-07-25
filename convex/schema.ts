@@ -62,6 +62,7 @@ export default defineSchema({
     createdAt: v.number(),
     moderatedAt: v.optional(v.number()),
     approvedAt: v.optional(v.number()),
+    moderationRevision: v.optional(v.number()),
   })
     .index('by_status', ['status'])
     .index('by_storage_id', ['storageId'])

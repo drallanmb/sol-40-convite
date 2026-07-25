@@ -640,6 +640,236 @@ describe('admin family authorization matrix', () => {
   })
 })
 
+describe('admin post moderation, revision conflict and public album', () => {
+  const adminPosts = (api as any).adminPosts
+
+  async function insertPost(
+    t: ReturnType<typeof makeAdminTest>,
+    values: {
+      status?: 'pendente' | 'aprovado' | 'oculto'
+      createdAt: number
+      moderatedAt?: number
+      moderationRevision?: number
+      message: string
+    },
+  ) {
+    return t.run((ctx) =>
+      ctx.db.insert('posts', {
+        message: values.message,
+        status: values.status ?? 'pendente',
+        source: 'convidado',
+        createdAt: values.createdAt,
+        ...(values.moderatedAt === undefined
+          ? {}
+          : { moderatedAt: values.moderatedAt }),
+        ...(values.moderationRevision === undefined
+          ? {}
+          : { moderationRevision: values.moderationRevision }),
+      }),
+    )
+  }
+
+  it('denies the invalid-session matrix before projecting protected post data', async () => {
+    const t = makeAdminTest()
+    await insertPost(t, {
+      createdAt: 1,
+      message: 'conteúdo protegido pendente',
+    })
+    await t.run(async (ctx) =>
+      ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        createdAt: 0,
+        expiresAt: 0,
+      }),
+    )
+    await insertActiveAdminSession(t, TOKEN_B)
+
+    for (const token of ['malformed', TOKEN_A, `${'C'.repeat(42)}Q`]) {
+      await expect(
+        t.query(adminPosts.listByStatus, { token, status: 'pendente' }),
+      ).resolves.toEqual({ kind: 'unauthorized' })
+      await expect(
+        t.mutation(adminPosts.transitionPost, {
+          token,
+          postId: await insertPost(t, {
+            createdAt: 2,
+            message: 'não alterar',
+          }),
+          expectedStatus: 'pendente',
+          expectedRevision: 0,
+          targetStatus: 'aprovado',
+        }),
+      ).resolves.toEqual({ kind: 'unauthorized' })
+    }
+  })
+
+  it('orders pending oldest first and treats legacy revision absence as zero', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const second = await insertPost(t, { createdAt: 200, message: 'segunda' })
+    const first = await insertPost(t, { createdAt: 100, message: 'primeira' })
+
+    const listed = await t.query(adminPosts.listByStatus, {
+      token: TOKEN_A,
+      status: 'pendente',
+    })
+    expect(listed.kind).toBe('ready')
+    expect(listed.posts.map((post: any) => post.id)).toEqual([first, second])
+    expect(listed.posts.map((post: any) => post.moderationRevision)).toEqual([
+      0, 0,
+    ])
+  })
+
+  it('allows only the D-20 transition matrix and keeps the public album approved-only', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(10_000)
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const postId = await insertPost(t, {
+      createdAt: 1,
+      message: 'reativa',
+    })
+    expect(
+      (await t.query(api.posts.listApproved, {})).some(
+        (post) => post.id === postId,
+      ),
+    ).toBe(false)
+
+    for (const [from, target, allowed] of [
+      ['pendente', 'aprovado', true],
+      ['pendente', 'oculto', true],
+      ['aprovado', 'oculto', true],
+      ['oculto', 'aprovado', true],
+      ['aprovado', 'pendente', false],
+      ['oculto', 'pendente', false],
+      ['aprovado', 'aprovado', false],
+    ] as const) {
+      const isolatedId = await insertPost(t, {
+        status: from,
+        createdAt: 2,
+        moderationRevision: 4,
+        message: `${from}-${target}`,
+      })
+      const result = await t.mutation(adminPosts.transitionPost, {
+        token: TOKEN_A,
+        postId: isolatedId,
+        expectedStatus: from,
+        expectedRevision: 4,
+        targetStatus: target,
+      })
+      expect(result.kind).toBe(allowed ? 'updated' : 'invalid_transition')
+    }
+
+    const approved = await t.mutation(adminPosts.transitionPost, {
+      token: TOKEN_A,
+      postId,
+      expectedStatus: 'pendente',
+      expectedRevision: 0,
+      targetStatus: 'aprovado',
+    })
+    expect(approved).toMatchObject({
+      kind: 'updated',
+      post: { status: 'aprovado', moderationRevision: 1 },
+    })
+    expect(
+      (await t.query(api.posts.listApproved, {})).find(
+        (post) => post.id === postId,
+      ),
+    ).toMatchObject({ id: postId, message: 'reativa' })
+    const hidden = await t.mutation(adminPosts.transitionPost, {
+      token: TOKEN_A,
+      postId,
+      expectedStatus: 'aprovado',
+      expectedRevision: 1,
+      targetStatus: 'oculto',
+    })
+    expect(hidden).toMatchObject({
+      kind: 'updated',
+      post: { status: 'oculto', moderationRevision: 2 },
+    })
+    expect(
+      (await t.query(api.posts.listApproved, {})).some(
+        (post) => post.id === postId,
+      ),
+    ).toBe(false)
+  })
+
+  it('undoes the exact action but rejects stale and ABA revisions without writing', async () => {
+    const t = makeAdminTest()
+    await Promise.all([
+      insertActiveAdminSession(t, TOKEN_A),
+      insertActiveAdminSession(t, TOKEN_B),
+    ])
+    const postId = await insertPost(t, {
+      status: 'oculto',
+      createdAt: 1,
+      moderationRevision: 5,
+      message: 'concorrente',
+    })
+
+    const action = await t.mutation(adminPosts.transitionPost, {
+      token: TOKEN_A,
+      postId,
+      expectedStatus: 'oculto',
+      expectedRevision: 5,
+      targetStatus: 'aprovado',
+    })
+    expect(action).toMatchObject({
+      kind: 'updated',
+      post: { moderationRevision: 6 },
+    })
+    const immediateUndo = await t.mutation(adminPosts.undoPost, {
+      token: TOKEN_A,
+      postId,
+      priorStatus: 'oculto',
+      expectedStatus: 'aprovado',
+      expectedRevision: 6,
+    })
+    expect(immediateUndo).toMatchObject({
+      kind: 'updated',
+      post: { status: 'oculto', moderationRevision: 7 },
+    })
+
+    await t.mutation(adminPosts.transitionPost, {
+      token: TOKEN_B,
+      postId,
+      expectedStatus: 'oculto',
+      expectedRevision: 7,
+      targetStatus: 'aprovado',
+    })
+    await t.mutation(adminPosts.transitionPost, {
+      token: TOKEN_B,
+      postId,
+      expectedStatus: 'aprovado',
+      expectedRevision: 8,
+      targetStatus: 'oculto',
+    })
+    await t.mutation(adminPosts.transitionPost, {
+      token: TOKEN_B,
+      postId,
+      expectedStatus: 'oculto',
+      expectedRevision: 9,
+      targetStatus: 'aprovado',
+    })
+    const stale = await t.mutation(adminPosts.undoPost, {
+      token: TOKEN_A,
+      postId,
+      priorStatus: 'oculto',
+      expectedStatus: 'aprovado',
+      expectedRevision: 8,
+    })
+    expect(stale).toMatchObject({
+      kind: 'conflict',
+      post: { status: 'aprovado', moderationRevision: 10 },
+    })
+    const stored = await t.run((ctx) => ctx.db.get(postId))
+    expect(stored).toMatchObject({
+      status: 'aprovado',
+      moderationRevision: 10,
+    })
+  })
+})
+
 describe('admin family and guest operations', () => {
   it('creates, lists, edits, adds to and removes a zero-person family', async () => {
     vi.useFakeTimers()
