@@ -1,7 +1,7 @@
 # Phase 4: Carta de Vinhos - Context
 
 **Gathered:** 2026-07-24
-**Status:** Ready for planning
+**Status:** Revised — ready for Plan 04-05 execution
 
 <domain>
 ## Phase Boundary
@@ -37,15 +37,15 @@ Cobre GIFT-01 a GIFT-04.
 - **D-07:** Manter as três faixas do catálogo anterior: **“Abaixo de R$ 200”**, **“De R$ 200 a R$ 350”** e **“De R$ 350 a R$ 500”**.
 - **D-08:** As três faixas ficam abertas na mesma página. Atalhos no topo levam diretamente a cada faixa; não usar accordion.
 - **D-09:** Dentro de cada faixa, ordenar por **preço crescente** e manter a posição estável quando o status de um vinho mudar.
-- **D-10:** Cada card mostra foto da garrafa, nome, produtor, preço, descrição curta e código Mistral visível de forma discreta.
-- **D-11:** Reaproveitar integralmente os 37 registros do catálogo anterior: códigos, nomes, produtores, preços, categorias, tonalidades, descrições e referências de imagem.
+- **D-10 (revisada em 2026-07-24):** Cada card mostra uma **representação autoral e neutra de garrafa**, nome, produtor, preço, descrição curta e código Mistral visível de forma discreta. A representação não é fotografia nem reprodução do rótulo.
+- **D-11 (revisada em 2026-07-24):** Preservar integralmente os 37 registros comerciais do catálogo anterior — códigos, nomes, produtores, preços, categorias, tonalidades e descrições. `imageUrl`, manifest de fotos e arquivos de imagem deixam de ser requisito final e devem ser removidos do contrato público/infraestrutura quando for seguro.
 
 ### Direção visual
 
 - **D-12:** `/presentes` reaproveita a identidade da adega anterior: fundo verde-escuro, cream, peach/coral e linguagem editorial, mas com **abertura compacta**, não um segundo hero alto.
-- **D-13:** Usar **fotos reais das garrafas com fundo transparente**, substituindo a ilustração genérica de garrafa do projeto anterior.
-- **D-14:** Cada foto aparece sobre um halo colorido derivado da tonalidade do vinho (`rubi`, `dourado`, `rose`, `verde`), preservando a assinatura dos cards anteriores.
-- **D-15:** A grade usa **3 colunas no desktop, 2 no tablet e 1 no celular**.
+- **D-13 (revisada em 2026-07-24):** Usar **uma única silhueta própria e neutra de garrafa**, baseada na direção visual aprovada, sem logos, tipografia de marca, rótulos copiados ou claims de fidelidade fotográfica. A mesma geometria é reutilizada nos 37 cards; somente a paleta decorativa muda.
+- **D-14 (revisada em 2026-07-24):** Cada `productCode` recebe uma paleta própria de **dois hex muted**, aplicada como duas metades/áreas do halo e inspirada nas cores observadas em páginas oficiais ou fontes comerciais reputáveis do rótulo. Registrar a URL de referência e a data de consulta, mas nunca publicar, baixar, hotlinkar, scrapear ou copiar imagem, arte, logo ou composição do rótulo.
+- **D-15 (revisada em 2026-07-24):** A grade do catálogo usa **1 coluna no mobile, 2 no tablet, 3 no desktop comum e 4 somente a partir de `1280px`**. A prévia fixa da home continua com no máximo três colunas porque contém exatamente três produtos.
 - **D-16:** A prévia da home é um bloco verde-escuro completo, funcionando como porta de entrada visual para a adega e antecipando a linguagem de `/presentes`.
 
 ### WhatsApp e disponibilidade
@@ -61,10 +61,11 @@ Cobre GIFT-01 a GIFT-04.
 
 - Escolha exata dos três rótulos intermediários da prévia, respeitando a seleção fixa/curada e usando produtos da faixa `200-350`.
 - Copy complementar da abertura compacta e da nota operacional, mantendo o tom acolhedor e sem sugerir reserva.
-- Dimensões exatas dos cards, halos e garrafas; transições sutis e estados de loading/erro, respeitando `prefers-reduced-motion` e acessibilidade AA.
+- Dimensões exatas dos cards, halos e silhueta; transições sutis e estados de loading/erro, respeitando `prefers-reduced-motion` e acessibilidade AA.
 - Estratégia técnica de deep link/destaque do vinho vindo da home, desde que use URL compartilhável e mantenha o rótulo acessível.
 - Schema exato, seed idempotente e separação entre conteúdo comercial e estado mutável.
-- Tratamento de imagem ausente durante desenvolvimento. A entrega final deve usar fotos reais com fundo transparente; não transformar a ilustração genérica antiga na solução definitiva.
+- Forma vetorial/CSS exata da silhueta neutra, desde que seja original, consistente com a referência aprovada e não contenha identidade visual de terceiros.
+- Seleção exata dos dois hex muted de cada produto, desde que toda paleta tenha fonte URL registrada e passe os validadores definidos no plano.
 
 </decisions>
 
@@ -84,7 +85,7 @@ Cobre GIFT-01 a GIFT-04.
 
 ### Fonte canônica do catálogo e da adega anterior
 
-- `/Users/allanmesquitabrito/Documents/Site Sol 40 anos/sol-40-integrado/lib/wines.ts` — os 37 registros canônicos, três categorias, preços, códigos, descrições, tonalidades e caminhos esperados das imagens.
+- `/Users/allanmesquitabrito/Documents/Site Sol 40 anos/sol-40-integrado/lib/wines.ts` — os 37 registros comerciais canônicos, três categorias, preços, códigos, descrições e tonalidades. Os caminhos históricos de imagem não são mais contrato final.
 - `/Users/allanmesquitabrito/Documents/Site Sol 40 anos/sol-40-integrado/app/convite/EventSite.tsx` — `wineCategories`, estrutura anterior do catálogo e copy `GiftMessage`; usar como referência visual/conceitual sem ressuscitar reserva.
 - `/Users/allanmesquitabrito/Documents/Site Sol 40 anos/sol-40-integrado/app/globals.css` §§ `.wine-*` e `.cellar-*` — grade, halos por tonalidade e identidade verde-escura da adega.
 - `/Users/allanmesquitabrito/Documents/Site Sol 40 anos/sol-40-integrado/app/adega/page.tsx` — rota dedicada anterior, apenas como referência de composição.
@@ -102,7 +103,11 @@ Cobre GIFT-01 a GIFT-04.
 - `src/components/ui/Card.tsx` — primitivo de superfície; pode informar a estrutura, embora os cards da adega tenham linguagem própria.
 - `src/index.css` — tokens pôr do sol, cores `sea`/`plum`/`cream` e contratos de acessibilidade.
 
-**Observação para pesquisa:** `lib/wines.ts` referencia 37 arquivos em `/wines/*.png`, mas os arquivos não estão presentes no diretório do projeto anterior encontrado durante o scout. A pesquisa/planejamento precisa definir uma fonte legítima para as fotos reais transparentes e não presumir que os assets já existem.
+### Direção visual aprovada
+
+- `/Users/allanmesquitabrito/.codex/generated_images/019f9644-e00b-7f73-85a6-5f70928442f4/call_M6hysFZ2GBdBeROsuWq63oMA.png` — referência aprovada para a composição: garrafa neutra escura, área de rótulo sem marca e halo bipartido. É direção visual, não asset para publicação nem fonte de cores dos 37 produtos.
+
+**Observação para execução:** o antigo manifest `public/wines/manifest.json`, `scripts/audit-wine-assets.mjs`, `imageUrl` público e estados de falha de imagem são infraestrutura obsoleta após esta revisão. A remoção precisa ser feita por diff direcionado, preservando todo código da Fase 5. Como já existem documentos `wines`, a migração dos quatro campos de paleta/provenance será feita em dois pushes: schema opcional de transição, backfill 37/37 com limpeza de `imageUrl`, e só então schema final obrigatório.
 
 </canonical_refs>
 
@@ -136,7 +141,8 @@ Cobre GIFT-01 a GIFT-04.
 
 ### Creative Options
 
-- O campo `tone` já permite halos consistentes sem análise de imagem em runtime.
+- O campo `tone` pode permanecer como classificação comercial/fallback, mas a apresentação final usa a paleta de dois hex específica por `productCode`.
+- A paleta deve viver na fonte canônica/Convex para que home e catálogo consumam exatamente as mesmas cores reativas, sem um segundo mapa frontend.
 - Queries reativas do Convex permitem que home e catálogo mudem o selo imediatamente após a ação administrativa futura.
 - O código Mistral fornece chave estável para seed idempotente, deep links e mensagem do WhatsApp.
 
@@ -146,7 +152,8 @@ Cobre GIFT-01 a GIFT-04.
 ## Specific Ideas
 
 - A home deve parecer abrir uma porta para outra atmosfera: o convite claro dá lugar a uma adega verde-escura.
-- As fotos transparentes reais ocupam o lugar da silhueta genérica anterior, mas os halos coloridos permanecem.
+- Uma única silhueta autoral neutra ocupa o stage de todos os cards; cada produto se diferencia pelo halo de duas cores muted com provenance URL.
+- A composição aprovada usa garrafa escura, rótulo abstrato sem texto/marca e círculo bipartido; não promete reproduzir formato, vidro ou rótulo reais.
 - “Ver a carta completa”, “Presentear pelo WhatsApp” e “Já escolhido com carinho” são textos aprovados.
 - A jornada pretendida é direta: escolher um rótulo, abrir a conversa com Vanessa e combinar pagamento/entrega.
 - O número público aprovado da vendedora é `(11) 99370-9046`, normalizado no link como `5511993709046`.

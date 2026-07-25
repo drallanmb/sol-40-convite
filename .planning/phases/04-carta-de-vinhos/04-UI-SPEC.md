@@ -1,7 +1,7 @@
 ---
 phase: 4
 slug: carta-de-vinhos
-status: draft
+status: approved-revision
 shadcn_initialized: false
 preset: none
 created: 2026-07-24
@@ -36,12 +36,12 @@ Add these tokens once in `src/index.css`; do not scatter their values through co
 | `--color-cellar-line` | `rgba(255, 243, 223, 0.22)` | Dividers and card borders |
 | `--color-cellar-muted` | `rgba(255, 243, 223, 0.78)` | Secondary body copy; never reduce below this for normal text |
 | `--color-gifted` | `#B3C8B0` | “Já escolhido com carinho” text/border; 6.34:1 on cellar |
-| `--halo-rubi` | `#732D3F` | Decorative halo only |
-| `--halo-dourado` | `#F3A271` | Decorative halo only |
-| `--halo-rose` | `#D98479` | Decorative halo only |
-| `--halo-verde` | `#8AA085` | Decorative halo only |
+| `--halo-rubi` | `#732D3F` | Legacy/fallback decorative halo only |
+| `--halo-dourado` | `#F3A271` | Legacy/fallback decorative halo only |
+| `--halo-rose` | `#D98479` | Legacy/fallback decorative halo only |
+| `--halo-verde` | `#8AA085` | Legacy/fallback decorative halo only |
 
-Cream (`#FFF3DF`) is 10.27:1 and peach (`#F3A271`) is 5.48:1 against cellar. Coral (`#EE6A50`) is only 3.66:1 against cellar: reserve it for large display emphasis, focus outlines, and decoration—never normal-size cellar text. Halos are decorative and carry no state.
+Cream (`#FFF3DF`) is 10.27:1 and peach (`#F3A271`) is 5.48:1 against cellar. Coral (`#EE6A50`) is only 3.66:1 against cellar: reserve it for large display emphasis, focus outlines, and decoration—never normal-size cellar text. Halos are decorative and carry no state. Product-specific halo colors come from validated data as two CSS custom properties per card; do not register 74 global tokens or treat those decorative colors as text colors.
 
 ---
 
@@ -102,7 +102,7 @@ Additional rules:
 
 Accent reserved for: compact-intro kicker, italic heading emphasis, section eyebrows, available status border/text, and selected-target label. It is not a default body-text color and must not flood entire cards.
 
-Tone halo colors are a separate decorative palette, not semantic status colors. Availability is always stated in text and determined by whether the WhatsApp action exists.
+Each product has two muted halo colors. They are a decorative palette, not semantic status colors. Availability is always stated in text and determined by whether the WhatsApp action exists.
 
 ---
 
@@ -140,8 +140,6 @@ All strings below are literal unless a placeholder is shown.
 | Empty-band body | `Nenhum rótulo desta faixa está disponível no catálogo agora.` |
 | Error state | `Não foi possível carregar a carta agora. Confira sua conexão e tente novamente.` |
 | Retry action | `Tentar novamente` |
-| Development image placeholder | `Imagem em preparação` |
-| Runtime image-failure text | `Foto temporariamente indisponível` |
 | Destructive confirmation | Not applicable—this phase exposes no destructive action or public write |
 
 Exact WhatsApp message:
@@ -185,6 +183,8 @@ The section uses `64px 24px` padding on mobile, `64px 32px` on tablet, and `64px
 
 These remain visible and in this order after status changes. Each entire preview card is one semantic route link to `/presentes#vinho-{código}`; it contains no WhatsApp link or nested interactive control. Its accessible name includes wine name, formatted price, and `Já escolhido com carinho` when applicable.
 
+The home preview uses the same neutral bottle silhouette and the same two-color palette returned for each product as `/presentes`; it must not maintain a second palette map. Because there are exactly three featured products, the preview remains 1 column mobile, 2 columns tablet, and 3 columns from `1024px` upward—never a four-column grid with an empty slot.
+
 ### RSVP integration
 
 After the first backend-confirmed `result.kind === "saved"` in the mounted family session, append a persistent cream/sand bordered callout below the save feedback and submit action. It remains visible through later edits and all attendance combinations, including all guests answering “não vai”. Do not render it on initial load, restored-clean state, rate-limit, connection failure, invalid session, or any other non-success outcome.
@@ -217,7 +217,8 @@ The callout uses the exact post-save heading/body/CTA above and links to `/prese
 |----------|---------|-----|
 | `< 768px` | 1 | 16px |
 | `768–1023px` | 2 | 16px |
-| `>= 1024px` | 3 | 24px |
+| `1024–1279px` | 3 | 24px |
+| `>= 1280px` | 4 | 24px |
 
 No horizontal page overflow is allowed at `320px`. Grid width is `100%` inside the `1320px` cap.
 
@@ -226,8 +227,8 @@ No horizontal page overflow is allowed at `320px`. Grid width is `100%` inside t
 - Semantic root: `<article id="vinho-{código}" tabIndex={-1}>`, labelled by its wine-name heading.
 - Minimum height: `540px` mobile and `580px` at `768px+`; available cards use flex/grid so CTAs align at the bottom of a row without clipping long copy.
 - Surface: cellar-soft, `1px` cellar-line border, square corners to match the editorial grid; `24px` padding at every breakpoint.
-- Internal order: bottle visual → status and price → `h3` name → producer → description → product code → action/status footer.
-- Visual stage: `264px` high, full card width, with a centered `180px` halo mobile / `204px` desktop. Bottle image fits within `116px × 232px` mobile / `132px × 248px` desktop using `object-contain`; never crop cap, shoulders, label, or base.
+- Internal order: authored bottle visual → status and price → `h3` name → producer → description → product code → action/status footer.
+- Visual stage: `264px` high, full card width, with a centered `180px` halo mobile / `204px` desktop split into the product's two muted colors. A single project-owned neutral silhouette fits within `116px × 232px` mobile / `132px × 248px` desktop; keep cap/base inside the stage and do not vary geometry by product.
 - Price is visually strongest metadata. Product code is visible but quiet: caption size, cream at `72%`, no tracking wider than label tracking.
 - CTA is a semantic external `<a>`, full card width, at least `48px` high, cream border, cream text. Hover/focus reverses to cream background/cellar text. Use `target="_blank"` and `rel="noopener noreferrer"`.
 
@@ -240,7 +241,7 @@ Available card:
 
 Gifted card:
 
-- Keep the same position, dimensions, commercial copy, code, price, and image.
+- Keep the same position, dimensions, commercial copy, code, price, silhouette, and product palette.
 - Remove the WhatsApp anchor from the DOM—do not render a disabled button.
 - Render `Já escolhido com carinho` in gifted green with a visible `1px` border.
 - Soften only the bottle stage (`filter:saturate(.45)`, `opacity:.68`) and secondary description (`cream` at `70%`). Keep the name, price, code, and status at AA contrast.
@@ -250,23 +251,22 @@ If a reactive update changes a focused available card to gifted, move focus to t
 
 ---
 
-## Bottle Asset Contract
+## Label Palette & Bottle Silhouette Contract
 
-Final Phase 4 acceptance requires 37 real, front-facing bottle photographs with transparent backgrounds. Every asset must:
+Final Phase 4 acceptance uses one authored, reusable bottle silhouette and 37 product-specific palette records:
 
-- map to exactly one canonical product code;
-- have written publication permission from the rights holder or be an owner-produced photo with owned rights;
-- permit local hosting and any performed resize, compression, format conversion, or background removal;
-- use a normalized `720 × 960px` transparent canvas with the complete bottle centered and no cap/base clipping;
-- be locally hosted as optimized alpha-capable WebP or PNG, ideally `<= 300KB`;
-- declare intrinsic `width` and `height`, use `object-contain`, `decoding="async"`, and an accurate alt such as `Garrafa do vinho Catena Malbec 2024`;
-- have source/contact/date/allowed transformations recorded in the asset manifest without private conversation content.
+- The silhouette is implemented locally in SVG/CSS/React and owned by the project. It may follow the approved composition reference at `/Users/allanmesquitabrito/.codex/generated_images/019f9644-e00b-7f73-85a6-5f70928442f4/call_M6hysFZ2GBdBeROsuWq63oMA.png`: dark neutral bottle, blank abstract label area, and a two-part circular halo.
+- The silhouette contains no producer logo, brand typography, copied label art, bottle photography, trademarked decorative motif, or readable invented label text. It makes no claim that bottle shape, glass, capsule, or label is a faithful depiction of the product.
+- The silhouette geometry is identical for all 37 products. Product differentiation comes from commercial text and the two-color halo, never from copied product artwork.
+- Every canonical `productCode` has exactly two distinct CSS hex colors (`#RRGGBB`), selected as muted decorative interpretations inspired by colors visible on an official producer page, official retailer/product page, or reputable commercial catalog.
+- Every palette record stores an `https://` reference URL and consultation date for audit. These are provenance metadata only: the application does not render the URL, request the remote image at runtime, or expose it as an image source.
+- Colors may be sampled/approximated by visual inspection, then muted and adjusted to suit the cellar surface. Do not copy layouts, gradients, logos, illustrations, typography, or distinctive label compositions.
+- Validate all 37 mappings: unique canonical code, two valid/distinct hex strings, safe `https://` provenance URL, non-empty date, and no missing product.
+- The public DTO returns only the two palette colors required to render. It omits provenance URL/date and legacy `imageUrl`. `Presentes.tsx` validates those two colors instead of the removed image field.
+- Persisted rollout is two-stage: first publish the four new fields as optional beside optional legacy `imageUrl`, reconcile and verify all 37 rows, then make palette/provenance required in the final schema. Public queries fail closed for an incomplete transitional row.
+- The historical `imageUrl`, `public/wines/manifest.json`, `scripts/audit-wine-assets.mjs`, and `audit:wine-assets` script are not final requirements. Remove them through a narrow staged diff after tests prove no runtime/build reference remains.
 
-Load the three home preview images and the first visible catalog row eagerly; all later catalog images use `loading="lazy"`. Reserved dimensions prevent layout shift.
-
-Do not hotlink or scrape Mistral, use search-result/retailer screenshots, fabricate labels with AI, or treat the old generic bottle silhouette as a real asset. A visibly labelled neutral placeholder (`Imagem em preparação`) is allowed only in development. It cannot satisfy visual QA or final Phase 4 acceptance.
-
-Production still needs resilient image-failure behavior: remove the failed image, preserve the reserved stage, and show `Foto temporariamente indisponível` as text. Do not substitute a fake bottle. Product name, price, status, code, and WhatsApp action remain usable.
+The visual is deterministic local markup, so there is no image loading, broken-image, alpha, crop, intrinsic-dimension, byte-budget, lazy-loading, or rights-holder-photo state. The fixed visual-stage dimensions themselves prevent layout shift.
 
 ---
 
@@ -282,12 +282,12 @@ Production still needs resilient image-failure behavior: remove the failed image
 
 ---
 
-## Loading, Error, Empty, Partial, and Image States
+## Loading, Error, Empty, Partial, and Visual States
 
 ### Catalog loading
 
 - Keep compact intro, note, and band navigation visible.
-- Render all three band headings and, inside each band, one full responsive row of non-animated skeleton cards: 1 mobile, 2 tablet, 3 desktop.
+- Render all three band headings and, inside each band, one full responsive row of non-animated skeleton cards: 1 mobile, 2 tablet, 3 desktop at `1024–1279px`, and 4 at `>=1280px`.
 - Skeletons preserve card and visual-stage dimensions, use cream at `6–12%`, and have no shimmer.
 - Put `aria-busy="true"` on the catalog region and announce `Carregando a carta de vinhos…` once through a screen-reader status.
 
@@ -326,7 +326,7 @@ Production still needs resilient image-failure behavior: remove the failed image
 - Available card/preview hover on fine pointers may translate `-4px`; keyboard focus uses outline without requiring movement.
 - CTA active state scales to `0.98`.
 - Deep-link scroll is the only smooth scroll introduced by this phase. Selected outline/label appears in `260ms`; no flashing or pulsing.
-- Images and halos do not float, rotate, parallax, or autoplay.
+- Silhouettes and halos do not float, rotate, parallax, or autoplay.
 - Under `prefers-reduced-motion: reduce`, disable smooth scroll, hover translation, scale, and selected-state transition; all content and state cues remain visible.
 
 ---
@@ -335,7 +335,7 @@ Production still needs resilient image-failure behavior: remove the failed image
 
 - Use one page `h1`; bands use `h2`; wine names use `h3`. Home preview section uses `h2`, preview wine names use `h3`.
 - Every band is a `<section aria-labelledby>`. Catalog and preview loading/error regions have stable accessible names.
-- Images have product-specific alt text. Halos, sun, and other decorative art are `aria-hidden`.
+- The silhouette and halo are one decorative visual group with `aria-hidden="true"` and no image alt. The adjacent visible wine name, producer, price and code carry the product identity; do not announce a claim of visual fidelity.
 - All interactive targets are at least `44 × 44px`; keyboard order follows visual/document order.
 - Focus on cellar surfaces uses a `3px` peach outline with `3px` offset. Do not suppress the existing global focus style without replacing it.
 - External CTA retains the visible literal label and adds the assistive suffix `Abre o WhatsApp em uma nova aba.` in visually hidden text.
@@ -350,7 +350,8 @@ Production still needs resilient image-failure behavior: remove the failed image
 
 | Concern | Mobile `<768px` | Tablet `768–1023px` | Desktop `>=1024px` |
 |---------|------------------|----------------------|--------------------|
-| Catalog/preview grid | 1 column | 2 columns | 3 columns |
+| Catalog grid | 1 column | 2 columns | 3 columns at 1024–1279px; 4 columns at >=1280px |
+| Home preview grid | 1 column | 2 columns | 3 columns |
 | Intro display | 48px | 48px | 48px |
 | Intro alignment | Left; decorative sun cropped top-right | Left, max `14ch` heading | Left, content max `780px` |
 | Band heading | Stack below `480px`; count left-aligned | Single row | Single row |
@@ -369,10 +370,10 @@ Probe confirmed by the owner: 30 applicable element-state considerations across 
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| empty | Catalog, category band, bottle media | ✅ covered | Catalog and per-band zero states have exact copy; failed media preserves layout/content and uses the documented runtime text |
-| loading | Catalog, home preview, bottle media, band navigation | ✅ covered | Static no-shimmer skeleton rows preserve responsive geometry, `aria-busy`, and one loading announcement; intrinsic image dimensions prevent shift |
-| error | Catalog, home preview, bottle media | ✅ covered | Inline alert + retry replaces only the failing data region; broken images never remove text, status, or action |
-| populated | Catalog, home preview, bottle media | ✅ covered | 37-item 3/2/1 catalog and exact fixed three-item preview are fully specified |
+| empty | Catalog and category band | ✅ covered | Catalog and per-band zero states have exact copy; the deterministic bottle visual has no empty-media state |
+| loading | Catalog, home preview and band navigation | ✅ covered | Static no-shimmer skeleton rows preserve 1/2/3/4 responsive geometry, `aria-busy`, and one loading announcement |
+| error | Catalog and home preview | ✅ covered | Inline alert + retry replaces only the failing data region; the local silhouette has no network error state |
+| populated | Catalog, home preview and bottle visual | ✅ covered | 37-item 1/2/3/4 catalog, exact fixed three-item preview, neutral silhouette and per-code palettes are fully specified |
 | partial | Catalog and bands | ✅ covered | Valid rows continue rendering with one top error; empty bands remain present; malformed commercial fields are never fabricated |
 | overflow | Catalog, shortcuts, navigation, wine text | ✅ covered | Grid never horizontally overflows; mobile shortcuts scroll with a visible cue; all commercial text wraps without truncation |
 | zero-one-many | Catalog and bands | ✅ covered | Zero copy, one normal-width card, 37 unvirtualized cards, and stable counts/positions are explicit |
@@ -395,16 +396,16 @@ Verify at minimum:
 
 | View / state | Widths | Required evidence |
 |--------------|--------|-------------------|
-| `/presentes` populated | 375, 768, 1280 | 1/2/3 columns, three open bands, no horizontal overflow, exact copy |
+| `/presentes` populated | 320, 375, 768, 1024, 1280 | 1/1/2/3/4 columns, three open bands, no horizontal overflow, exact copy |
 | `/presentes` loading/error/empty | 375 and 1280 | Stable geometry, exact state copy, keyboard retry |
 | Available vs gifted cards | 375 and 1280 | Gifted item stays in place and has no WhatsApp anchor |
 | Home preview | 375, 768, 1280 | Exact fixed trio/order, dark block, deep links, complete-catalog CTA |
 | Deep link | 375 and 1280 | Direct load, gifted target, back/forward, unknown hash, reduced motion |
 | RSVP post-save | 375 and 1280 | Appears only after confirmed save, persists after editing, works for all-no |
-| Media resilience | 375 and 1280 | Transparent approved image, reserved dimensions, runtime failure text |
+| Silhouette/palette system | 375 and 1280 | Same logo-free silhouette on all cards, two distinct muted colors per product, no remote image request or fidelity claim |
 | Keyboard/zoom | 320 at 200%, desktop keyboard-only | Visible focus, correct order, all targets reachable and copy uncut |
 
-Final visual acceptance is blocked until all 37 image manifest entries and real transparent assets pass the rights, identity, alpha, crop, dimensions, and byte-budget checks. Development placeholders are never acceptance evidence.
+Final visual acceptance requires 37 validated palette mappings with provenance URLs, the single approved neutral silhouette, removal of obsolete photo infrastructure, and the responsive/browser matrix above. No photo, alpha, crop, byte budget, image manifest, or rights-holder-photo gate remains.
 
 ---
 
