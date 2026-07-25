@@ -621,6 +621,130 @@ describe('admin access link activation and reset', () => {
   })
 })
 
+describe('admin bootstrap, legacy cutoff and master recovery', () => {
+  it('creates one pending Allan owner under concurrent bootstrap attempts', async () => {
+    const t = makeAdminTest()
+    const attempts = await Promise.all([
+      t.action(api.adminAuthActions.bootstrapOwner, {
+        masterPassword: 'senha-de-teste-segura',
+        email: 'allanmesquitab@gmail.com',
+      }),
+      t.action(api.adminAuthActions.bootstrapOwner, {
+        masterPassword: 'senha-de-teste-segura',
+        email: 'allanmesquitab@gmail.com',
+      }),
+    ])
+    expect(attempts.filter((result) => result.kind === 'created')).toHaveLength(1)
+    expect(attempts.filter((result) => result.kind === 'pending')).toHaveLength(1)
+
+    const stored = await t.run(async (ctx) => ({
+      configs: await ctx.db.query('adminAuthConfig').collect(),
+      accounts: await ctx.db.query('adminAccounts').collect(),
+      links: await ctx.db.query('adminAccessLinks').collect(),
+    }))
+    expect(stored.configs).toHaveLength(1)
+    expect(stored.accounts).toMatchObject([
+      {
+        email: 'allanmesquitab@gmail.com',
+        displayName: 'Allan',
+        role: 'owner',
+        state: 'pending',
+      },
+    ])
+    expect(stored.links).toHaveLength(1)
+    expect(JSON.stringify(stored)).not.toContain(
+      attempts.find((result) => result.kind === 'created')?.token,
+    )
+  })
+
+  it('keeps legacy access until activation then cuts every legacy row off in the same commit', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const bootstrap = await t.action(api.adminAuthActions.bootstrapOwner, {
+      masterPassword: 'senha-de-teste-segura',
+      email: 'allanmesquitab@gmail.com',
+    })
+    expect(bootstrap.kind).toBe('created')
+    if (bootstrap.kind !== 'created') return
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
+    ).resolves.toMatchObject({ kind: 'ready' })
+
+    await expect(
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: bootstrap.token,
+        purpose: 'activation',
+        password: 'Brisa dourada sobre o mar 2026',
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+    expect(
+      await t.run((ctx) => ctx.db.query('adminSessions').collect()),
+    ).toHaveLength(1)
+    await expect(
+      t.mutation(api.adminAuth.login, {
+        password: 'senha-de-teste-segura',
+        token: TOKEN_B,
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+  })
+
+  it('master recovery targets only configured owner, revokes sessions and returns only a reset capability', async () => {
+    const t = makeAdminTest()
+    const bootstrap = await t.action(api.adminAuthActions.bootstrapOwner, {
+      masterPassword: 'senha-de-teste-segura',
+      email: 'allanmesquitab@gmail.com',
+    })
+    if (bootstrap.kind !== 'created') throw new Error('bootstrap failed')
+    await t.action(api.adminAccessLinkActions.consumeAccessLink, {
+      token: bootstrap.token,
+      purpose: 'activation',
+      password: 'Brisa dourada sobre o mar 2026',
+    })
+    const owner = await t.run((ctx) =>
+      ctx.db.query('adminAccounts').withIndex('by_role', (q) => q.eq('role', 'owner')).unique(),
+    )
+    if (!owner) throw new Error('owner missing')
+    await t.run(async (ctx) => {
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_B),
+        accountId: owner._id,
+        credentialVersion: owner.credentialVersion,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
+      })
+      await ctx.db.insert('adminAccounts', {
+        email: 'outra@example.com',
+        displayName: 'Outra',
+        role: 'manager',
+        state: 'active',
+        passwordHash: 'untouched',
+        credentialVersion: 7,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    })
+
+    const recovery = await t.action(api.adminAuthActions.recoverOwner, {
+      masterPassword: 'senha-de-teste-segura',
+    })
+    expect(recovery.kind).toBe('created')
+    expect(Object.keys(recovery).sort()).toEqual(['kind', 'token'])
+    const after = await t.run(async (ctx) => ({
+      owner: await ctx.db.get(owner._id),
+      manager: await ctx.db.query('adminAccounts').withIndex('by_email', (q) => q.eq('email', 'outra@example.com')).unique(),
+      sessions: await ctx.db.query('adminSessions').collect(),
+      audit: await ctx.db.query('adminAuditEvents').collect(),
+    }))
+    expect(after.owner?.credentialVersion).toBe(owner.credentialVersion + 1)
+    expect(after.manager?.credentialVersion).toBe(7)
+    expect(after.sessions).toEqual([])
+    expect(after.audit.at(-1)?.action).toBe('master_recovery_started')
+  })
+})
+
 describe('admin overview authorization matrix', () => {
   it('reveals no aggregate for malformed, unknown, expired or revoked sessions', async () => {
     const t = makeAdminTest()
