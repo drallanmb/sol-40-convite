@@ -9,7 +9,7 @@ screenshots administrativos são proibidos.
 
 | Execução | Ambiente/alvo | Commit/deployment | Data/hora `-03:00` | Classe | Operador | Resultado |
 |---|---|---|---|---|---|---|
-| Preview | pending | pending | pending | live + emulated | pending | pending |
+| Preview | `https://sol-40-convite-ao1ktwnbu-allans-projects-78f12069.vercel.app` | commit `3d7aa1c`; Vercel `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X`; Convex `prestigious-roadrunner-782` | 2026-07-25 08:59 | live + emulated | Codex | passou |
 | Production `.vercel.app` | pending | pending | pending | live + emulated | pending | pending |
 | Domínio imediato | `https://www.sol40.com.br` | pending | pending | live + emulated | pending | pending |
 | Domínio pós-propagação | `https://www.sol40.com.br` | pending | pending | live + emulated | pending | pending |
@@ -33,11 +33,30 @@ qualquer linha obrigatória do alvo estiver `pending`.
 | Logs | Revisar Vercel/Convex sem expor valores ou PII; registrar apenas contagem/categoria | pending | pending | pending | pending |
 | Rate limits | Confirmar feedback recuperável sem alterar valores sem reprodução | pending | pending | pending | pending |
 
+## Execução Preview — Gate B
+
+| Caso | Resultado | Evidência sanitizada | Severidade | Correção/reteste |
+|---|---|---|---|---|
+| Home + canonical | passou | alvo público respondeu 200; home incluída na suíte live-safe | nenhuma | não aplicável |
+| Deep routes | passou | `/`, `/confirmar`, `/presentes`, `/admin`, `/admin/convidados` e 404 carregaram e sobreviveram a refresh em Chromium/WebKit, desktop/mobile emulados | nenhuma | não aplicável |
+| RSVP | passou sem escrita | gate público e comportamento cobertos pela suíte; nenhuma família/fixture foi criada | nenhuma | não aplicável |
+| Catálogo + `wa.me` | passou sem compra | superfície pública carregou; destino/encoding permanecem cobertos pelos unitários | nenhuma | não aplicável |
+| Memória pública | passou sem upload | formulário carregou; nenhuma foto ou arquivo foi enviado | nenhuma | não aplicável |
+| Admin pré-auth | passou | login foi o único conteúdo admin montado; nenhum DTO/função de domínio protegido foi consultado antes da sessão | nenhuma | não aplicável |
+| Admin login | carregou | formulário pré-auth carregou; autenticação funcional fica para Gate C com `ADMIN_PASSWORD` de Production | nenhuma | Gate C |
+| TLS/redirect | parcial esperado | HTTPS válido no `.vercel.app`; redirect apex/`www` pertence ao Gate D | nenhuma | Gate D |
+| Convex linkage | passou | build Vercel resolveu `prestigious-roadrunner-782`, distinto de dev `judicious-pigeon-504` e prod `necessary-coyote-763` | nenhuma | não aplicável |
+| Logs | passou | build terminou Ready e log sanitizado não mostrou erro inesperado; nenhum valor sensível foi registrado | nenhuma | não aplicável |
+| Rate limits | passou em repository | contratos recuperáveis continuam cobertos por 528 testes; nenhum valor foi alterado e nenhuma reprodução live foi provocada | nenhuma | auditar novamente no Gate C |
+
+O smoke não precisou de escrita. Portanto, não há dado fictício residual no
+Preview nem possibilidade de contaminação de Production por esta execução.
+
 ## Resultado agregado
 
 | Alvo | Estado | P0/P1 abertos | Pode avançar? | Motivo/ação |
 |---|---|---|---|---|
-| Preview | pending | pending | não | executar Gate B |
+| Preview | passou | 0 | sim | Gate B verde; avançar para senha segura e Gate C |
 | Production `.vercel.app` | pending | pending | não | executar Gate C |
 | Domínio imediato | pending | pending | não | executar primeiro Gate D |
 | Domínio pós-propagação | pending | pending | não | repetir em outro resolvedor/rede |
@@ -53,4 +72,3 @@ qualquer linha obrigatória do alvo estiver `pending`.
   virtual pertencem a `07-DEVICE-MATRIX.md` e permanecem pending aqui.
 - O prazo RSVP de 30/09 continua informativo; o smoke não deve esperar
   bloqueio de edição pós-prazo.
-

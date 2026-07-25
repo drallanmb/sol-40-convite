@@ -9,11 +9,11 @@ CSV real, conteúdo de backup ou foto privada.
 
 | Campo | Valor |
 |---|---|
-| Commit candidato | pending |
-| Deployment Vercel Preview | pending |
+| Commit candidato | `3d7aa1c` |
+| Deployment Vercel Preview | `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X` |
 | Deployment Vercel Production | pending |
-| Deployment Convex Preview | pending |
-| Deployment Convex Production | pending |
+| Deployment Convex Preview | `prestigious-roadrunner-782` |
+| Deployment Convex Production | `necessary-coyote-763` |
 | URL `.vercel.app` saudável | pending |
 | Alvo saudável para rollback | pending |
 | Domínio público | pending — não equivale a convite divulgado |
@@ -33,7 +33,7 @@ CSV real, conteúdo de backup ou foto privada.
 | Gate | Escopo | Estado | Executado em | Evidência/identificador | Responsável | Sign-off |
 |---|---|---|---|---|---|---|
 | A | Repositório: unitários, build, browser/axe, privacidade e `git diff --check` | pending | pending | pending · repository/emulated | Codex | pending |
-| B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | pending | pending | pending · live/emulated | Codex + dono | pending |
+| B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | passou | 2026-07-25 08:59 -03:00 | Vercel `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X`; Convex `prestigious-roadrunner-782`; 40/40 browser + 528/528 unitários · live/emulated | Codex + dono | Codex; autorização prévia do dono |
 | C | Production `.vercel.app`: commit esperado, Convex production, login e logs | pending | pending | pending · live/emulated | Codex + dono | pending |
 | D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | pending | pending | pending · live | Codex + dono | pending |
 | E | Backup validado, lista real importada/revisada, amostragem RSVP e autorização para divulgar | pending | pending | pending · live/manual | Donos | pending |
@@ -52,11 +52,33 @@ CSV real, conteúdo de backup ou foto privada.
 
 ### Gate B — preview
 
-- [ ] Preview Vercel aponta para deployment Convex de preview, distinto de
-  desenvolvimento e produção.
-- [ ] Somente dados fictícios são usados; nenhuma lista real é importada.
-- [ ] Rotas, refresh, RSVP, catálogo/`wa.me`, memória e login carregam.
-- [ ] Resultado e correções são registrados em `07-SMOKE.md`.
+- [x] Preview Vercel aponta para `prestigious-roadrunner-782`, distinto de
+  desenvolvimento (`judicious-pigeon-504`) e produção
+  (`necessary-coyote-763`).
+- [x] Nenhum dado foi escrito no smoke: nenhuma lista real foi importada e não
+  há fixture fictícia para limpar ou procurar em produção.
+- [x] Rotas e refresh carregam no alvo live; RSVP, catálogo/`wa.me`, memória e
+  login pré-auth passaram pelos testes live-safe/emulados e unitários, sem
+  submissão persistente.
+- [x] Resultado, escopo e ausência de correções estão registrados em
+  `07-SMOKE.md`.
+
+### Tracer Vercel/Convex do Gate B
+
+- Projeto Vercel: time `allans-projects-78f12069`, projeto
+  `prj_YfSVxLCFrUeAm4SNIISwAtMRiXPa`, branch de produção `main`.
+- Build: `vercel.json` executou
+  `npx convex deploy --cmd 'npm run build'`, publicou `dist` e manteve o
+  rewrite SPA. O log sanitizado confirmou injeção de `VITE_CONVEX_URL` pelo
+  Convex; não existe valor manual dessa variável no Vercel.
+- Ambientes: existem entradas sensíveis, gerenciadas pela integração, chamadas
+  `CONVEX_DEPLOY_KEY` nos escopos Preview e Production; nenhum valor foi lido
+  ou registrado.
+- A autenticação Vercel do projeto foi desativada com confirmação explícita
+  para tornar o Preview acessível ao smoke público. A alteração é reversível.
+- Uma deploy key manual redundante, criada durante a inspeção, foi revogada
+  imediatamente; somente as entradas mascaradas da integração permanecem
+  ativas.
 
 ### Gate C — produção antes do domínio
 
@@ -98,4 +120,3 @@ assinado.
 - LAUNCH-02 combina automação com os backstops humanos ainda pendentes.
 - LAUNCH-03 exige domínio/senha/lista real, não apenas o importador pronto.
 - LAUNCH-04 exige deploy e smoke ao vivo, não apenas build local.
-
