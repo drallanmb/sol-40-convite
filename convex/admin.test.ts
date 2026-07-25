@@ -1465,6 +1465,60 @@ describe('admin family and guest operations', () => {
     ).toHaveLength(1)
   })
 
+  it('does not advance generation or schedule purge for rejected phone changes', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(60_000)
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const seeded = await seedAdminFamily(t, '(79) 99999-8901')
+    const listed = await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    if (listed.kind !== 'ready') throw new Error('missing family')
+    const family = listed.families[0]
+    const before = await t.run(async (ctx) => ({
+      family: await ctx.db.get(seeded.rsvpId),
+      sessions: await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+        .collect(),
+      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+    }))
+
+    await expect(
+      t.mutation(api.adminRsvps.updateFamily, {
+        token: TOKEN_A,
+        familyId: seeded.rsvpId,
+        expectedUpdatedAt: family.updatedAt,
+        patch: { phone: 'telefone inválido' },
+      }),
+    ).resolves.toMatchObject({ kind: 'invalid', field: 'phone' })
+    await expect(
+      t.mutation(api.adminRsvps.updateFamily, {
+        token: TOKEN_A,
+        familyId: seeded.rsvpId,
+        expectedUpdatedAt: family.updatedAt - 1,
+        patch: { phone: '(79) 99999-8902' },
+      }),
+    ).resolves.toMatchObject({ kind: 'conflict' })
+    await expect(
+      t.mutation(api.adminRsvps.updateFamily, {
+        token: TOKEN_B,
+        familyId: seeded.rsvpId,
+        expectedUpdatedAt: family.updatedAt,
+        patch: { phone: '(79) 99999-8902' },
+      }),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+
+    const after = await t.run(async (ctx) => ({
+      family: await ctx.db.get(seeded.rsvpId),
+      sessions: await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+        .collect(),
+      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+    }))
+    expect(after).toEqual(before)
+  })
+
   it('rejects a stale admin write after a public save and preserves the public response', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(50_000)
