@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 07
-current_phase_name: endurecimento-lan-amento
+current_phase: 7
+current_phase_name: Endurecimento & Lançamento
 status: executing
-stopped_at: Completed 08-07-PLAN.md; manual Preview follow-ups documented
-last_updated: "2026-07-25T18:07:34.958Z"
+stopped_at: Phase 8 complete; resume Phase 7 plan 07-05 or 07-06
+last_updated: "2026-07-25T20:21:36.027Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 07 execution started
+last_activity_desc: Phase 8 complete; Phase 7 follow-ups remain
 progress:
   total_phases: 8
   completed_phases: 7
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-07-25)
 
 ## Current Position
 
-Phase: 07 (endurecimento-lan-amento) — EXECUTING
+Phase: 7 — Endurecimento & Lançamento
 Plan: 5 of 6
 Status: Ready to execute
-Last activity: 2026-07-25 — Phase 07 execution started
+Last activity: 2026-07-25 — Phase 8 complete; Phase 7 follow-ups remain
 
 Progress: [██████████] 96%
 
@@ -38,7 +38,7 @@ Progress: [██████████] 96%
 
 **Velocity:**
 
-- Total plans completed: 33
+- Total plans completed: 7
 - Average duration: —
 - Total execution time: —
 
@@ -46,6 +46,7 @@ Progress: [██████████] 96%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
+| 8 | 7 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -132,6 +133,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 07]: Rollback/promote Vercel move somente aliases; Convex, env, scheduled work, storage e dados têm recuperação separada. — Impede que recuperação de frontend seja registrada como restauração de backend ou dados.
 - [Phase 08]: Sessões legadas recebem principal sintético somente antes de legacyDisabledAt; contas individuais são a identidade persistente. — Mantém rollout aditivo e cria um cutoff lógico global imediato.
 - [Phase 08]: Senhas humanas usam envelope scrypt versionado em internal actions Node exclusivas. — Evita hash rápido de senha e impede módulos Web-runtime de importar Node crypto.
+- [Phase 08]: Contas individuais substituem o login compartilhado; a senha-mestra fica restrita à recuperação. — Identidade persistente por conta permite RBAC, revogação e auditoria sem compartilhar segredo.
+- [Phase 08]: Vanessa usa papel seller restrito a Presentes. — Confirma, edita e reabre compras sem acessar convidados, moderação ou auditoria.
+- [Phase 08]: Auditoria administrativa é owner-only, redigida e retida por 120 dias. — Responsabilização operacional sem exposição de segredos nem retenção indefinida.
 
 ### Pending Todos
 
@@ -157,6 +161,6 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 
 ## Session Continuity
 
-Last session: 2026-07-25T18:07:34.945Z
-Stopped at: Completed 08-07-PLAN.md; manual Preview follow-ups documented
+Last session: 2026-07-25T20:21:36.022Z
+Stopped at: Phase 8 complete; resume Phase 7 plan 07-05 or 07-06
 Resume file: None

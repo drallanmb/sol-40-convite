@@ -13,9 +13,10 @@ Os convidados confirmam presença e escolhem presente **sem atrito**, e os donos
 ## Current State
 
 O site está publicado em `https://www.sol40.com.br`, com Vercel/Convex
-Production isolados, backup externo e domínio/rollback verificados. A Fase 7
-mantém dois follow-ups independentes: lista real de convidados e matriz em
-aparelhos físicos. A Fase 8 foi adicionada para contas individuais de gestores.
+Production isolados, backup externo e domínio/rollback verificados. O painel
+administrativo usa contas individuais, RBAC, sessões revogáveis e auditoria
+owner-only. A Fase 7 mantém dois follow-ups independentes: lista real de
+convidados e matriz em aparelhos físicos.
 
 ## Requirements
 
@@ -27,13 +28,13 @@ aparelhos físicos. A Fase 8 foi adicionada para contas individuais de gestores.
 - [x] **Mural de memórias** — envio de fotos/recados, moderação prévia e galeria pública aprovados na Fase 5
 - [x] **Dashboard interno** — senha única, visão geral reativa, convidados, moderação e presentes validados na Fase 6
 - [x] **Stack** — Convex + React/Tailwind/TypeScript na Vercel validada pelas Fases 1–6
+- [x] **Gestão de gestores pós-lançamento** — proprietário, contas e sessões individuais, papéis, revogação, redefinição, operação restrita da Vanessa e auditoria validados na Fase 8
 
 ### Active
 
 <!-- Escopo v1. Hipóteses até serem entregues e validadas. -->
 
 - [ ] **Lançamento** — testes reais, acessibilidade AA, checklist dos donos, domínio e deploy de produção
-- [ ] **Gestão de gestores pós-lançamento** — admin proprietário, contas e sessões individuais, papéis, revogação, redefinição de senha e auditoria
 
 ### Out of Scope
 
@@ -71,8 +72,10 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 | RSVP público sem login | Festa de uma noite não justifica contas individuais; capability efêmera escopa uma família | ✓ Good — validado na Fase 3 |
 | Presente = redirect WhatsApp (sem checkout) | Venda é externa, pelo vendedor "Mistral" | ✓ Good — validado na Fase 4 |
 | Mural com moderação antes de publicar | Evitar conteúdo indevido no álbum/telão público | ✓ Good — projeção pública permanece approved-only |
-| Dashboard com senha única dos donos | Permitiria lançar com superfície de autenticação pequena | ✓ Good para o lançamento; senha-mestra passa a ser acesso do proprietário/recuperação quando a Fase 8 for entregue |
-| Gestores com contas individuais | A senha administrativa precisará ser compartilhada; contas próprias permitem revogação, papéis e auditoria sem divulgar a senha-mestra | → Phase 8 pós-lançamento |
+| Dashboard com senha única dos donos | Permitiria lançar com superfície de autenticação pequena | ✓ Serviu ao lançamento; substituída por contas individuais na Fase 8, com senha-mestra restrita à recuperação |
+| Gestores com contas individuais | A senha administrativa precisaria ser compartilhada; contas próprias permitem revogação, papéis e auditoria sem divulgar a senha-mestra | ✓ Good — owner, manager e seller validados na Fase 8 |
+| Vanessa usa papel seller restrito a Presentes | A compra ocorre fora do site e só precisa de confirmação operacional | ✓ Good — confirmar/editar/reabrir preserva “Já escolhido com carinho” sem dados privados |
+| Auditoria administrativa owner-only por 120 dias | Responsabilização sem expor segredos nem criar retenção indefinida | ✓ Good — eventos atômicos/redigidos, filtros e cleanup validados na Fase 8 |
 | Telão + Instagram → v2 | Reduz escopo v1 e evita custo externo (Apify) | — Pending |
 | Marcar "presenteado" manual (sem reserva 48h) | Simplicidade; a compra acontece fora do site | ✓ Modelo reativo validado na Fase 4; controle do dono segue para a Fase 6 |
 | Carta usa uma garrafa vetorial neutra e duas cores por vinho | Evita dependência de 37 fotos licenciadas sem perder diferenciação visual | ✓ Good — 37 paletas com proveniência privada e zero mídia remota |
@@ -95,4 +98,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 after production launch and Phase 8 addition*
+*Last updated: 2026-07-25 after Phase 8 completion*
