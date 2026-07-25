@@ -1,7 +1,7 @@
 ---
 phase: 04
 slug: carta-de-vinhos
-status: draft
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-07-24
@@ -49,9 +49,9 @@ created: 2026-07-24
 | 04-04-01 | 04 | 3 | GIFT-03 | T-04-18 | Nav/copy combinadas preservam Fase 5 | content/regression | `npx vitest run src/content/event.test.ts && npm run build` | ✅ | ✅ complete |
 | 04-04-02 | 04 | 3 | GIFT-03/04 | T-04-16/17/18 | Preview fixa trio/order e usa um Link sem nested action | system/browser | `npm test && npm run build && git diff --check` | ✅ | ✅ complete |
 | 04-04-03 | 04 | 3 | GIFT-03 | T-04-15 | CTA depende exclusivamente de `result.kind === "saved"` | system/browser | `npm test && npm run build && git diff --check` | ✅ | ✅ complete |
-| 04-05-01 | 05 | 4 | GIFT-01/02/04 | T-04-24/25/27 | Migração em dois pushes aceita legado, completa 37 paletas, endurece schema; DTO e `Presentes.tsx` omitem imageUrl/provenance; ensure preserva gifted | unit/integration/privacy | `npx vitest run convex/wines.test.ts -t "catalog\|palette\|schema\|migration\|reconciliation\|public queries\|featured" && npm run build` | ✅ base | ⬜ pending |
-| 04-05-02 | 05 | 4 | GIFT-03/04 | T-04-25/26/28 | Silhueta local substitui imagens; grid 1/2/3/4; infraestrutura obsoleta some sem tocar `MemoryCard`/Fase 5 | system/source audit | `npm test && npm run build && git diff --check && test ! -e src/components/gifts/WineImage.tsx && test ! -e scripts/audit-wine-assets.mjs && test ! -e public/wines/manifest.json && ! rg -n "imageUrl\|WineImage\|audit:wine-assets\|/wines/" convex/wines.ts src/routes/Presentes.tsx src/components/gifts src/content/gifts.ts package.json` | ✅ base | ⬜ pending |
-| 04-05-03 | 05 | 4 | All | T-04-24/25/26/27/28/29 | Seed idempotente, two-view snapshot/restore, browser 1/2/3/4 e zero remote image requests | system/live/browser | `npx vitest run convex/wines.test.ts src/lib/wineWhatsApp.test.ts src/lib/wineDeepLink.test.ts && npm test && npm run build && npx convex dev --once && git diff --check` | ✅ base | ⬜ pending |
+| 04-05-01 | 05 | 4 | GIFT-01/02/04 | T-04-24/25/27 | Migração em dois pushes aceita legado, completa 37 paletas, endurece schema; DTO e `Presentes.tsx` omitem imageUrl/provenance; ensure preserva gifted | unit/integration/privacy | `npx vitest run convex/wines.test.ts -t "catalog\|palette\|schema\|migration\|reconciliation\|public queries\|featured" && npm run build` | ✅ | ✅ complete |
+| 04-05-02 | 05 | 4 | GIFT-03/04 | T-04-25/26/28 | Silhueta local substitui imagens; grid 1/2/3/4; infraestrutura obsoleta some sem tocar `MemoryCard`/Fase 5 | system/source audit | `npm test && npm run build && git diff --check && test ! -e src/components/gifts/WineImage.tsx && test ! -e scripts/audit-wine-assets.mjs && test ! -e public/wines/manifest.json && ! rg -n "imageUrl\|WineImage\|audit:wine-assets\|/wines/" convex/wines.ts src/routes/Presentes.tsx src/components/gifts src/content/gifts.ts package.json` | ✅ | ✅ complete |
+| 04-05-03 | 05 | 4 | All | T-04-24/25/26/27/28/29 | Seed idempotente, two-view snapshot/restore, browser 1/2/3/4 e zero remote image requests | system/live/browser | `npx vitest run convex/wines.test.ts src/lib/wineWhatsApp.test.ts src/lib/wineDeepLink.test.ts && npm test && npm run build && npx convex dev --once && git diff --check` | ✅ | ✅ complete |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -63,7 +63,7 @@ created: 2026-07-24
 - [x] **Wave 1 / Plan 02:** `src/lib/wineWhatsApp.test.ts` — copy Unicode, número, preço e encoding único.
 - [x] **Wave 1 / Plan 02:** `src/lib/wineDeepLink.test.ts` — DOM ID/hash seguro.
 - [x] **Wave 1 / Plan 02:** legacy photo preflight exists only as historical output and is superseded by the approved D-13 revision.
-- [ ] **Wave 4 / Plan 05:** `04-PALETTE-REFERENCES.md`, palette validators/tests, deterministic silhouette and cleanup of legacy photo infrastructure.
+- [x] **Wave 4 / Plan 05:** `04-PALETTE-REFERENCES.md`, palette validators/tests, deterministic silhouette and cleanup of legacy photo infrastructure.
 
 `wave_0_complete` is `true`: Plans 01–04 were executed and `convex/wines.test.ts` exists. `nyquist_compliant` remains `true`: all three revised Plan 05 tasks have focused automated feedback, and the final task includes the manual Browser evidence that the current stack cannot cover through DOM/E2E tests.
 
@@ -93,4 +93,14 @@ created: 2026-07-24
 - [x] Feedback automatizado focado permanece abaixo de 30s; full suite/live smoke fica no fechamento.
 - [x] `nyquist_compliant: true`; `wave_0_complete: true` because Plans 01–04 are executed.
 
-**Approval:** revised validation map aligned; Plan 05 execution pending
+## Validation Audit 2026-07-25
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All GIFT-01–04 requirements have active automated coverage. Final perceptual and mounted-session checks were completed through `04-UAT.md` with 2/2 passes.
+
+**Approval:** validated 2026-07-25
