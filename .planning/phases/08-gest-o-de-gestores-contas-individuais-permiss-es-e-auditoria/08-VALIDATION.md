@@ -1,7 +1,7 @@
 ---
 phase: 08
 slug: gest-o-de-gestores-contas-individuais-permiss-es-e-auditoria
-status: approved
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-07-25
@@ -93,6 +93,17 @@ approved: 2026-07-25
 - [x] `wave_0_complete: true` e `nyquist_compliant: true`.
 
 **Approval:** approved — 2026-07-25
+
+## Validation Audit 2026-07-25
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Todos os requisitos e decisões permanecem cobertos por 581 testes Vitest,
+80 jornadas Playwright, build de produção, smoke protegido e UAT 7/7.
 
 ## Orchestrator Handoff
 
