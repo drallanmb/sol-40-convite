@@ -90,6 +90,26 @@ describe('memory draft validation and Unicode limits', () => {
     })
   })
 
+  it.each([
+    ['', false, 'empty_content'],
+    ['a', true, undefined],
+    ['a'.repeat(280), true, undefined],
+    ['a'.repeat(281), false, 'invalid_message'],
+    ['💛'.repeat(280), true, undefined],
+    ['oi\u0000', false, 'invalid_control'],
+  ])(
+    'matches server message boundaries without truncation: %s',
+    (message, valid, error) => {
+      expect(
+        validateMemoryDraft({
+          author: '',
+          message,
+          photo: null,
+        }),
+      ).toMatchObject({ valid, ...(error ? { error } : {}) })
+    },
+  )
+
   it('uses the server countdown as positive whole seconds and re-enables at zero', () => {
     expect(toMemoryRetrySeconds(0)).toBe(1)
     expect(toMemoryRetrySeconds(1.1)).toBe(2)
@@ -100,22 +120,24 @@ describe('memory draft validation and Unicode limits', () => {
 
 describe('memory submission preservation', () => {
   it.each([
-    'processing',
-    'uploading',
-    'claiming',
-    'validating',
-  ] as const)('preserves the entire draft when %s fails', (stage) => {
+    ['processing', { kind: 'none' }],
+    ['uploading', reserved],
+    ['claiming', uploaded],
+    ['validating', uploaded],
+  ] as const)('preserves the entire draft and safe transport when %s fails', (stage, transport) => {
     const initial = withDraft()
+    const atStage = { ...initial, transport } as MemoryState
     const staged =
       stage === 'uploading'
-        ? memoryReducer(initial, { type: 'upload_progress', percent: 42 }).state
-        : memoryReducer(initial, { type: 'submission_stage', stage }).state
+        ? memoryReducer(atStage, { type: 'upload_progress', percent: 42 }).state
+        : memoryReducer(atStage, { type: 'submission_stage', stage }).state
     const failed = memoryReducer(staged, {
       type: 'submission_failed',
       code: 'network_error',
     }).state
 
     expect(failed.draft).toEqual(initial.draft)
+    expect(failed.transport).toEqual(transport)
     expect(failed.submission).toEqual({
       kind: 'failed',
       code: 'network_error',
