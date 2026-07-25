@@ -4,11 +4,15 @@ import { internalMutation } from './_generated/server'
 import { WINE_CATALOG } from './wineCatalog'
 import {
   assertValidWineCatalogItem,
-  WINE_GIFTED_BY_MAX_LENGTH,
+  nextWineUpdatedAt,
   wineGiftStateValidator,
   type WineCatalogItem,
-  type WineGiftState,
 } from './wineModel'
+import {
+  normalizeWineGiftState,
+  readWineGiftState,
+  transitionWineGiftState,
+} from './wineOperations'
 
 const ensureResultValidator = v.object({
   created: v.number(),
@@ -42,36 +46,6 @@ function commercialFieldsChanged(
     stored.paletteReferencedAt !== canonical.paletteReferencedAt ||
     stored.imageUrl !== undefined
   )
-}
-
-function readGiftState(wine: Doc<'wines'>): WineGiftState {
-  if (wine.status === 'available') {
-    return { status: 'available' }
-  }
-  if (wine.giftedBy === undefined || wine.giftedAt === undefined) {
-    throw new Error(
-      `Invariante violada: vinho presenteado ${wine.productCode} sem estado completo.`,
-    )
-  }
-  return {
-    status: 'gifted',
-    giftedBy: wine.giftedBy,
-    giftedAt: wine.giftedAt,
-  }
-}
-
-function assertValidGiftState(state: WineGiftState) {
-  if (state.status === 'available') {
-    return
-  }
-  if (
-    state.giftedBy.trim().length === 0 ||
-    state.giftedBy.length > WINE_GIFTED_BY_MAX_LENGTH ||
-    !Number.isSafeInteger(state.giftedAt) ||
-    state.giftedAt <= 0
-  ) {
-    throw new Error('Estado operacional de presente inválido.')
-  }
 }
 
 /**
@@ -121,20 +95,22 @@ export const ensureWineCatalog = internalMutation({
 
       const stored = matches[0]
       if (!stored) {
+        const now = Date.now()
         await ctx.db.insert('wines', {
           ...canonical,
           status: 'available',
-          updatedAt: Date.now(),
+          updatedAt: now,
         })
         created += 1
         continue
       }
 
       if (commercialFieldsChanged(stored, canonical)) {
+        const now = Date.now()
         await ctx.db.patch(stored._id, {
           ...canonical,
           imageUrl: undefined,
-          updatedAt: Date.now(),
+          updatedAt: nextWineUpdatedAt(stored.updatedAt, now),
         })
         updated += 1
       } else {
@@ -170,7 +146,7 @@ export const setWineGiftStateForSmoke = internalMutation({
   },
   returns: smokeResultValidator,
   handler: async (ctx, { productCode, state }) => {
-    assertValidGiftState(state)
+    const normalized = normalizeWineGiftState(state)
     const matches = await ctx.db
       .query('wines')
       .withIndex('by_product_code', (query) => query.eq('productCode', productCode))
@@ -186,29 +162,21 @@ export const setWineGiftStateForSmoke = internalMutation({
     }
 
     const wine = matches[0]
-    const previousState = readGiftState(wine)
-    const updatedAt = Date.now()
-
-    if (state.status === 'available') {
-      await ctx.db.patch(wine._id, {
-        status: 'available',
-        giftedBy: undefined,
-        giftedAt: undefined,
-        updatedAt,
-      })
-    } else {
-      await ctx.db.patch(wine._id, {
-        status: 'gifted',
-        giftedBy: state.giftedBy,
-        giftedAt: state.giftedAt,
-        updatedAt,
-      })
+    const previousState = readWineGiftState(wine)
+    const result = await transitionWineGiftState(ctx, {
+      wineId: wine._id,
+      expectedStatus: wine.status,
+      expectedUpdatedAt: wine.updatedAt,
+      target: normalized,
+    })
+    if (result.kind !== 'updated') {
+      throw new Error('A transição de smoke perdeu a revisão esperada.')
     }
 
     return {
       productCode,
       previousState,
-      currentState: state,
+      currentState: readWineGiftState(result.wine),
     }
   },
 })

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  giftDialogReducer,
   MODERATION_UNDO_MS,
   moderationTargets,
   moderationUndoReducer,
+  parseGiftTab,
   parseModerationTab,
 } from './adminOperations'
 
@@ -73,6 +75,37 @@ describe('admin moderation operations', () => {
     })
     expect(moderationUndoReducer(offered, { type: 'auth_lost' })).toEqual({
       kind: 'idle',
+    })
+  })
+})
+
+describe('admin gift operations', () => {
+  it('canonicalizes available and gifted URL tabs', () => {
+    expect(parseGiftTab(null)).toBe('available')
+    expect(parseGiftTab('unknown')).toBe('available')
+    expect(parseGiftTab('gifted')).toBe('gifted')
+  })
+
+  it('retains the presenter on retry and requires review after a remote revision', () => {
+    const opened = giftDialogReducer(
+      { kind: 'closed' },
+      { type: 'open', wineId: 'wine', updatedAt: 10 },
+    )
+    const edited = giftDialogReducer(opened, {
+      type: 'change_presenter',
+      value: '  Ágata  ',
+    })
+    const submitting = giftDialogReducer(edited, { type: 'submit' })
+    expect(giftDialogReducer(submitting, { type: 'retry' })).toMatchObject({
+      kind: 'editing',
+      presenter: '  Ágata  ',
+    })
+    expect(
+      giftDialogReducer(edited, { type: 'remote_changed', updatedAt: 11 }),
+    ).toMatchObject({
+      kind: 'review',
+      presenter: '  Ágata  ',
+      expectedUpdatedAt: 10,
     })
   })
 })

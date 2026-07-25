@@ -85,6 +85,10 @@ export const WINE_CATEGORY_ORDER: readonly WineCategory[] = [
   '350-500',
 ]
 
+export function nextWineUpdatedAt(current: number, now: number) {
+  return Math.max(now, current + 1)
+}
+
 function saturationPercent(hex: string) {
   const channels = [1, 3, 5].map((offset) =>
     Number.parseInt(hex.slice(offset, offset + 2), 16) / 255,

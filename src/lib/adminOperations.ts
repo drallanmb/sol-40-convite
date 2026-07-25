@@ -79,3 +79,54 @@ export function moderationUndoReducer(
   }
   return state
 }
+
+export type GiftTab = 'available' | 'gifted'
+
+export function parseGiftTab(value: string | null): GiftTab {
+  return value === 'gifted' ? 'gifted' : 'available'
+}
+
+export type GiftDialogState =
+  | { kind: 'closed' }
+  | {
+      kind: 'editing' | 'submitting' | 'review'
+      wineId: string
+      expectedUpdatedAt: number
+      presenter: string
+    }
+
+export type GiftDialogAction =
+  | { type: 'open'; wineId: string; updatedAt: number }
+  | { type: 'change_presenter'; value: string }
+  | { type: 'submit' }
+  | { type: 'retry' }
+  | { type: 'remote_changed'; updatedAt: number }
+  | { type: 'close' }
+
+export function giftDialogReducer(
+  state: GiftDialogState,
+  action: GiftDialogAction,
+): GiftDialogState {
+  if (action.type === 'open') {
+    return {
+      kind: 'editing',
+      wineId: action.wineId,
+      expectedUpdatedAt: action.updatedAt,
+      presenter: '',
+    }
+  }
+  if (action.type === 'close') return { kind: 'closed' }
+  if (state.kind === 'closed') return state
+  if (action.type === 'change_presenter') {
+    return { ...state, kind: 'editing', presenter: action.value }
+  }
+  if (action.type === 'submit') return { ...state, kind: 'submitting' }
+  if (action.type === 'retry') return { ...state, kind: 'editing' }
+  if (
+    action.type === 'remote_changed' &&
+    action.updatedAt !== state.expectedUpdatedAt
+  ) {
+    return { ...state, kind: 'review' }
+  }
+  return state
+}

@@ -17,6 +17,7 @@ import type * as adminRateLimits from "../adminRateLimits.js";
 import type * as adminRsvps from "../adminRsvps.js";
 import type * as adminSecurity from "../adminSecurity.js";
 import type * as adminTest from "../adminTest.js";
+import type * as adminWines from "../adminWines.js";
 import type * as crons from "../crons.js";
 import type * as postImageDecoder from "../postImageDecoder.js";
 import type * as postImageDecoderLib from "../postImageDecoderLib.js";
@@ -36,6 +37,7 @@ import type * as uploadValidation from "../uploadValidation.js";
 import type * as wineCatalog from "../wineCatalog.js";
 import type * as wineInternal from "../wineInternal.js";
 import type * as wineModel from "../wineModel.js";
+import type * as wineOperations from "../wineOperations.js";
 import type * as wineTest from "../wineTest.js";
 import type * as wines from "../wines.js";
 
@@ -55,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   adminRsvps: typeof adminRsvps;
   adminSecurity: typeof adminSecurity;
   adminTest: typeof adminTest;
+  adminWines: typeof adminWines;
   crons: typeof crons;
   postImageDecoder: typeof postImageDecoder;
   postImageDecoderLib: typeof postImageDecoderLib;
@@ -74,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   wineCatalog: typeof wineCatalog;
   wineInternal: typeof wineInternal;
   wineModel: typeof wineModel;
+  wineOperations: typeof wineOperations;
   wineTest: typeof wineTest;
   wines: typeof wines;
 }>;

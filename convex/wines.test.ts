@@ -3,7 +3,7 @@ import type {
   FunctionReference,
   RegisteredMutation,
 } from 'convex/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { api, internal } from './_generated/api'
 import { WINE_CATALOG, FEATURED_WINE_CODES } from './wineCatalog'
 import {
@@ -14,6 +14,7 @@ import {
   assertHttpsReference,
   assertMutedPalette,
   assertReferenceDate,
+  nextWineUpdatedAt,
   WINE_CATEGORY_ORDER,
   type PublicWine,
   type WineGiftState,
@@ -77,6 +78,11 @@ const wineApi = (
 ).wines
 
 describe('catalog wines', () => {
+  it('advances wine revisions under equal and backward clocks', () => {
+    expect(nextWineUpdatedAt(100, 100)).toBe(101)
+    expect(nextWineUpdatedAt(100, 99)).toBe(101)
+    expect(nextWineUpdatedAt(100, 150)).toBe(150)
+  })
   it('keeps the canonical commercial catalog byte-for-byte', async () => {
     const digestBytes = new Uint8Array(
       await crypto.subtle.digest(
@@ -256,6 +262,30 @@ describe('wine reconciliation', () => {
       giftedBy: 'Convidada Teste',
       giftedAt: 12_345,
     })
+  })
+
+  it('advances ensureWineCatalog commercial revisions under equal and backward clocks', async () => {
+    const t = makeWineTest()
+    vi.useFakeTimers()
+    vi.setSystemTime(10_000)
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+    const before = await t.run((ctx) =>
+      ctx.db
+        .query('wines')
+        .withIndex('by_product_code', (query) => query.eq('productCode', '39778'))
+        .unique(),
+    )
+    if (!before) throw new Error('missing fixture wine')
+    await t.run((ctx) =>
+      ctx.db.patch(before._id, { name: 'desatualizado', updatedAt: 10_000 }),
+    )
+
+    vi.setSystemTime(9_000)
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+    const after = await t.run((ctx) => ctx.db.get(before._id))
+    expect(after?.updatedAt).toBe(10_001)
+    expect(after?.name).toBe('Catena Malbec 2024')
+    vi.useRealTimers()
   })
 
   it('cleans a legacy imageUrl while preserving the complete gifted state', async () => {

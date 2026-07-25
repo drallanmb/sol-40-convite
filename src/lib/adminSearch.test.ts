@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  filterAdminWines,
   filterFamilies,
   foldAdminSearchText,
+  groupAdminWinesByBand,
   guestResultCount,
   type AdminFamilySearchRecord,
 } from './adminSearch'
@@ -65,5 +67,44 @@ describe('admin family search', () => {
     expect(result[2]).toBe(families[2])
     expect(families).toEqual(before)
     expect(guestResultCount(result)).toBe(3)
+  })
+})
+
+describe('admin wine search and canonical bands', () => {
+  const wines = [
+    {
+      id: '1',
+      name: 'Château Sol',
+      productCode: '0699230',
+      category: 'ate-200' as const,
+      status: 'gifted' as const,
+      giftedBy: 'Ágata',
+    },
+    {
+      id: '2',
+      name: 'Vinho Lua',
+      productCode: '39778',
+      category: '350-500' as const,
+      status: 'available' as const,
+    },
+  ]
+
+  it('matches wine, Mistral code and presenter with accent/case folding', () => {
+    expect(filterAdminWines(wines, { query: 'CHATEAU', status: 'gifted' })).toEqual([
+      wines[0],
+    ])
+    expect(filterAdminWines(wines, { query: '69923', status: 'gifted' })).toEqual([
+      wines[0],
+    ])
+    expect(filterAdminWines(wines, { query: 'agata', status: 'gifted' })).toEqual([
+      wines[0],
+    ])
+  })
+
+  it('keeps canonical band order and omits empty bands', () => {
+    expect(groupAdminWinesByBand(wines).map((group) => group.category)).toEqual([
+      'ate-200',
+      '350-500',
+    ])
   })
 })

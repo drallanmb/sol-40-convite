@@ -61,8 +61,8 @@ async function insertOverviewWine(
   productCode: string,
   status: 'available' | 'gifted',
 ) {
-  await t.run(async (ctx) => {
-    await ctx.db.insert('wines', {
+  return t.run(async (ctx) => {
+    return ctx.db.insert('wines', {
       productCode,
       name: `Vinho ${productCode}`,
       producer: 'Produtor',
@@ -867,6 +867,165 @@ describe('admin post moderation, revision conflict and public album', () => {
       status: 'aprovado',
       moderationRevision: 10,
     })
+  })
+})
+
+describe('admin wine gift authorization, atomic revisions and public catalog', () => {
+  const adminWines = (api as any).adminWines
+
+  it('denies all protected wine operations before attribution access', async () => {
+    const t = makeAdminTest()
+    const wineId = await insertOverviewWine(t, 'admin-auth-wine', 'available')
+    for (const token of ['malformed', TOKEN_A, TOKEN_B]) {
+      await expect(t.query(adminWines.listAdmin, { token })).resolves.toEqual({
+        kind: 'unauthorized',
+      })
+      await expect(
+        t.mutation(adminWines.markGifted, {
+          token,
+          wineId,
+          expectedUpdatedAt: 0,
+          giftedBy: 'Protegida',
+        }),
+      ).resolves.toEqual({ kind: 'unauthorized' })
+      await expect(
+        t.mutation(adminWines.makeAvailable, {
+          token,
+          wineId,
+          expectedUpdatedAt: 0,
+        }),
+      ).resolves.toEqual({ kind: 'unauthorized' })
+    }
+  })
+
+  it('requires a trimmed presenter and writes server time atomically', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(20_000)
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const wineId = await insertOverviewWine(t, 'admin-gift-wine', 'available')
+    const before = await t.run((ctx) => ctx.db.get(wineId))
+    if (!before) throw new Error('missing wine')
+
+    await expect(
+      t.mutation(adminWines.markGifted, {
+        token: TOKEN_A,
+        wineId,
+        expectedUpdatedAt: before.updatedAt,
+        giftedBy: '   ',
+      }),
+    ).resolves.toEqual({
+      kind: 'invalid',
+      message: 'Informe o nome de quem presenteou.',
+    })
+    const marked = await t.mutation(adminWines.markGifted, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: before.updatedAt,
+      giftedBy: '  Ágata  ',
+    })
+    expect(marked).toMatchObject({
+      kind: 'updated',
+      wine: {
+        status: 'gifted',
+        giftedBy: 'Ágata',
+        giftedAt: 20_000,
+        updatedAt: before.updatedAt + 1,
+      },
+    })
+  })
+
+  it('clears attribution together and rejects stale/ABA gift commands', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(30_000)
+    const t = makeAdminTest()
+    await Promise.all([
+      insertActiveAdminSession(t, TOKEN_A),
+      insertActiveAdminSession(t, TOKEN_B),
+    ])
+    const wineId = await insertOverviewWine(t, 'admin-aba-wine', 'available')
+    const original = await t.run((ctx) => ctx.db.get(wineId))
+    if (!original) throw new Error('missing wine')
+    const marked = await t.mutation(adminWines.markGifted, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: original.updatedAt,
+      giftedBy: 'Primeira',
+    })
+    if (marked.kind !== 'updated') throw new Error('mark failed')
+    const available = await t.mutation(adminWines.makeAvailable, {
+      token: TOKEN_B,
+      wineId,
+      expectedUpdatedAt: marked.wine.updatedAt,
+    })
+    expect(available).toMatchObject({
+      kind: 'updated',
+      wine: { status: 'available' },
+    })
+    if (available.kind === 'updated') {
+      expect(available.wine).not.toHaveProperty('giftedBy')
+      expect(available.wine).not.toHaveProperty('giftedAt')
+    }
+    if (available.kind !== 'updated') throw new Error('unmark failed')
+    const remarked = await t.mutation(adminWines.markGifted, {
+      token: TOKEN_B,
+      wineId,
+      expectedUpdatedAt: available.wine.updatedAt,
+      giftedBy: 'Mais recente',
+    })
+    expect(remarked.kind).toBe('updated')
+    const stale = await t.mutation(adminWines.makeAvailable, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: marked.wine.updatedAt,
+    })
+    expect(stale).toMatchObject({
+      kind: 'conflict',
+      wine: { status: 'gifted', giftedBy: 'Mais recente' },
+    })
+  })
+
+  it('keeps public catalog reactive and omits presenter, time and revision', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    await t.mutation(internal.wineInternal.ensureWineCatalog, {})
+    const listed = await t.query(adminWines.listAdmin, { token: TOKEN_A })
+    if (listed.kind !== 'ready') throw new Error('missing admin catalog')
+    const wine = listed.wines[0]
+    const marked = await t.mutation(adminWines.markGifted, {
+      token: TOKEN_A,
+      wineId: wine.id,
+      expectedUpdatedAt: wine.updatedAt,
+      giftedBy: 'Nome privado',
+    })
+    expect(marked.kind).toBe('updated')
+    const publicWine = (await t.query(api.wines.listCatalog, {})).find(
+      (item) => item.productCode === wine.productCode,
+    )
+    expect(publicWine?.status).toBe('gifted')
+    expect(publicWine).not.toHaveProperty('giftedBy')
+    expect(publicWine).not.toHaveProperty('giftedAt')
+    expect(publicWine).not.toHaveProperty('updatedAt')
+  })
+
+  it('restores bounded moderation and gift smoke fixtures in finally', async () => {
+    const t = makeAdminTest()
+    await expect(
+      t.mutation(internal.adminTest.smokeModerationAndGift, {}),
+    ).resolves.toEqual({
+      moderationTransitioned: true,
+      giftTransitioned: true,
+      fixturesBounded: true,
+    })
+    const remaining = await t.run(async (ctx) => ({
+      posts: (await ctx.db.query('posts').collect()).filter(
+        (post) => post.message === 'Smoke admin moderation 06-04',
+      ),
+      wines: (await ctx.db.query('wines').collect()).filter(
+        (wine) => wine.giftedBy === 'Smoke admin gift 06-04',
+      ),
+    }))
+    expect(remaining).toEqual({ posts: [], wines: [] })
   })
 })
 

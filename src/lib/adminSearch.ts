@@ -53,3 +53,42 @@ export function filterFamilies<T extends AdminFamilySearchRecord>(
 export function guestResultCount(families: readonly AdminFamilySearchRecord[]) {
   return families.reduce((total, family) => total + family.guests.length, 0)
 }
+
+export type AdminWineSearchRecord = {
+  id: string
+  name: string
+  productCode: string
+  category: 'ate-200' | '200-350' | '350-500'
+  status: 'available' | 'gifted'
+  giftedBy?: string
+}
+
+export const ADMIN_WINE_CATEGORY_ORDER = [
+  'ate-200',
+  '200-350',
+  '350-500',
+] as const
+
+export function filterAdminWines<T extends AdminWineSearchRecord>(
+  wines: readonly T[],
+  options: { query: string; status: 'available' | 'gifted' },
+) {
+  const query = foldAdminSearchText(options.query)
+  return wines.filter(
+    (wine) =>
+      wine.status === options.status &&
+      (!query ||
+        foldAdminSearchText(wine.name).includes(query) ||
+        foldAdminSearchText(wine.productCode).includes(query) ||
+        foldAdminSearchText(wine.giftedBy ?? '').includes(query)),
+  )
+}
+
+export function groupAdminWinesByBand<T extends AdminWineSearchRecord>(
+  wines: readonly T[],
+) {
+  return ADMIN_WINE_CATEGORY_ORDER.flatMap((category) => {
+    const items = wines.filter((wine) => wine.category === category)
+    return items.length === 0 ? [] : [{ category, items }]
+  })
+}

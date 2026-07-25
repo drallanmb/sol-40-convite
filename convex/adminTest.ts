@@ -8,6 +8,12 @@ import {
 } from './adminSecurity'
 import { insertInvitation } from './rsvpInternal'
 import { createRsvpSession } from './rsvpSecurity'
+import { applyModerationTransition } from './adminPosts'
+import { WINE_CATALOG } from './wineCatalog'
+import {
+  readWineGiftState,
+  transitionWineGiftState,
+} from './wineOperations'
 
 const SMOKE_TOKEN = 'c29sNDAtaW50ZXJuYWwtc21va2UtdG9rZW4tMDAwMDA'
 
@@ -132,6 +138,113 @@ export const smokeFamilyCascade = internalMutation({
       if (familyId) {
         const row = await ctx.db.get(familyId)
         if (row) await ctx.db.delete(familyId)
+      }
+    }
+  },
+})
+
+const MODERATION_SMOKE_MESSAGE = 'Smoke admin moderation 06-04'
+const GIFT_SMOKE_BY = 'Smoke admin gift 06-04'
+
+/**
+ * Bounded real-backend proof. Every created row is removed and every existing
+ * wine is restored in finally through the same transition helper as production.
+ */
+export const smokeModerationAndGift = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    let postId: Id<'posts'> | null = null
+    let wineId: Id<'wines'> | null = null
+    let createdWine = false
+    let previousWineState: ReturnType<typeof readWineGiftState> | null = null
+
+    try {
+      postId = await ctx.db.insert('posts', {
+        message: MODERATION_SMOKE_MESSAGE,
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: Date.now(),
+      })
+      const post = await ctx.db.get(postId)
+      if (!post) throw new Error('Smoke post was not created.')
+      const moderated = await applyModerationTransition(ctx, {
+        post,
+        targetStatus: 'aprovado',
+        now: Date.now(),
+      })
+      if (
+        moderated.status !== 'aprovado' ||
+        moderated.moderationRevision !== 1
+      ) {
+        throw new Error('Smoke moderation transition failed.')
+      }
+
+      const canonical = WINE_CATALOG[0]
+      const matches = await ctx.db
+        .query('wines')
+        .withIndex('by_product_code', (index) =>
+          index.eq('productCode', canonical.productCode),
+        )
+        .take(2)
+      if (matches.length > 1) throw new Error('Smoke wine code is duplicated.')
+      if (matches.length === 0) {
+        wineId = await ctx.db.insert('wines', {
+          ...canonical,
+          status: 'available',
+          updatedAt: Date.now(),
+        })
+        createdWine = true
+      } else {
+        wineId = matches[0]._id
+      }
+      const wine = await ctx.db.get(wineId)
+      if (!wine) throw new Error('Smoke wine was not found.')
+      previousWineState = readWineGiftState(wine)
+      const gifted = await transitionWineGiftState(ctx, {
+        wineId,
+        expectedStatus: wine.status,
+        expectedUpdatedAt: wine.updatedAt,
+        target: {
+          status: 'gifted',
+          giftedBy: GIFT_SMOKE_BY,
+          giftedAt: Date.now(),
+        },
+      })
+      if (
+        gifted.kind !== 'updated' ||
+        gifted.wine.status !== 'gifted' ||
+        gifted.wine.giftedBy !== GIFT_SMOKE_BY
+      ) {
+        throw new Error('Smoke gift transition failed.')
+      }
+
+      return {
+        moderationTransitioned: true,
+        giftTransitioned: true,
+        fixturesBounded: true,
+      }
+    } finally {
+      if (postId) {
+        const post = await ctx.db.get(postId)
+        if (post) await ctx.db.delete(postId)
+      }
+      if (wineId) {
+        const wine = await ctx.db.get(wineId)
+        if (wine) {
+          if (createdWine) {
+            await ctx.db.delete(wineId)
+          } else if (previousWineState) {
+            const restored = await transitionWineGiftState(ctx, {
+              wineId,
+              expectedStatus: wine.status,
+              expectedUpdatedAt: wine.updatedAt,
+              target: previousWineState,
+            })
+            if (restored.kind !== 'updated') {
+              throw new Error('Smoke wine snapshot restoration failed.')
+            }
+          }
+        }
       }
     }
   },
