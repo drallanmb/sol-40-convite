@@ -95,6 +95,14 @@ const RSVP_COPY = Reflect.get(eventContent, 'RSVP_COPY') as RsvpCopyContract | u
 const RSVP_NAV_LINKS = Reflect.get(eventContent, 'RSVP_NAV_LINKS') as
   | Array<{ label: string; href: string }>
   | undefined
+const GIFTS_RSVP_CALLOUT = Reflect.get(eventContent, 'GIFTS_RSVP_CALLOUT') as
+  | {
+      heading: string
+      body: string
+      cta: string
+      href: string
+    }
+  | undefined
 const RSVP_DEADLINE_BOUNDARY = Reflect.get(eventContent, 'RSVP_DEADLINE_BOUNDARY') as
   | string
   | undefined
@@ -153,6 +161,7 @@ describe('event content — NAV_LINKS', () => {
   it('prepends the RSVP route and preserves the existing home-section order', () => {
     expect(NAV_LINKS.map((link) => [link.label, link.href])).toEqual([
       ['Confirmar presença', '/confirmar'],
+      ['Presentes', '/presentes'],
       ['Local', '#aracaju'],
       ['Programação', '#programacao'],
       ['Traje', '#traje'],
@@ -171,9 +180,19 @@ describe('event content — NAV_LINKS', () => {
   it('uses absolute home targets in the reduced RSVP navigation', () => {
     expect(RSVP_NAV_LINKS?.map((link) => [link.label, link.href])).toEqual([
       ['Convite', '/'],
+      ['Presentes', '/presentes'],
       ['Programação', '/#programacao'],
       ['Local', '/#aracaju'],
     ])
+  })
+
+  it('centralizes the post-save gifts callout with the approved route copy', () => {
+    expect(GIFTS_RSVP_CALLOUT).toEqual({
+      heading: 'Quer deixar um carinho para a Sol?',
+      body: 'A carta de vinhos está aberta para você escolher um presente.',
+      cta: 'Escolher um presente',
+      href: '/presentes',
+    })
   })
 })
 
@@ -335,9 +354,10 @@ describe('RSVP primitive contracts', () => {
 
 describe('event content — legacy navigation shape removed', () => {
   it('does not regress to the three-link home navigation', () => {
-    expect(NAV_LINKS).toHaveLength(5)
+    expect(NAV_LINKS).toHaveLength(6)
     expect(NAV_LINKS.map((link) => link.href)).toEqual([
       '/confirmar',
+      '/presentes',
       '#aracaju',
       '#programacao',
       '#traje',
