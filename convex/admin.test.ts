@@ -7,9 +7,14 @@ import {
   normalizeAdminEmail,
 } from './adminAccountModel'
 import {
+  ADMIN_AUDIT_RETENTION_MS,
   appendAuditEvent,
   buildAuditChanges,
 } from './adminAuditModel'
+import {
+  expireAuditEventRecord,
+  sweepExpiredAuditEventsHandler,
+} from './adminInternal'
 import {
   needsPasswordRehash,
   parsePasswordEnvelope,
@@ -551,6 +556,157 @@ describe('admin audit model', () => {
       ],
     })
     expect(JSON.stringify(event)).not.toMatch(/old-secret|new-secret/)
+  })
+})
+
+describe('admin audit filters, retention and redaction', () => {
+  it('lists newest-first only for owner and combines actor, area, action and period filters', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(50_000)
+    const t = makeAdminTest()
+    const ownerId = await insertRoleSession(t, TOKEN_A, 'owner')
+    await insertRoleSession(t, TOKEN_B, 'manager')
+    await t.run(async (ctx) => {
+      const principal = {
+        kind: 'account' as const,
+        account: {
+          _id: ownerId,
+          displayName: 'owner',
+          email: 'owner-a@example.com',
+          role: 'owner' as const,
+        },
+      }
+      await appendAuditEvent(ctx, {
+        principal,
+        area: 'accounts',
+        action: 'account_updated',
+        targetLabel: 'Antigo',
+        occurredAt: 10_000,
+      })
+      await appendAuditEvent(ctx, {
+        principal,
+        area: 'gifts',
+        action: 'gift_updated',
+        targetLabel: 'Recente',
+        occurredAt: 30_000,
+      })
+      await appendAuditEvent(ctx, {
+        actorKind: 'system',
+        area: 'accounts',
+        action: 'account_updated',
+        targetLabel: 'Sistema',
+        occurredAt: 20_000,
+      })
+    })
+
+    await expect(
+      t.query(api.adminAudit.listAuditEvents, {
+        token: TOKEN_B,
+        limit: 10,
+      }),
+    ).resolves.toEqual({ kind: 'forbidden' })
+
+    const result = await t.query(api.adminAudit.listAuditEvents, {
+      token: TOKEN_A,
+      actorAccountId: ownerId,
+      area: 'accounts',
+      action: 'account_updated',
+      from: 9_000,
+      to: 11_000,
+      limit: 10,
+    })
+    expect(result).toMatchObject({
+      kind: 'ready',
+      events: [{ targetLabel: 'Antigo', occurredAt: 10_000 }],
+    })
+
+    const all = await t.query(api.adminAudit.listAuditEvents, {
+      token: TOKEN_A,
+      limit: 2,
+    })
+    expect(all.kind).toBe('ready')
+    if (all.kind !== 'ready') return
+    expect(all.events.map((event) => event.occurredAt)).toEqual([
+      30_000,
+      20_000,
+    ])
+    expect(all.nextCursor).toBeTypeOf('string')
+  })
+
+  it('keeps events visible until 120d-1ms, hides at the boundary and deletes idempotently', async () => {
+    vi.useFakeTimers()
+    const occurredAt = 1_000
+    vi.setSystemTime(occurredAt)
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
+    const eventId = await t.run((ctx) =>
+      appendAuditEvent(ctx, {
+        actorKind: 'system',
+        area: 'auth',
+        action: 'login_failed',
+        occurredAt,
+      }),
+    )
+    const expiresAt = occurredAt + ADMIN_AUDIT_RETENTION_MS
+
+    vi.setSystemTime(expiresAt - 1)
+    await expect(
+      t.query(api.adminAudit.listAuditEvents, {
+        token: TOKEN_A,
+        limit: 10,
+      }),
+    ).resolves.toMatchObject({ kind: 'ready', events: [{ id: eventId }] })
+
+    vi.setSystemTime(expiresAt)
+    await expect(
+      t.query(api.adminAudit.listAuditEvents, {
+        token: TOKEN_A,
+        limit: 10,
+      }),
+    ).resolves.toMatchObject({ kind: 'ready', events: [] })
+
+    await expect(
+      t.run((ctx) =>
+        expireAuditEventRecord(ctx, { eventId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'expired' })
+    await expect(
+      t.run((ctx) =>
+        expireAuditEventRecord(ctx, { eventId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'ignored' })
+    await expect(
+      t.run((ctx) => sweepExpiredAuditEventsHandler(ctx)),
+    ).resolves.toMatchObject({ deleted: 0, done: true })
+  })
+
+  it('bounds fields and values and schedules physical expiry without persisting secret material', async () => {
+    const t = makeAdminTest()
+    const event = await t.run(async (ctx) => {
+      const eventId = await appendAuditEvent(ctx, {
+        actorKind: 'anonymous',
+        actorName: 'a'.repeat(700),
+        area: 'auth',
+        action: 'login_failed',
+        targetLabel: 'person@example.com',
+        changes: Array.from({ length: 30 }, (_, index) => ({
+          field: index === 0 ? 'authorizationHeader' : `field-${index}`,
+          after: index === 1 ? 'x'.repeat(900) : index,
+        })),
+      })
+      return {
+        event: await ctx.db.get(eventId),
+        scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+      }
+    })
+
+    expect(event.event?.changes).toHaveLength(20)
+    expect(event.event?.changes[0]).toMatchObject({
+      field: 'field-1',
+      after: 'x'.repeat(500),
+    })
+    expect(event.scheduled).toHaveLength(1)
+    expect(JSON.stringify(event)).not.toMatch(/authorizationHeader/i)
   })
 })
 
