@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07
 current_phase_name: endurecimento-lan-amento
 status: executing
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-07-25T11:40:15.171Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-07-25T12:57:25.194Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 39
-  completed_plans: 35
+  completed_plans: 36
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-25)
 ## Current Position
 
 Phase: 07 (endurecimento-lan-amento) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-25 — Phase 07 execution started
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Progress: [█████████░] 90%
 | Phase 06 P05 | 6min | 2 tasks | 6 files |
 | Phase 07 P01 | 2h 21m | 3 tasks | 10 files |
 | Phase 07 P02 | 9min | 3 tasks | 19 files |
+| Phase 07 P03 | 55min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 07]: O gate Playwright é explicitamente emulado; hardware, HEIC, WebViews, fuso e teclado virtual permanecem pending.
 - [Phase 07]: Produção Convex usa --prod e entrada interativa/stdin; evidência verifica somente nomes e login.
 - [Phase 07]: Domínio público não autoriza divulgação: Gate E exige backup e lista real revisada.
+- [Phase 07]: Deployments ligados ao projeto Convex incorreto nunca são alvos de rollback. — Somente tracer live, bundle e smoke verde promovem um alvo externo a saudável.
+- [Phase 07]: Senha Production permanece somente no Convex e no Chaveiro do dono. — Evidência guarda apenas nome, resultado funcional e logs sanitizados; nunca o valor.
+- [Phase 07]: Rollback Vercel e rollback Convex são operações independentes. — Frontend não reverte functions, schema, env, scheduled work, storage ou dados.
 
 ### Pending Todos
 
@@ -166,6 +170,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T11:40:15.167Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-07-25T12:57:25.189Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
