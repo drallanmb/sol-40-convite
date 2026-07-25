@@ -9,6 +9,8 @@
  */
 
 import type * as crons from "../crons.js";
+import type * as postImageDecoder from "../postImageDecoder.js";
+import type * as postImageDecoderLib from "../postImageDecoderLib.js";
 import type * as postInternal from "../postInternal.js";
 import type * as postModel from "../postModel.js";
 import type * as postRateLimits from "../postRateLimits.js";
@@ -36,6 +38,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  postImageDecoder: typeof postImageDecoder;
+  postImageDecoderLib: typeof postImageDecoderLib;
   postInternal: typeof postInternal;
   postModel: typeof postModel;
   postRateLimits: typeof postRateLimits;

@@ -2,14 +2,12 @@ import {
   MAX_FINAL_IMAGE_BYTES,
   type PostMediaType,
 } from './postModel'
-import { unzlibSync } from 'fflate'
 
 export type DetectedImageType = PostMediaType | 'image/heic' | 'image/heif'
 
 const HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'heim', 'heis', 'hevm', 'hevs'])
 const HEIF_BRANDS = new Set(['mif1', 'msf1'])
 const MAX_IMAGE_DIMENSION = 16_384
-const MAX_DECODED_IMAGE_BYTES = 32 * 1024 * 1024
 const PNG_SIGNATURE = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ])
@@ -214,20 +212,7 @@ function crc32(bytes: Uint8Array, start: number, end: number) {
 }
 
 function validPngColorMode(bitDepth: number, colorType: number) {
-  if (colorType === 0) return [1, 2, 4, 8, 16].includes(bitDepth)
-  if (colorType === 2 || colorType === 4 || colorType === 6) {
-    return [8, 16].includes(bitDepth)
-  }
-  if (colorType === 3) return [1, 2, 4, 8].includes(bitDepth)
-  return false
-}
-
-function pngChannelCount(colorType: number) {
-  if (colorType === 0 || colorType === 3) return 1
-  if (colorType === 2) return 3
-  if (colorType === 4) return 2
-  if (colorType === 6) return 4
-  return 0
+  return bitDepth === 8 && [0, 2, 3, 4, 6].includes(colorType)
 }
 
 function hasValidPngStructure(bytes: Uint8Array) {
@@ -242,11 +227,8 @@ function hasValidPngStructure(bytes: Uint8Array) {
   let chunkIndex = 0
   let hasIdat = false
   let idatEnded = false
-  let width = 0
-  let height = 0
-  let bitDepth = 0
   let colorType = 0
-  const idatParts: Uint8Array[] = []
+  let hasPalette = false
   let idatLength = 0
   while (offset < bytes.byteLength) {
     if (offset + 12 > bytes.byteLength) {
@@ -271,9 +253,9 @@ function hasValidPngStructure(bytes: Uint8Array) {
       if (type !== 'IHDR' || length !== 13) {
         return false
       }
-      width = readUint32BigEndian(bytes, dataOffset)
-      height = readUint32BigEndian(bytes, dataOffset + 4)
-      bitDepth = bytes[dataOffset + 8]
+      const width = readUint32BigEndian(bytes, dataOffset)
+      const height = readUint32BigEndian(bytes, dataOffset + 4)
+      const bitDepth = bytes[dataOffset + 8]
       colorType = bytes[dataOffset + 9]
       if (
         !hasSaneDimensions(width, height) ||
@@ -288,53 +270,41 @@ function hasValidPngStructure(bytes: Uint8Array) {
       return false
     }
 
-    if (type === 'IDAT') {
-      if (length === 0 || idatEnded) {
+    if (type === 'PLTE') {
+      if (
+        hasPalette ||
+        hasIdat ||
+        length < 3 ||
+        length > 768 ||
+        length % 3 !== 0 ||
+        colorType === 0 ||
+        colorType === 4
+      ) {
+        return false
+      }
+      hasPalette = true
+    } else if (type === 'IDAT') {
+      if (
+        length === 0 ||
+        idatEnded ||
+        (colorType === 3 && !hasPalette)
+      ) {
         return false
       }
       hasIdat = true
       idatLength += length
       if (idatLength > MAX_FINAL_IMAGE_BYTES) return false
-      idatParts.push(bytes.slice(dataOffset, dataOffset + length))
     } else if (hasIdat && type !== 'IEND') {
       idatEnded = true
     }
 
     const nextOffset = crcOffset + 4
     if (type === 'IEND') {
-      if (
-        length !== 0 ||
-        !hasIdat ||
-        nextOffset !== bytes.byteLength
-      ) {
-        return false
-      }
-      const channels = pngChannelCount(colorType)
-      const rowBytes = Math.ceil(width * channels * bitDepth / 8)
-      const expectedLength = height * (rowBytes + 1)
-      if (
-        channels === 0 ||
-        !Number.isSafeInteger(expectedLength) ||
-        expectedLength > MAX_DECODED_IMAGE_BYTES
-      ) {
-        return false
-      }
-      const compressed = new Uint8Array(idatLength)
-      let compressedOffset = 0
-      for (const part of idatParts) {
-        compressed.set(part, compressedOffset)
-        compressedOffset += part.byteLength
-      }
-      try {
-        const decoded = unzlibSync(compressed)
-        if (decoded.byteLength !== expectedLength) return false
-        for (let row = 0; row < height; row += 1) {
-          if (decoded[row * (rowBytes + 1)] > 4) return false
-        }
-      } catch {
-        return false
-      }
-      return true
+      return (
+        length === 0 &&
+        hasIdat &&
+        nextOffset === bytes.byteLength
+      )
     }
     offset = nextOffset
     chunkIndex += 1

@@ -9,7 +9,6 @@ import {
   type MutationCtx,
 } from './_generated/server'
 import { mediaTypeValidator } from './postModel'
-import { validateImageBytes } from './uploadValidation'
 
 const ORPHAN_STORAGE_AGE_MS = 24 * 60 * 60 * 1_000
 const ORPHAN_SWEEP_PAGE_SIZE = 50
@@ -80,6 +79,34 @@ const postInternalApi = (internal as unknown as {
   }
 }).postInternal
 
+const postImageDecoderApi = (internal as unknown as {
+  postImageDecoder: {
+    decodeStoredImage: FunctionReference<
+      'action',
+      'internal',
+      { storageId: Id<'_storage'> },
+      | {
+          kind: 'accepted'
+          mediaType: 'image/jpeg' | 'image/png' | 'image/webp'
+          mediaSize: number
+          width: number
+          height: number
+        }
+      | {
+          kind: 'rejected'
+          code:
+            | 'missing_storage'
+            | 'too_large'
+            | 'unsupported_metadata'
+            | 'empty'
+            | 'unsupported_type'
+            | 'mime_mismatch'
+            | 'heic_requires_conversion'
+        }
+    >
+  }
+}).postImageDecoder
+
 const validationReservationValidator = v.union(
   v.null(),
   v.object({
@@ -137,21 +164,12 @@ export const validatePhoto = internalAction({
       return null
     }
 
-    const blob = await ctx.storage.get(reservation.storageId)
-    if (blob === null) {
-      await ctx.runMutation(postInternalApi.rejectPhoto, {
-        reservationId: reservation.reservationId,
+    const verdict = await ctx.runAction(
+      postImageDecoderApi.decodeStoredImage,
+      {
         storageId: reservation.storageId,
-        code: 'missing_storage',
-      })
-      return null
-    }
-
-    const bytes = new Uint8Array(await blob.arrayBuffer())
-    const verdict = validateImageBytes({
-      bytes,
-      declaredMime: blob.type,
-    })
+      },
+    )
     if (verdict.kind === 'rejected') {
       await ctx.runMutation(postInternalApi.rejectPhoto, {
         reservationId: reservation.reservationId,

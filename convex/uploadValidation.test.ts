@@ -330,11 +330,19 @@ describe('bounded structural image validation', () => {
       bytes.set(u32be(0x7fffffff), 33)
       return bytes
     })()],
-    ['CRC-valid but invalid IDAT zlib stream', validPng()],
   ])('rejects structurally invalid PNG: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/png' })).toEqual({
       kind: 'rejected',
       code: 'unsupported_type',
+    })
+  })
+
+  it('defers CRC-valid PNG compressed data to the bounded production decoder', () => {
+    const bytes = validPng()
+    expect(validateImageBytes({ bytes, declaredMime: 'image/png' })).toEqual({
+      kind: 'accepted',
+      mediaType: 'image/png',
+      mediaSize: bytes.byteLength,
     })
   })
 

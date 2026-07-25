@@ -17,10 +17,11 @@
     "convex": "1.42.3",
     "embla-carousel-autoplay": "8.6.0",
     "embla-carousel-react": "8.6.0",
-    "fflate": "0.8.2",
+    "jpeg-js": "0.4.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "7.18.1",
+    "sharp": "0.35.3",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
@@ -31,7 +32,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "convex-test": "0.0.54",
-    "jpeg-js": "0.4.4",
+    "fflate": "0.8.2",
     "typescript": "6.0.3",
     "vite": "^8.1.1",
     "vitest": "4.1.10"
