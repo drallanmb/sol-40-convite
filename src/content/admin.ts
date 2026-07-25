@@ -55,7 +55,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 export const ADMIN_COPY = {
   login: {
     wordmark: 'Sol 40',
-    title: 'Painel dos donos',
+    title: 'Painel da festa',
     description: 'Entre com seu e-mail e sua senha para cuidar da festa.',
     expired:
       'Sua sessão expirou. Entre novamente para continuar nesta seção.',

@@ -71,8 +71,8 @@ describe('admin canonical route contract', () => {
 describe('admin copy and grammatical counts', () => {
   it('locks the owner login and overview copy', () => {
     expect(ADMIN_COPY.login).toMatchObject({
-      title: 'Painel dos donos',
-      description: 'Entre com a senha compartilhada para cuidar da festa.',
+      title: 'Painel da festa',
+      description: 'Entre com seu e-mail e sua senha para cuidar da festa.',
       submit: 'Entrar no painel',
       checking: 'Verificando acesso…',
     })
