@@ -1007,6 +1007,133 @@ describe('authorization matrix by public endpoint', () => {
   })
 })
 
+describe('account management', () => {
+  const accountsApi = (api as any).adminAccounts
+
+  it('lets only the owner create the three fixed account roles with one-time activation links', async () => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
+    await insertRoleSession(t, TOKEN_B, 'manager')
+
+    await expect(
+      t.mutation(accountsApi.createManagedAccount, {
+        token: TOKEN_B,
+        displayName: 'Vanessa',
+        email: 'vanessa.alonso@mistral.com.br',
+        role: 'seller',
+        accessToken: ACCESS_TOKEN_A,
+      }),
+    ).resolves.toEqual({ kind: 'forbidden' })
+
+    for (const account of [
+      {
+        displayName: 'Soraya',
+        email: 'Sorayathorsjo@outlook.com',
+        role: 'manager',
+        accessToken: ACCESS_TOKEN_A,
+      },
+      {
+        displayName: 'Guga',
+        email: 'Gugart@hotmail.com',
+        role: 'manager',
+        accessToken: ACCESS_TOKEN_B,
+      },
+      {
+        displayName: 'Vanessa',
+        email: 'vanessa.alonso@mistral.com.br',
+        role: 'seller',
+        accessToken: `${'E'.repeat(42)}U`,
+      },
+    ] as const) {
+      await expect(
+        t.mutation(accountsApi.createManagedAccount, {
+          token: TOKEN_A,
+          ...account,
+        }),
+      ).resolves.toMatchObject({
+        kind: 'created',
+        account: {
+          displayName: account.displayName,
+          email: account.email.toLowerCase(),
+          role: account.role,
+          state: 'pending',
+        },
+        accessToken: account.accessToken,
+      })
+    }
+
+    const listed = await t.query(accountsApi.listManagedAccounts, {
+      token: TOKEN_A,
+    })
+    expect(listed.kind).toBe('ready')
+    expect(listed.accounts.map((account: any) => account.email)).toEqual(
+      expect.arrayContaining([
+        'sorayathorsjo@outlook.com',
+        'gugart@hotmail.com',
+        'vanessa.alonso@mistral.com.br',
+      ]),
+    )
+    expect(JSON.stringify(await t.run((ctx) => ctx.db.query('adminAccessLinks').collect())))
+      .not.toContain(ACCESS_TOKEN_A)
+  })
+
+  it('preserves the owner and makes disable/reactivate atomic and auditable', async () => {
+    const t = makeAdminTest()
+    const ownerId = await insertRoleSession(t, TOKEN_A, 'owner')
+    const created = await t.mutation(accountsApi.createManagedAccount, {
+      token: TOKEN_A,
+      displayName: 'Soraya',
+      email: 'sorayathorsjo@outlook.com',
+      role: 'manager',
+      accessToken: ACCESS_TOKEN_A,
+    })
+    if (created.kind !== 'created') throw new Error('account not created')
+
+    await expect(
+      t.mutation(accountsApi.disableManagedAccount, {
+        token: TOKEN_A,
+        accountId: ownerId,
+        expectedUpdatedAt: 1,
+      }),
+    ).resolves.toEqual({ kind: 'owner_protected' })
+
+    await expect(
+      t.mutation(accountsApi.disableManagedAccount, {
+        token: TOKEN_A,
+        accountId: created.account.id,
+        expectedUpdatedAt: created.account.updatedAt,
+      }),
+    ).resolves.toMatchObject({
+      kind: 'updated',
+      account: { state: 'disabled' },
+    })
+    const disabled = await t.run((ctx) => ctx.db.get(created.account.id))
+    if (!disabled) throw new Error('disabled account missing')
+    await expect(
+      t.mutation(accountsApi.reactivateManagedAccount, {
+        token: TOKEN_A,
+        accountId: created.account.id,
+        expectedUpdatedAt: disabled.updatedAt,
+        accessToken: ACCESS_TOKEN_B,
+      }),
+    ).resolves.toMatchObject({
+      kind: 'updated',
+      account: { state: 'pending' },
+      accessToken: ACCESS_TOKEN_B,
+    })
+
+    const audit = await t.run((ctx) => ctx.db.query('adminAuditEvents').collect())
+    expect(audit.map((event) => event.action)).toEqual(
+      expect.arrayContaining([
+        'account_created',
+        'account_disabled',
+        'account_reactivated',
+      ]),
+    )
+    expect(JSON.stringify(audit)).not.toMatch(/password|token|hash|https?:/iu)
+  })
+})
+
 describe('admin overview familyCount, person count and badge aggregates', () => {
   it('distinguishes zero families from one zero-person family', async () => {
     const t = makeAdminTest()
