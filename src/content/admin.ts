@@ -95,7 +95,7 @@ export const ADMIN_COPY = {
 
 export type PresenceFilter = 'yes' | 'pending' | 'no'
 export type GuestPresenceFilter = 'all' | PresenceFilter
-export type ModerationFilter = 'pendente' | 'aprovada' | 'oculta'
+export type ModerationFilter = 'pendente' | 'aprovado' | 'oculto'
 export type GiftFilter = 'available' | 'gifted'
 
 function permittedSearchValue<const T extends string>(
@@ -122,8 +122,8 @@ export function guestPresenceSearch(filter: GuestPresenceFilter) {
 export function moderationStatusFromSearch(search: string) {
   return permittedSearchValue(search, 'status', [
     'pendente',
-    'aprovada',
-    'oculta',
+    'aprovado',
+    'oculto',
   ])
 }
 

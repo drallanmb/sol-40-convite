@@ -23,6 +23,8 @@ import {
 import Button from '../ui/Button'
 import AdminOverview from './AdminOverview'
 import AdminGuests from './AdminGuests'
+import AdminGifts from './AdminGifts'
+import AdminModeration from './AdminModeration'
 
 type AdminShellProps = {
   badges?: Partial<Record<AdminBadgeKind, number>>
@@ -94,27 +96,6 @@ function Badge({
     >
       {count}
     </span>
-  )
-}
-
-function RoutePlaceholder({
-  title,
-  subtitle,
-}: {
-  title: string
-  subtitle: string
-}) {
-  return (
-    <section aria-labelledby="admin-page-title">
-      <h1
-        id="admin-page-title"
-        tabIndex={-1}
-        className="font-serif text-[2rem] font-bold leading-[1.08] tracking-[-.02em] text-plum outline-none"
-      >
-        {title}
-      </h1>
-      <p className="mt-2 text-base">{subtitle}</p>
-    </section>
   )
 }
 
@@ -323,21 +304,11 @@ export function AdminShell({
           />
           <Route
             path="moderacao"
-            element={
-              <RoutePlaceholder
-                title={ADMIN_COPY.moderation.title}
-                subtitle={ADMIN_COPY.moderation.subtitle}
-              />
-            }
+            element={<AdminModeration token={token} onUnauthorized={onUnauthorized} />}
           />
           <Route
             path="presentes"
-            element={
-              <RoutePlaceholder
-                title={ADMIN_COPY.gifts.title}
-                subtitle={ADMIN_COPY.gifts.subtitle}
-              />
-            }
+            element={<AdminGifts token={token} onUnauthorized={onUnauthorized} />}
           />
           <Route
             path="*"

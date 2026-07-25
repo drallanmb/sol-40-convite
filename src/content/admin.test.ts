@@ -43,8 +43,8 @@ describe('admin canonical route contract', () => {
       canonicalAdminDestination('/admin/convidados', '?presenca=unknown'),
     ).toBe('/admin/convidados')
     expect(
-      canonicalAdminDestination('/admin/moderacao', '?status=aprovada'),
-    ).toBe('/admin/moderacao?status=aprovada')
+      canonicalAdminDestination('/admin/moderacao', '?status=aprovado'),
+    ).toBe('/admin/moderacao?status=aprovado')
     expect(
       canonicalAdminDestination('/admin/presentes', '?status=gifted'),
     ).toBe('/admin/presentes?status=gifted')
@@ -59,8 +59,8 @@ describe('admin canonical route contract', () => {
     expect(presenceFromSearch('?presenca=no')).toBe('no')
     expect(presenceFromSearch('?presenca=all')).toBeNull()
     expect(moderationStatusFromSearch('?status=pendente')).toBe('pendente')
-    expect(moderationStatusFromSearch('?status=aprovada')).toBe('aprovada')
-    expect(moderationStatusFromSearch('?status=oculta')).toBe('oculta')
+    expect(moderationStatusFromSearch('?status=aprovado')).toBe('aprovado')
+    expect(moderationStatusFromSearch('?status=oculto')).toBe('oculto')
     expect(moderationStatusFromSearch('?status=gifted')).toBeNull()
     expect(giftStatusFromSearch('?status=available')).toBe('available')
     expect(giftStatusFromSearch('?status=gifted')).toBe('gifted')
