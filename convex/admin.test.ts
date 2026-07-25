@@ -2450,6 +2450,96 @@ describe('admin post moderation, revision conflict and public album', () => {
 describe('admin wine gift authorization, atomic revisions and public catalog', () => {
   const adminWines = (api as any).adminWines
 
+  it('lets a seller confirm a gift with private note, derived actor and public status only', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(21_000)
+    const t = makeAdminTest()
+    const sellerAccountId = await insertRoleSession(t, TOKEN_A, 'seller')
+    await t.mutation(internal.wineInternal.ensureWineCatalog, {})
+    const listed = await t.query(adminWines.listAdmin, { token: TOKEN_A })
+    if (listed.kind !== 'ready') throw new Error('missing admin catalog')
+    const wine = listed.wines[0]
+
+    const marked = await t.mutation(adminWines.markGifted, {
+      token: TOKEN_A,
+      wineId: wine.id,
+      expectedUpdatedAt: wine.updatedAt,
+      giftedBy: '  Família Aurora  ',
+      giftNote: '  Pagamento confirmado pessoalmente.  ',
+    })
+
+    expect(marked).toMatchObject({
+      kind: 'updated',
+      wine: {
+        status: 'gifted',
+        giftedBy: 'Família Aurora',
+        giftNote: 'Pagamento confirmado pessoalmente.',
+        giftedAt: 21_000,
+      },
+    })
+    const stored = await t.run((ctx) => ctx.db.get(wine.id))
+    expect(stored).toMatchObject({
+      status: 'gifted',
+      giftedBy: 'Família Aurora',
+      giftNote: 'Pagamento confirmado pessoalmente.',
+      giftedAt: 21_000,
+    })
+    const audit = await t.run((ctx) =>
+      ctx.db.query('adminAuditEvents').collect(),
+    )
+    expect(audit).toHaveLength(1)
+    expect(audit[0]).toMatchObject({
+      actorKind: 'account',
+      actorAccountId: sellerAccountId,
+      actorName: 'seller',
+      actorRole: 'seller',
+      area: 'gifts',
+      action: 'gift_confirmed',
+      targetId: String(wine.id),
+    })
+    expect(audit[0].changes).toEqual([
+      { field: 'status', before: 'available', after: 'gifted' },
+      { field: 'giftedBy', after: 'Família Aurora' },
+      {
+        field: 'giftNote',
+        after: 'Pagamento confirmado pessoalmente.',
+      },
+    ])
+    expect(JSON.stringify(audit)).not.toMatch(
+      /payment|telefone|phone|valor|meio de pagamento/iu,
+    )
+
+    const publicWine = (await t.query(api.wines.listCatalog, {})).find(
+      (item) => item.productCode === wine.productCode,
+    )
+    expect(publicWine?.status).toBe('gifted')
+    expect(JSON.stringify(publicWine)).not.toMatch(
+      /Família Aurora|Pagamento confirmado|giftedBy|giftNote|giftedAt|actor/iu,
+    )
+  })
+
+  it('does not write a gift or success audit when seller confirmation conflicts', async () => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'seller')
+    const wineId = await insertOverviewWine(t, 'seller-gift-conflict', 'available')
+    const before = await t.run((ctx) => ctx.db.get(wineId))
+    if (!before) throw new Error('missing wine')
+
+    const result = await t.mutation(adminWines.markGifted, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: before.updatedAt - 1,
+      giftedBy: 'Não deve persistir',
+      giftNote: 'Nem esta nota',
+    })
+
+    expect(result).toMatchObject({ kind: 'conflict', wine: { status: 'available' } })
+    expect(await t.run((ctx) => ctx.db.get(wineId))).toEqual(before)
+    expect(
+      await t.run((ctx) => ctx.db.query('adminAuditEvents').collect()),
+    ).toEqual([])
+  })
+
   it('denies all protected wine operations before attribution access', async () => {
     const t = makeAdminTest()
     const wineId = await insertOverviewWine(t, 'admin-auth-wine', 'available')
