@@ -18,11 +18,15 @@ export function GuideSection() {
   return (
     <section className="bg-cream px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink">
       <div className="mx-auto max-w-[1320px]">
-        <p className="text-caption font-bold uppercase tracking-label text-wine">{GUIDE_KICKER}</p>
-        <h2 className="mt-3 font-serif text-heading leading-[1.02] tracking-display">
-          {GUIDE_HEADING_LEAD}
-          <em className="not-italic text-orange">{GUIDE_HEADING_EM}</em>
-        </h2>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
+          <h2 className="max-w-[18ch] text-balance font-serif text-heading leading-heading tracking-display">
+            {GUIDE_HEADING_LEAD}
+            <em className="not-italic text-orange">{GUIDE_HEADING_EM}</em>
+          </h2>
+          <p className="max-w-[18ch] font-serif text-lead italic leading-lead text-wine lowercase first-letter:uppercase">
+            {GUIDE_KICKER}
+          </p>
+        </div>
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-16 sm:grid-cols-2 lg:grid-cols-4">
           {GUIDE.map((place) => (
@@ -34,14 +38,16 @@ export function GuideSection() {
               className="group flex min-h-[44px] flex-col border border-line bg-card p-6 transition-[transform,box-shadow] duration-(--duration-fast) ease-out hover:-translate-y-1 hover:shadow-[8px_8px_0_var(--color-sand)]"
             >
               <span className="text-caption font-bold uppercase tracking-label text-wine">{place.kicker}</span>
-              <h3 className="mt-3 break-words font-serif text-subheading">{place.name}</h3>
-              <p className="mt-2 break-words text-body text-ink/80">{place.description}</p>
+              <h3 className="mt-3 break-words font-serif text-subheading leading-subheading">{place.name}</h3>
+              <p className="mt-2 break-words text-pretty text-body text-ink/80">{place.description}</p>
             </a>
           ))}
         </div>
 
         <div className="mt-16 border-t border-line pt-10 sm:mt-20">
-          <p className="text-caption font-bold uppercase tracking-label text-wine">{HOTELS_HEADING}</p>
+          <h3 className="font-serif text-lead leading-lead text-wine lowercase first-letter:uppercase">
+            {HOTELS_HEADING}
+          </h3>
           <ul className="mt-6 divide-y divide-line">
             {HOTELS.map((hotel) => (
               <li key={hotel.url}>

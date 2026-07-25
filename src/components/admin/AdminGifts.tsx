@@ -15,6 +15,7 @@ import {
 } from '../../lib/adminSearch'
 import { usePendingOperations } from '../../lib/adminOperations'
 import Button from '../ui/Button'
+import Feedback from '../ui/Feedback'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
 import AdminConfirmDialog from './AdminConfirmDialog'
@@ -101,9 +102,9 @@ function MarkGiftDialog({
           <span className="whitespace-nowrap">· Cód. Mistral {wine.productCode}</span>
         </p>
         {review ? (
-          <p role="alert" className="mt-4 border-l-4 border-rsvp-pendente pl-4">
+          <Feedback role="alert" tone="warning" className="mt-4">
             Este vinho foi atualizado em outra sessão. Revise o estado atual antes de continuar.
-          </p>
+          </Feedback>
         ) : null}
         <div className="mt-6">
           <Field

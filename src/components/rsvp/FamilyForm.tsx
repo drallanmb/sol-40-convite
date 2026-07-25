@@ -23,6 +23,7 @@ import {
 } from '../../lib/rsvpDraft'
 import Button, { buttonClassName } from '../ui/Button'
 import Card from '../ui/Card'
+import Feedback from '../ui/Feedback'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
 import AttendanceGroup from './AttendanceGroup'
@@ -279,9 +280,9 @@ export function FamilyForm({
         </div>
 
         {draft.latest.guests.length === 0 ? (
-          <p role="status" className="border-l-4 border-rsvp-pendente pl-4 text-body">
+          <Feedback role="status" tone="warning" className="text-body">
             {RSVP_COPY.family.zeroGuests}
-          </p>
+          </Feedback>
         ) : (
           <form
             noValidate
@@ -341,19 +342,20 @@ export function FamilyForm({
             </div>
 
             <div className="grid gap-4">
-              <div
+              <Feedback
                 role={feedback?.kind === 'error' ? 'alert' : 'status'}
                 aria-live="polite"
-                className={`min-h-[3.25rem] border-l-4 pl-4 text-small ${
+                tone={
                   feedback?.kind === 'error'
-                    ? 'border-wine text-wine'
+                    ? 'error'
                     : feedback?.kind === 'success'
-                      ? 'border-sea text-sea'
-                      : 'border-line text-plum/80'
-                }`}
+                      ? 'success'
+                      : 'neutral'
+                }
+                className="min-h-[3.25rem] text-small"
               >
                 <p>{persistentStatus}</p>
-              </div>
+              </Feedback>
 
               <Button
                 type="submit"

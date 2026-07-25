@@ -82,9 +82,9 @@ test('canonical tracer: emulated 320px home quality slice', async ({ page }) => 
   await expectNoBlockingAxeViolations(page)
 
   await page.keyboard.press('Tab')
-  const focused = page.locator(':focus')
-  await expect(focused).toBeVisible()
-  await expect(focused).not.toHaveJSProperty('tagName', 'BODY')
+  const focusedTagName = await page.evaluate(() => document.activeElement?.tagName)
+  expect(focusedTagName).toBeTruthy()
+  expect(focusedTagName).not.toBe('BODY')
 
   await expectNoDocumentOverflow(page)
 })
@@ -149,6 +149,27 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
     ).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(menu).toBeFocused()
+
+    await page.locator('#programacao').scrollIntoViewIfNeeded()
+    const rail = page.locator('.countdown-rail')
+    await expect(rail).toHaveClass(/visible/)
+
+    await menu.click()
+    const firstMobileLink = page
+      .getByRole('navigation', { name: 'Navegação mobile' })
+      .getByRole('link')
+      .first()
+    await expect(rail).toHaveClass(/invisible/)
+    await expect(firstMobileLink).toBeFocused()
+    const firstMobileLinkIsTopmost = await firstMobileLink.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const topElement = document.elementFromPoint(
+        rect.left + Math.min(12, rect.width / 2),
+        rect.top + rect.height / 2,
+      )
+      return topElement === element || element.contains(topElement)
+    })
+    expect(firstMobileLinkIsTopmost).toBe(true)
   }
 })
 

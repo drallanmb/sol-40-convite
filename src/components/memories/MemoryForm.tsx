@@ -35,6 +35,7 @@ import {
 import { uploadBlobWithProgress } from '../../lib/uploadBlob'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
+import Feedback from '../ui/Feedback'
 import Field from '../ui/Field'
 import PhotoPicker from './PhotoPicker'
 import SubmissionSuccess from './SubmissionSuccess'
@@ -451,9 +452,10 @@ export function MemoryForm() {
         className="grid gap-7"
       >
         {state.acceptedSnapshot ? (
-          <div
+          <Feedback
             role="status"
-            className="grid gap-2 border-l-4 border-sea bg-sea/5 p-4 text-small text-plum"
+            tone="success"
+            className="grid gap-2 text-small text-plum"
           >
             <p className="font-bold">A memória anterior foi recebida.</p>
             <p>
@@ -464,7 +466,7 @@ export function MemoryForm() {
                 : '. A foto aguarda aprovação.'}
             </p>
             <p>Suas alterações mais recentes continuam abaixo para um novo envio.</p>
-          </div>
+          </Feedback>
         ) : null}
         <div className="grid gap-3">
           <p className="text-small font-bold uppercase tracking-label text-plum/75">
@@ -533,22 +535,19 @@ export function MemoryForm() {
         />
 
         <div className="grid gap-4">
-          <div
+          <Feedback
             id={statusId}
             role={failed ? 'alert' : 'status'}
             aria-live="polite"
-            className={`min-h-[3.25rem] border-l-4 pl-4 text-small ${
-              failed
-                ? 'border-wine text-wine'
-                : 'border-line text-plum/80'
-            }`}
+            tone={failed ? 'error' : 'neutral'}
+            className="min-h-[3.25rem] text-small"
           >
             <p>
               {failed && retryBlocked
                 ? `${progressCopy(state)} Tente novamente em ${retryRemaining} segundo(s).`
                 : progressCopy(state)}
             </p>
-          </div>
+          </Feedback>
 
           <Button
             type="submit"

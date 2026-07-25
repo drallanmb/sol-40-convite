@@ -12,6 +12,7 @@ import PhoneGate from '../components/rsvp/PhoneGate'
 import Shell from '../components/layout/Shell'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import Feedback from '../components/ui/Feedback'
 import {
   RSVP_COPY,
   RSVP_NAV_LINKS,
@@ -109,9 +110,9 @@ function FamilyReadErrorCard({
 }: FamilyReadErrorCardProps) {
   return (
     <Card className="grid gap-6 shadow-[8px_8px_0_var(--color-sand)] min-[640px]:shadow-[14px_14px_0_var(--color-sand)]">
-      <p role="alert" className="border-l-4 border-wine pl-4 text-small text-wine">
+      <Feedback role="alert" tone="error" className="text-small">
         {RSVP_COPY.phone.connectionError}
-      </p>
+      </Feedback>
       <div className="grid gap-3 min-[420px]:grid-cols-2">
         <Button
           type="button"

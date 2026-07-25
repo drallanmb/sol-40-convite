@@ -41,34 +41,38 @@ export function CountdownRail({ revealed }: CountdownRailProps) {
   return (
     <div
       aria-hidden="true"
-      className={`absolute inset-x-0 top-[72px] z-(--z-sticky) flex h-12 items-center justify-center gap-2 border-t border-cream/[.14] bg-plum px-3 text-cream transition-[opacity,transform,visibility] duration-(--duration-fast) ease-out sm:gap-6 sm:px-6 ${
+      className={`countdown-rail absolute inset-x-0 top-[72px] z-(--z-sticky) h-14 border-t border-cream/[.12] bg-plum/[.97] text-cream shadow-[0_4px_8px_rgba(53,25,42,0.12)] backdrop-blur-md transition-[opacity,transform,visibility] duration-(--duration-fast) ease-out ${
         revealed
           ? 'visible translate-y-0 opacity-100 pointer-events-auto'
           : 'invisible pointer-events-none -translate-y-1.5 opacity-0'
       }`}
       style={{ transitionDelay: revealed ? '0s' : '0s, 0s, var(--duration-medium)' }}
     >
-      <span className="shrink-0 text-[.6875rem] font-bold uppercase tracking-[.06em] text-peach sm:text-caption sm:tracking-label">
-        {copy.railLabel}
-      </span>
+      <div className="mx-auto flex h-full w-full max-w-3xl items-center justify-center px-3 sm:px-6">
+        <span className="shrink-0 text-[.6875rem] font-bold uppercase tracking-[.08em] text-peach sm:text-caption sm:tracking-label">
+          {copy.railLabel}
+        </span>
 
-      {copy.showTiles ? (
-        <div className="grid min-w-0 flex-1 grid-cols-4 gap-1 sm:flex sm:flex-none sm:items-baseline sm:gap-6">
-          {TILE_ORDER.map((unit) => (
-            <div
-              key={unit}
-              className={`grid min-w-0 justify-items-center leading-none sm:flex sm:items-baseline sm:gap-1 ${
-                unit === 'days' ? 'sm:min-w-[4ch]' : ''
-              }`}
-            >
-              <span className="font-serif text-[1.0625rem] tabular-nums text-cream">{parts[unit]}</span>
-              <span className="max-w-full text-[.5rem] uppercase tracking-normal text-peach opacity-[.86] sm:text-[.6875rem] sm:tracking-[.06em]">
-                {pluralizeUnit(parts[unit], unit)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
+        {copy.showTiles ? (
+          <div className="ml-3 flex min-w-0 flex-1 items-baseline justify-between border-l border-cream/[.18] pl-3 sm:ml-6 sm:flex-none sm:justify-start sm:gap-6 sm:pl-6">
+            {TILE_ORDER.map((unit, index) => (
+              <div
+                key={unit}
+                className={`flex min-w-0 items-baseline gap-1 leading-none ${
+                  index > 0 ? 'border-l border-cream/[.14] pl-2.5 sm:pl-6' : ''
+                }`}
+              >
+                <span className="font-serif text-[1.1875rem] leading-none tabular-nums text-cream sm:text-[1.3125rem]">
+                  {parts[unit]}
+                </span>
+                <span className="text-[.5rem] uppercase tracking-[.02em] text-peach sm:text-[.6875rem] sm:tracking-[.06em]">
+                  {pluralizeUnit(parts[unit], unit)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

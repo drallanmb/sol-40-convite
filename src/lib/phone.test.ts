@@ -60,6 +60,14 @@ describe('formatBrazilianPhoneInput — máscara progressiva', () => {
     )
   })
 
+  it.each([
+    ['0 79 99999-9999', '(79) 99999-9999'],
+    ['0 79 3222-2222', '(79) 3222-2222'],
+    ['0 55 99999-9999', '(55) 99999-9999'],
+  ])('remove o zero de tronco doméstico de %j', (raw, formatted) => {
+    expect(formatBrazilianPhoneInput(raw)).toBe(formatted)
+  })
+
   it('limita a entrada ao tamanho de um telefone nacional', () => {
     expect(formatBrazilianPhoneInput('119876543219999')).toBe(
       '(11) 98765-4321',

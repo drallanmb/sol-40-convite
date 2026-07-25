@@ -9,6 +9,7 @@ import {
 } from '../../lib/rsvpSession'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
+import Feedback from '../ui/Feedback'
 import Field from '../ui/Field'
 
 export type PhoneGateProps = {
@@ -163,9 +164,9 @@ export function PhoneGate({
         </div>
 
         {notice === 'expired' ? (
-          <p role="alert" className="border-l-4 border-wine pl-4 text-small text-wine">
+          <Feedback role="alert" tone="error" className="text-small">
             {RSVP_COPY.session.expired}
-          </p>
+          </Feedback>
         ) : null}
 
         <div>

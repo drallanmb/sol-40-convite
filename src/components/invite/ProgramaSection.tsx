@@ -6,7 +6,7 @@ import { PROGRAMA, PROGRAMA_HEADING, PROGRAMA_KICKER, SECTION_IDS } from '../../
  * ou descrição é duplicado como literal aqui, e a seção não carrega
  * nenhuma nota de "sujeito a alteração" porque a programação está travada.
  * O `scroll-mt` compensa a topbar fixa (72px) mais o rail do countdown
- * (48px), para que tanto o CTA do hero quanto o link "Programação" da
+ * (56px), para que tanto o CTA do hero quanto o link "Programação" da
  * topbar pousem o heading abaixo do chrome fixo, não embaixo dele.
  */
 export function ProgramaSection() {
@@ -16,23 +16,30 @@ export function ProgramaSection() {
     <section
       id={SECTION_IDS.programa}
       tabIndex={-1}
-      className="scroll-mt-[120px] bg-cream px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
+      className="scroll-mt-32 bg-cream px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
     >
       <div className="mx-auto max-w-[840px]">
         <div className="flex flex-wrap items-start justify-between gap-8">
           <div>
-            <p className="text-caption font-bold uppercase tracking-label text-wine">{PROGRAMA_KICKER}</p>
-            <h2 className="mt-3 font-serif text-heading leading-[1.02] tracking-display">{PROGRAMA_HEADING}</h2>
+            <h2
+              aria-label={`${PROGRAMA_KICKER}. ${PROGRAMA_HEADING}`}
+              className="max-w-[17ch] text-balance font-serif text-heading leading-heading tracking-display"
+            >
+              {PROGRAMA_HEADING}
+            </h2>
           </div>
 
-          {/* toque decorativo herdado do site antigo — repete a data já dita
-              pelo kicker acima, então some da árvore de acessibilidade */}
+          {/* A data funciona como contraponto visual ao heading; o nome
+              acessível do heading já inclui a mesma informação. */}
           <div
             aria-hidden="true"
             className="grid aspect-square w-[120px] shrink-0 place-items-center rounded-full sm:w-[140px]"
-            style={{ background: '#ffd07d', boxShadow: '0 0 60px rgba(255,208,125,.5)' }}
+            style={{
+              background: 'var(--color-sun-soft)',
+              boxShadow: '0 0 60px var(--color-sun-soft-halo)',
+            }}
           >
-            <span className="text-center font-serif text-lead leading-[0.9] tracking-display text-plum">
+            <span className="text-center font-serif text-lead leading-none tracking-display text-plum">
               {sunDay}
               <br />
               {sunMonth}
@@ -47,8 +54,8 @@ export function ProgramaSection() {
                 {item.time}
               </time>
               <div>
-                <p className="font-serif text-subheading">{item.title}</p>
-                <p className="mt-1 max-w-[48ch] text-body text-ink/80">{item.description}</p>
+                <p className="font-serif text-subheading leading-subheading">{item.title}</p>
+                <p className="mt-1 max-w-[48ch] text-pretty text-body text-ink/80">{item.description}</p>
               </div>
             </li>
           ))}

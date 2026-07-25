@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-25T14:58:06Z",
+  "title": "Design System: Sol faz 40",
+  "extensions": {
+    "colorMeta": {
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream Luminoso",
+        "canonical": "#FFF3DF",
+        "tonalRamp": ["#2B251D", "#514535", "#78664E", "#A08A6A", "#C8AF8A", "#E9D4B2", "#FFF3DF", "#FFFBF5"]
+      },
+      "plum": {
+        "role": "primary",
+        "displayName": "Vinho Noturno",
+        "canonical": "#35192A",
+        "tonalRamp": ["#180B13", "#35192A", "#54273F", "#743956", "#96516F", "#B97793", "#DCA8BA", "#F7E1E9"]
+      },
+      "orange": {
+        "role": "primary",
+        "displayName": "Laranja Solar",
+        "canonical": "#D94F29",
+        "tonalRamp": ["#391006", "#66200F", "#943119", "#C04422", "#D94F29", "#ED7A5C", "#F7AF99", "#FDE6DD"]
+      },
+      "coral": {
+        "role": "secondary",
+        "displayName": "Coral do Horizonte",
+        "canonical": "#EE6A50",
+        "tonalRamp": ["#40140D", "#72271C", "#A33B2B", "#CE513D", "#EE6A50", "#F58F79", "#FAB8A9", "#FDE4DE"]
+      },
+      "peach": {
+        "role": "secondary",
+        "displayName": "Pêssego de Luz",
+        "canonical": "#F3A271",
+        "tonalRamp": ["#442312", "#714122", "#9E6237", "#C98550", "#F3A271", "#F7BC96", "#FAD5BB", "#FDEDE1"]
+      },
+      "sea": {
+        "role": "secondary",
+        "displayName": "Mar de Aracaju",
+        "canonical": "#1F4650",
+        "tonalRamp": ["#0B1B1F", "#143039", "#1F4650", "#2E616B", "#467D86", "#6D9DA4", "#A2C2C6", "#DCEAEC"]
+      },
+      "sun": {
+        "role": "tertiary",
+        "displayName": "Sol Cheio",
+        "canonical": "#FFB55D",
+        "tonalRamp": ["#422506", "#70420C", "#9E6118", "#CB842C", "#F1A744", "#FFB55D", "#FFD29B", "#FFF0D7"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display Solar",
+        "purpose": "Nome Sol e grandes momentos de marca."
+      },
+      "headline": {
+        "displayName": "Headline Editorial",
+        "purpose": "Títulos principais das seções públicas."
+      },
+      "title": {
+        "displayName": "Título de Conteúdo",
+        "purpose": "Programação, cartões editoriais e títulos intermediários."
+      },
+      "body": {
+        "displayName": "Leitura Gabarito",
+        "purpose": "Texto corrido, instruções e formulários."
+      },
+      "label": {
+        "displayName": "Rótulo Preciso",
+        "purpose": "Navegação, kickers, status, unidades e ações."
+      }
+    },
+    "shadows": [
+      {
+        "name": "editorial-offset",
+        "value": "14px 14px 0 var(--color-sand)",
+        "purpose": "Sombra sólida de cartões públicos e login."
+      },
+      {
+        "name": "sticky-chrome",
+        "value": "0 4px 8px rgba(53,25,42,0.12)",
+        "purpose": "Separação do chrome fixo sobre o conteúdo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "fast",
+        "value": "180ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "Hover, active e mudanças simples de estado."
+      },
+      {
+        "name": "medium",
+        "value": "260ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "Menu, rail e transições compostas."
+      },
+      {
+        "name": "wave-parallax",
+        "value": "22s / 30s / 38s linear infinite",
+        "purpose": "Movimento lento das três faixas do mar."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal pública em laranja, com forma de pílula e resposta curta.",
+      "html": "<button class=\"ds-btn-primary\">CONFIRMAR PRESENÇA</button>",
+      "css": ".ds-btn-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 100px; padding: 16px 24px; background: var(--color-orange); color: var(--color-cream); font-family: var(--font-sans); font-size: 0.9375rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out); } .ds-btn-primary:hover { background: var(--color-plum); } .ds-btn-primary:active { transform: scale(.98); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Ação secundária transparente, sustentada por borda plum.",
+      "html": "<button class=\"ds-btn-quiet\">VER PROGRAMAÇÃO</button>",
+      "css": ".ds-btn-quiet { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-plum); border-radius: 100px; padding: 16px 24px; background: transparent; color: var(--color-plum); font-family: var(--font-sans); font-size: 0.9375rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out); } .ds-btn-quiet:hover { background: rgba(53,25,42,.05); } .ds-btn-quiet:active { transform: scale(.98); } .ds-btn-quiet:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Public Card",
+      "kind": "card",
+      "refersTo": "card-public",
+      "description": "Superfície editorial clara com borda fina e sombra sólida deslocada.",
+      "html": "<article class=\"ds-card\"><h3>Um carinho para a Sol</h3><p>Conteúdo editorial do convite.</p></article>",
+      "css": ".ds-card { max-width: 420px; border: 1px solid rgba(53,25,42,.18); background: var(--color-card); color: var(--color-ink); padding: 24px; box-shadow: 14px 14px 0 var(--color-sand); } .ds-card h3 { margin: 0 0 12px; font-family: var(--font-serif); font-size: 1.75rem; line-height: 1.2; } .ds-card p { margin: 0; font-family: var(--font-sans); line-height: 1.62; } .ds-card:focus-within { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Underline Field",
+      "kind": "input",
+      "description": "Campo público direto, sem caixa decorativa.",
+      "html": "<label class=\"ds-field\"><span>TELEFONE</span><input placeholder=\"(79) 99999-9999\" /></label>",
+      "css": ".ds-field { display: grid; gap: 9px; color: var(--color-ink); font-family: var(--font-sans); font-size: .9375rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; } .ds-field input { min-height: 44px; border: 0; border-bottom: 1px solid rgba(53,25,42,.18); padding: 12px 2px; background: transparent; color: var(--color-ink); font: 400 1rem/1.62 var(--font-sans); outline: none; } .ds-field input::placeholder { color: var(--color-wine); } .ds-field input:focus { border-color: var(--color-coral); } .ds-field input:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Semantic Feedback",
+      "kind": "custom",
+      "description": "Mensagem de estado com borda completa e fundo tonal.",
+      "html": "<div class=\"ds-feedback-success\">Convite encontrado.</div>",
+      "css": ".ds-feedback-success { border: 1px solid rgba(31,70,80,.35); padding: 16px; background: rgba(31,70,80,.05); color: var(--color-sea); font-family: var(--font-sans); line-height: 1.5; } .ds-feedback-success:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Countdown Rail",
+      "kind": "nav",
+      "description": "Leitura contínua, compacta e tabular sob a topbar.",
+      "html": "<div class=\"ds-countdown\"><strong>FALTAM</strong><span>83 <small>DIAS</small></span><span>12 <small>HORAS</small></span><span>9 <small>MINUTOS</small></span><span>38 <small>SEGUNDOS</small></span></div>",
+      "css": ".ds-countdown { min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 24px; padding: 0 24px; background: var(--color-plum); color: var(--color-cream); box-shadow: 0 4px 8px rgba(53,25,42,.12); font-family: var(--font-serif); font-variant-numeric: tabular-nums; } .ds-countdown strong, .ds-countdown small { color: var(--color-peach); font-family: var(--font-sans); font-size: .6875rem; font-weight: 700; letter-spacing: .06em; } .ds-countdown span { padding-left: 24px; border-left: 1px solid rgba(255,243,223,.14); font-size: 1.3125rem; }"
+    },
+    {
+      "name": "Venue Card",
+      "kind": "card",
+      "refersTo": "venue-card",
+      "description": "Card plum no canto inferior esquerdo do mapa, sem cobrir atribuição ou controles.",
+      "html": "<article class=\"ds-venue\"><small>O ENCONTRO</small><h3>Matapuã Eventos</h3><p>Estrada Matapuã, 1213 · Mosqueiro<br>Aracaju · Sergipe</p><a href=\"#\">ABRIR ROTA ↗</a></article>",
+      "css": ".ds-venue { width: 320px; padding: 28px; background: var(--color-plum); color: var(--color-cream); font-family: var(--font-sans); } .ds-venue small, .ds-venue a { color: var(--color-peach); font-size: .8125rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; } .ds-venue h3 { margin: 12px 0; font-family: var(--font-serif); font-size: 1.75rem; line-height: 1.2; } .ds-venue p { margin: 0; color: rgba(255,243,223,.8); font-size: .9375rem; line-height: 1.62; } .ds-venue a { min-height: 44px; display: inline-flex; align-items: center; margin-top: 16px; text-decoration: none; } .ds-venue a:hover { color: var(--color-cream); } .ds-venue a:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Pôr-do-sol-se",
+    "overview": "“Pôr-do-sol-se” é um convite para entrar no clima antes mesmo da festa. A experiência combina o calor cromático do entardecer sergipano com a disciplina de um cartaz editorial. A interface pública é narrativa e expressiva; a administrativa é compacta e operacional.",
+    "keyCharacteristics": [
+      "Pôr do sol como material visual.",
+      "Alegreya para emoção e Gabarito para clareza.",
+      "Composições planas com sombras estruturais raras.",
+      "Movimento lento no cenário e rápido na interface.",
+      "Mobile-first, sem overflow."
+    ],
+    "rules": [
+      {
+        "name": "The Two Registers Rule",
+        "body": "Convite público é editorial e expressivo; administração é compacta e operacional.",
+        "section": "overview"
+      },
+      {
+        "name": "The Sunset Material Rule",
+        "body": "Céu, sol, mar e horizonte usam tokens semânticos.",
+        "section": "colors"
+      },
+      {
+        "name": "The Plum Anchor Rule",
+        "body": "Toda tela pública precisa de um ponto de ancoragem plum.",
+        "section": "colors"
+      },
+      {
+        "name": "The Serif Leads Rule",
+        "body": "Alegreya conduz emoção; Gabarito conduz instrução e operação.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "Bordas e cor resolvem hierarquia antes de qualquer sombra.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do usar os tokens de src/index.css como fonte normativa.",
+      "Do preservar contraste WCAG AA, foco visível e alvos mínimos de 44px.",
+      "Do validar 320px, tablet e desktop sem overflow.",
+      "Do manter atribuição e controles do Google Maps visíveis."
+    ],
+    "donts": [
+      "Don't cobrir, remover ou disfarçar a atribuição do Google Maps.",
+      "Don't usar faixas laterais coloridas em feedbacks.",
+      "Don't usar texto em gradiente ou glassmorphism decorativo.",
+      "Don't inserir cores novas diretamente em SVGs.",
+      "Don't bloquear conteúdo por animação."
+    ]
+  }
+}

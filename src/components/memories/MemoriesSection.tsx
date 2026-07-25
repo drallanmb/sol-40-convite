@@ -123,17 +123,17 @@ export function MemoriesSection() {
     <section
       id={SECTION_IDS.memories}
       tabIndex={-1}
-      className="scroll-mt-[120px] bg-peach/20 px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
+      className="scroll-mt-32 bg-peach/20 px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
     >
       <div className="mx-auto grid max-w-[1320px] gap-[clamp(48px,7vw,96px)]">
         <div className="mx-auto max-w-[760px] text-center">
-          <p className="text-caption font-bold uppercase tracking-label text-wine">
+          <p className="font-serif text-lead italic leading-lead text-wine lowercase first-letter:uppercase">
             {MEMORIES_COPY.section.kicker}
           </p>
-          <h2 className="mt-3 font-serif text-heading leading-[1.02] tracking-display text-plum">
+          <h2 className="mt-3 text-balance font-serif text-heading leading-heading tracking-display text-plum">
             {MEMORIES_COPY.section.heading}
           </h2>
-          <p className="mt-5 text-body text-ink/80">
+          <p className="mx-auto mt-5 max-w-[65ch] text-pretty text-body text-ink/80">
             {MEMORIES_COPY.section.intro}
           </p>
         </div>

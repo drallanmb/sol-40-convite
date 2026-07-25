@@ -10,6 +10,7 @@ import {
   type GuestImportPreview,
 } from '../../lib/guestCsv'
 import Button from '../ui/Button'
+import Feedback from '../ui/Feedback'
 
 type CreatedFamily = {
   sourceRows: number[]
@@ -546,7 +547,7 @@ export function AdminGuestImport({
             ) : null}
 
             {flow.report.interruption ? (
-              <div role="alert" className="mt-5 border-l-4 border-wine pl-4">
+              <Feedback role="alert" tone="error" className="mt-5">
                 <p className="font-bold">
                   A importação parou no lote {flow.report.interruption.batch}.
                 </p>
@@ -566,7 +567,7 @@ export function AdminGuestImport({
                 >
                   Reconciliar antes de tentar novamente
                 </Button>
-              </div>
+              </Feedback>
             ) : null}
           </div>
         ) : null}

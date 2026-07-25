@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router'
 import CountdownRail from '../invite/CountdownRail'
-import { SECTION_IDS, type NavLink } from '../../content/event'
+import { FOOTER, SECTION_IDS, type NavLink } from '../../content/event'
 
 export type ShellProps = {
   children: ReactNode
@@ -151,7 +151,7 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
             <>
               <nav
                 aria-label="Navegação principal"
-                className="hidden flex-1 items-center justify-center gap-4 text-small uppercase tracking-label sm:flex sm:gap-6"
+                className="hidden flex-1 items-center justify-center gap-6 text-small uppercase tracking-label lg:flex"
               >
                 {navLinks!.map((link) => (
                   <NavigationAnchor
@@ -171,7 +171,7 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
                 aria-expanded={menuOpen}
                 aria-controls={menuId}
                 aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
-                className="relative flex h-11 min-h-[44px] w-11 flex-col items-center justify-center gap-[6px] sm:hidden"
+                className="relative flex h-11 min-h-[44px] w-11 flex-col items-center justify-center gap-[6px] lg:hidden"
               >
                 <span
                   className={`block h-0.5 w-[22px] rounded-full bg-current transition-transform duration-(--duration-fast) ease-out ${
@@ -198,7 +198,7 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
             ref={mobileNavRef}
             id={menuId}
             aria-label="Navegação mobile"
-            className={`absolute inset-x-0 top-full ${menuOpen ? 'flex' : 'hidden'} flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label sm:hidden`}
+            className={`absolute inset-x-0 top-full ${menuOpen ? 'flex' : 'hidden'} flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label lg:hidden`}
           >
             {navLinks!.map((link) => (
               <NavigationAnchor
@@ -213,20 +213,45 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
           </nav>
         ) : null}
 
-        {showCountdownRail ? <CountdownRail revealed={railRevealed} /> : null}
+        {showCountdownRail ? (
+          <CountdownRail revealed={railRevealed && !menuOpen} />
+        ) : null}
       </header>
 
       <main id={MAIN_ID} tabIndex={-1} className="flex-1 outline-none">
         {children}
       </main>
 
-      <footer className="grid place-content-center gap-2 bg-plum px-4 py-16 text-center text-cream sm:py-24">
-        <h2 className="font-serif text-heading leading-[0.9] tracking-display">
-          Sol <em className="not-italic text-coral">faz 40</em>
-        </h2>
-        <p className="text-caption font-bold uppercase tracking-label opacity-80">
-          17 de outubro de 2026 · Matapuã Eventos · Aracaju/SE
-        </p>
+      <footer className="sunset-footer relative overflow-hidden bg-plum text-plum">
+        <div className="sunset-footer__sky" aria-hidden="true" />
+
+        <div className="sunset-footer__sun absolute left-1/2 top-6 z-20 flex -translate-x-1/2 flex-col items-center justify-center px-6 pb-8 text-center sm:pb-12">
+          <h2 className="font-serif text-[clamp(4.75rem,9vw,6rem)] leading-[0.88] tracking-display">
+            {FOOTER.title}
+          </h2>
+          <p className="mt-4 font-serif text-[clamp(2rem,4vw,2.625rem)] italic leading-none">
+            {FOOTER.anniversary}
+          </p>
+        </div>
+
+        <div className="sunset-footer__base relative z-10 flex flex-col items-center justify-end gap-3 bg-plum px-5 py-5 text-center text-cream sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:px-12">
+          <p className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] sm:text-caption">
+            Feito com 🧠 + 🫀 + 🤖 por{' '}
+            <a
+              href="https://drallanmesquitabrito.com.br/"
+              target="_blank"
+              rel="noreferrer"
+              className="normal-case underline decoration-cream/40 underline-offset-4 transition-colors duration-(--duration-fast) ease-out hover:text-peach"
+            >
+              anamnesis.MD
+            </a>
+          </p>
+          <p className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] sm:text-caption">
+            <time dateTime={FOOTER.dateTime}>{FOOTER.date}</time>{' '}
+            <span aria-hidden="true">·</span> {FOOTER.venue}{' '}
+            <span aria-hidden="true">·</span> {FOOTER.city}
+          </p>
+        </div>
       </footer>
     </div>
   )

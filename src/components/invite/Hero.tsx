@@ -30,7 +30,7 @@ export function Hero() {
         className="absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 50% 57%, rgba(255,220,144,.8), transparent 21%), linear-gradient(180deg, #cf755f 0%, #ed895e 44%, #ed684a 68%, #4b2937 69%, #1a3940 100%)',
+            'radial-gradient(circle at 50% 57%, var(--color-sky-halo), transparent 21%), linear-gradient(180deg, var(--color-sky-dusk) 0%, var(--color-sky-apricot) 44%, var(--color-sky-coral) 68%, var(--color-horizon-plum) 69%, var(--color-horizon-sea) 100%)',
         }}
       >
         {/* textura sutil, igual ao ::after do hero-sky antigo */}
@@ -38,14 +38,17 @@ export function Hero() {
           className="absolute inset-0 opacity-[0.12] mix-blend-soft-light"
           style={{
             backgroundImage:
-              'repeating-radial-gradient(circle at 18% 32%, rgba(255,255,255,.32) 0 1px, transparent 1px 4px)',
+              'repeating-radial-gradient(circle at 18% 32%, var(--color-sky-grain) 0 1px, transparent 1px 4px)',
           }}
         />
 
         {/* sol */}
         <div
           className="absolute left-1/2 top-[54%] aspect-square w-[clamp(260px,28vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ background: '#ffb55d', boxShadow: '0 0 100px rgba(255,173,77,.62)' }}
+          style={{
+            background: 'var(--color-sun)',
+            boxShadow: '0 0 100px var(--color-sun-halo)',
+          }}
         />
 
         {/* horizonte — duas bandas de gradiente linear empilhadas */}
@@ -53,7 +56,7 @@ export function Hero() {
           className="absolute inset-x-0 top-[69%] bottom-0"
           style={{
             backgroundImage:
-              'linear-gradient(180deg, rgba(255,126,78,.28), transparent 25%), linear-gradient(176deg, transparent 0 58%, rgba(255,243,223,.08) 59%, transparent 60%)',
+              'linear-gradient(180deg, var(--color-horizon-glow), transparent 25%), linear-gradient(176deg, transparent 0 58%, var(--color-horizon-line) 59%, transparent 60%)',
           }}
         />
       </div>
@@ -66,7 +69,7 @@ export function Hero() {
       <div className="relative z-[3] mx-auto flex max-w-3xl flex-col items-center px-4 text-center text-plum sm:px-8">
         <p className="text-small font-bold uppercase tracking-label">{HERO.eyebrow}</p>
 
-        <h1 className="mt-[22px] leading-[0.86] text-shadow-[0_5px_45px_rgba(53,25,42,0.15)]">
+        <h1 className="mt-[22px] leading-[0.86] text-shadow-[0_5px_45px_var(--color-display-shadow)]">
           <span className="block font-serif text-display tracking-display">{HERO.title}</span>
           <span className="block font-serif text-[clamp(2.25rem,4.8vw,4rem)] italic tracking-display">
             {HERO.titleSub}

@@ -103,6 +103,10 @@ const BRAZILIAN_DDDS = new Set([
 export function formatBrazilianPhoneInput(raw: string): string {
   let digits = raw.replace(/\D/gu, '')
 
+  if (canRemoveDomesticTrunk(digits)) {
+    digits = digits.slice(1)
+  }
+
   if (digits.length > 11 && digits.startsWith('55')) {
     digits = digits.slice(2)
   }

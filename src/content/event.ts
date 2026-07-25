@@ -124,6 +124,15 @@ export const HERO = {
   secondaryCtaHref: '#programacao',
 } as const
 
+export const FOOTER = {
+  date: '17 de outubro de 2026',
+  dateTime: '2026-10-17',
+  title: 'Sol',
+  anniversary: 'faz 40',
+  venue: 'Matapuã Eventos',
+  city: 'Aracaju/SE',
+} as const
+
 // ---------------------------------------------------------------------------
 // RSVP — complete route/state copy contract
 // ---------------------------------------------------------------------------

@@ -24,6 +24,7 @@ import {
 import { usePendingOperations } from '../../lib/adminOperations'
 import { formatBrazilianPhoneInput } from '../../lib/phone'
 import Button from '../ui/Button'
+import Feedback from '../ui/Feedback'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
 import AdminConfirmDialog from './AdminConfirmDialog'
@@ -425,7 +426,7 @@ export function AdminGuests({
                 </button>
                 {open && draft ? (
                   <div id={`family-${family.id}`} className="border-t border-line p-4 sm:p-6">
-                    {draft.conflict ? <div role="alert" className="mb-5 border-l-4 border-rsvp-pendente pl-4"><p>Esta família foi alterada em outra sessão. Suas mudanças não foram salvas.</p><Button variant="adminSecondary" className="mt-3" onClick={() => updateDraft(family.id, { type: 'reload-current' })}>Revisar versão atual</Button></div> : null}
+                    {draft.conflict ? <Feedback role="alert" tone="warning" className="mb-5"><p>Esta família foi alterada em outra sessão. Suas mudanças não foram salvas.</p><Button variant="adminSecondary" className="mt-3" onClick={() => updateDraft(family.id, { type: 'reload-current' })}>Revisar versão atual</Button></Feedback> : null}
                     <div className="grid gap-1 sm:grid-cols-2">
                       <Field id={`family-name-${family.id}`} appearance="outline" label="Nome da família" value={draft.values.displayName} disabled={busy} onChange={(event) => updateDraft(family.id, { type: 'family-field-changed', field: 'displayName', value: event.currentTarget.value })} />
                       <Field id={`family-phone-${family.id}`} appearance="outline" label="Telefone" value={formatBrazilianPhoneInput(draft.values.phone)} disabled={busy} onChange={(event) => updateDraft(family.id, { type: 'family-field-changed', field: 'phone', value: formatBrazilianPhoneInput(event.currentTarget.value) })} />
