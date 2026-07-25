@@ -367,25 +367,25 @@ export const GUIDE: GuidePlace[] = [
   {
     kicker: 'VER',
     name: 'Museu da Gente Sergipana',
-    description: 'Cultura sergipana num casarão à beira do rio · aprox. 28 km da festa. Horários e avaliações no Tripadvisor ↗',
+    description: 'Cultura sergipana num casarão à beira do rio · aprox. 28 km da festa. Ver horários e avaliações ↗',
     url: 'https://www.tripadvisor.com.br/Attraction_Review-g303638-d3589527-Reviews-Museu_da_Gente_Sergipana-Aracaju_State_of_Sergipe.html',
   },
   {
     kicker: 'PROVAR',
     name: 'Passarela do Caranguejo',
-    description: 'Corredor gastronômico na Orla de Atalaia · aprox. 17 km da festa. Avaliações no Tripadvisor ↗',
+    description: 'Corredor gastronômico na Orla de Atalaia · aprox. 17 km da festa. Ver avaliações ↗',
     url: 'https://www.tripadvisor.com.br/Attraction_Review-g303638-d2333777-Reviews-Passarela_do_Caranguejo-Aracaju_State_of_Sergipe.html',
   },
   {
     kicker: 'RESPIRAR',
     name: 'Orla de Atalaia',
-    description: 'Mar, ciclovia, lagos e pôr do sol · aprox. 18 km da festa. Dicas no Tripadvisor ↗',
+    description: 'Mar, ciclovia, lagos e pôr do sol · aprox. 18 km da festa. Ver dicas e avaliações ↗',
     url: 'https://www.tripadvisor.com.br/Attraction_Review-g303638-d4564018-Reviews-Orla_de_Atalaia-Aracaju_State_of_Sergipe.html',
   },
   {
     kicker: 'NAVEGAR',
     name: 'Croa do Goré',
-    description: 'Passeio de barco pelo rio Vaza Barris, entre mangue e ilhas · pra quem tiver um dia a mais. Avaliações no Tripadvisor ↗',
+    description: 'Passeio de barco pelo rio Vaza Barris, entre mangue e ilhas · pra quem tiver um dia a mais. Ver avaliações ↗',
     // Deliberate host divergence from the three cards above: research
     // verified this exact URL resolves on the international top-level
     // domain, and did not verify an equivalent country-code variant. A

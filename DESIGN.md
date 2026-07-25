@@ -228,6 +228,15 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Countdown rail:** 56px, largura de conteúdo máxima de 768px, leitura contínua com divisores sutis e números tabulares.
 - **Anchors:** seções públicas usam `scroll-margin-top: 128px`, compensando topbar e rail.
 
+### Admin Dashboard
+
+- **Information order:** resumo da festa, distribuição das confirmações, prioridades e progresso dos presentes.
+- **Summary strip:** quatro métricas compactas — famílias, pessoas, respostas e taxa de resposta — em uma única superfície.
+- **RSVP distribution:** barra empilhada e lista textual usam `sea`, `wine` e `rsvp-pendente`; números e rótulos garantem que cor nunca seja o único indicador.
+- **Priorities:** respostas e memórias pendentes recebem estado “Ação necessária”; contagem zero muda explicitamente para “Tudo em dia”.
+- **Navigation:** cada leitura operacional conduz diretamente ao filtro correspondente de convidados, moderação ou presentes.
+- **Responsive:** o resumo passa de uma para duas e quatro colunas; painéis operacionais empilham antes de 1280px.
+
 ### Hero Sunset
 
 - **Composition:** somente céu, disco solar e três faixas do mar; coqueiros e outras silhuetas laterais são proibidos.

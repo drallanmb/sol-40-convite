@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-25T15:19:31Z",
+  "generatedAt": "2026-07-25T16:45:00Z",
   "title": "Design System: Sol faz 40",
   "extensions": {
     "colorMeta": {
@@ -181,6 +181,13 @@
       "description": "Card plum no canto inferior esquerdo do mapa, sem cobrir atribuição ou controles.",
       "html": "<article class=\"ds-venue\"><small>O ENCONTRO</small><h3>Matapuã Eventos</h3><p>Estrada Matapuã, 1213 · Mosqueiro<br>Aracaju · Sergipe</p><a href=\"#\">ABRIR ROTA ↗</a></article>",
       "css": ".ds-venue { width: 320px; padding: 28px; background: var(--color-plum); color: var(--color-cream); font-family: var(--font-sans); } .ds-venue small, .ds-venue a { color: var(--color-peach); font-size: .8125rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; } .ds-venue h3 { margin: 12px 0; font-family: var(--font-serif); font-size: 1.75rem; line-height: 1.2; } .ds-venue p { margin: 0; color: rgba(255,243,223,.8); font-size: .9375rem; line-height: 1.62; } .ds-venue a { min-height: 44px; display: inline-flex; align-items: center; margin-top: 16px; text-decoration: none; } .ds-venue a:hover { color: var(--color-cream); } .ds-venue a:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Admin Overview",
+      "kind": "custom",
+      "description": "Resumo operacional em quatro níveis: métricas, distribuição de RSVP, prioridades e presentes.",
+      "html": "<section class=\"ds-admin-overview\"><div class=\"ds-admin-summary\">Famílias · Pessoas · Responderam · Taxa</div><div class=\"ds-admin-grid\"><div>Confirmações</div><div>Prioridades</div></div><div>Presentes</div></section>",
+      "css": ".ds-admin-overview { display: grid; gap: 16px; color: var(--color-ink); font-family: var(--font-sans); } .ds-admin-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); overflow: hidden; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-card); } .ds-admin-grid { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(18rem,.8fr); gap: 16px; } .ds-admin-overview > div, .ds-admin-grid > div { border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-card); padding: 24px; } @media (max-width: 79.99rem) { .ds-admin-grid { grid-template-columns: 1fr; } } @media (max-width: 47.99rem) { .ds-admin-summary { grid-template-columns: 1fr 1fr; } }"
     }
   ],
   "narrative": {

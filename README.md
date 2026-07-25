@@ -97,6 +97,7 @@ Evite duplicar conteúdo do evento dentro dos componentes. Alterações de copy 
 
 - Feedbacks usam borda completa e fundo tonal; faixas laterais são proibidas.
 - Ilustrações usam tokens semânticos em vez de hexadecimais dispersos.
+- O dashboard administrativo prioriza resumo, distribuição de confirmações, pendências e presentes, com links diretos para cada filtro operacional.
 - Alvos interativos têm pelo menos 44px.
 - Foco visível e contraste WCAG AA são obrigatórios.
 - Motion respeita `prefers-reduced-motion` sem esconder conteúdo.
