@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { convexTest } from 'convex-test'
+import type { FunctionReference } from 'convex/server'
 import { describe, expect, it } from 'vitest'
+import { api, internal } from './_generated/api'
 import { WINE_CATALOG, FEATURED_WINE_CODES } from './wineCatalog'
+import type { WineGiftState } from './wineModel'
 import { makeWineTest as makeWineTestHarness } from './wineTest'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
@@ -12,6 +16,34 @@ function makeWineTest() {
     modules,
   })
 }
+
+type EnsureResult = {
+  created: number
+  updated: number
+  unchanged: number
+  unexpectedProductCodes: string[]
+  total: number
+}
+
+type SmokeResult = {
+  productCode: string
+  previousState: WineGiftState
+  currentState: WineGiftState
+}
+
+const wineInternal = (
+  internal as unknown as {
+    wineInternal: {
+      ensureWineCatalog: FunctionReference<'mutation', 'internal', Record<string, never>, EnsureResult>
+      setWineGiftStateForSmoke: FunctionReference<
+        'mutation',
+        'internal',
+        { productCode: string; state: WineGiftState },
+        SmokeResult
+      >
+    }
+  }
+).wineInternal
 
 describe('catalog wines', () => {
   it('keeps the complete canonical catalog byte-for-byte', () => {
@@ -87,5 +119,202 @@ describe('schema wines', () => {
         } as never),
       ),
     ).rejects.toThrow()
+  })
+})
+
+describe('wine reconciliation', () => {
+  it('creates once and is stable on the second run', async () => {
+    const t = makeWineTest()
+
+    const first = await t.mutation(wineInternal.ensureWineCatalog, {})
+    const second = await t.mutation(wineInternal.ensureWineCatalog, {})
+    const stored = await t.run((ctx) => ctx.db.query('wines').collect())
+
+    expect(first).toEqual({
+      created: 37,
+      updated: 0,
+      unchanged: 0,
+      unexpectedProductCodes: [],
+      total: 37,
+    })
+    expect(second).toEqual({
+      created: 0,
+      updated: 0,
+      unchanged: 37,
+      unexpectedProductCodes: [],
+      total: 37,
+    })
+    expect(stored).toHaveLength(37)
+  })
+
+  it('repairs only commercial content while preserving gifted state and reports unexpected rows', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+
+    await t.run(async (ctx) => {
+      const matches = await ctx.db
+        .query('wines')
+        .withIndex('by_product_code', (query) => query.eq('productCode', '39778'))
+        .collect()
+      await ctx.db.patch(matches[0]._id, {
+        name: 'Nome comercial desatualizado',
+        status: 'gifted',
+        giftedBy: 'Convidada Teste',
+        giftedAt: 12_345,
+        updatedAt: 12_345,
+      })
+      await ctx.db.insert('wines', {
+        ...WINE_CATALOG[0],
+        productCode: 'unexpected-operator-row',
+        status: 'available',
+        updatedAt: 9_999,
+      })
+    })
+
+    const result = await t.mutation(wineInternal.ensureWineCatalog, {})
+    const repaired = await t.run((ctx) =>
+      ctx.db
+        .query('wines')
+        .withIndex('by_product_code', (query) => query.eq('productCode', '39778'))
+        .unique(),
+    )
+
+    expect(result).toMatchObject({
+      created: 0,
+      updated: 1,
+      unchanged: 36,
+      unexpectedProductCodes: ['unexpected-operator-row'],
+      total: 38,
+    })
+    expect(repaired).toMatchObject({
+      name: 'Catena Malbec 2024',
+      status: 'gifted',
+      giftedBy: 'Convidada Teste',
+      giftedAt: 12_345,
+    })
+  })
+
+  it('fails closed when a canonical product code is duplicated', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+    await t.run((ctx) =>
+      ctx.db.insert('wines', {
+        ...WINE_CATALOG[0],
+        status: 'available',
+        updatedAt: 2_000,
+      }),
+    )
+
+    await expect(
+      t.mutation(wineInternal.ensureWineCatalog, {}),
+    ).rejects.toThrow(/duplicado/i)
+  })
+})
+
+describe('wine smoke seam', () => {
+  it('restores an initially available wine without stale gift metadata', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+
+    const changed = await t.mutation(wineInternal.setWineGiftStateForSmoke, {
+      productCode: '39778',
+      state: {
+        status: 'gifted',
+        giftedBy: 'Smoke Test',
+        giftedAt: 20_000,
+      },
+    })
+    const restored = await t.mutation(wineInternal.setWineGiftStateForSmoke, {
+      productCode: '39778',
+      state: changed.previousState,
+    })
+    const stored = await t.run((ctx) =>
+      ctx.db
+        .query('wines')
+        .withIndex('by_product_code', (query) => query.eq('productCode', '39778'))
+        .unique(),
+    )
+
+    expect(changed).toMatchObject({
+      previousState: { status: 'available' },
+      currentState: {
+        status: 'gifted',
+        giftedBy: 'Smoke Test',
+        giftedAt: 20_000,
+      },
+    })
+    expect(restored.currentState).toEqual({ status: 'available' })
+    expect(stored).not.toHaveProperty('giftedBy')
+    expect(stored).not.toHaveProperty('giftedAt')
+  })
+
+  it('restores the exact previous gifted state', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+    await t.mutation(wineInternal.setWineGiftStateForSmoke, {
+      productCode: '39158',
+      state: {
+        status: 'gifted',
+        giftedBy: 'Estado Original',
+        giftedAt: 30_000,
+      },
+    })
+
+    const changed = await t.mutation(wineInternal.setWineGiftStateForSmoke, {
+      productCode: '39158',
+      state: { status: 'available' },
+    })
+    const restored = await t.mutation(wineInternal.setWineGiftStateForSmoke, {
+      productCode: '39158',
+      state: changed.previousState,
+    })
+
+    expect(changed.previousState).toEqual({
+      status: 'gifted',
+      giftedBy: 'Estado Original',
+      giftedAt: 30_000,
+    })
+    expect(restored.currentState).toEqual(changed.previousState)
+  })
+
+  it('rejects missing, duplicated, or invalid operational targets', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+
+    await expect(
+      t.mutation(wineInternal.setWineGiftStateForSmoke, {
+        productCode: 'not-found',
+        state: { status: 'available' },
+      }),
+    ).rejects.toThrow(/não encontrado/i)
+
+    await t.run((ctx) =>
+      ctx.db.insert('wines', {
+        ...WINE_CATALOG[0],
+        status: 'available',
+        updatedAt: 2_000,
+      }),
+    )
+    await expect(
+      t.mutation(wineInternal.setWineGiftStateForSmoke, {
+        productCode: WINE_CATALOG[0].productCode,
+        state: { status: 'available' },
+      }),
+    ).rejects.toThrow(/duplicado/i)
+  })
+})
+
+describe('wine functions are internal only', () => {
+  it('registers both operational writers as internal mutations, not public API functions', () => {
+    const source = readFileSync(
+      new URL('./wineInternal.ts', import.meta.url),
+      'utf8',
+    )
+
+    expect(source.match(/internalMutation\s*\(/gu)).toHaveLength(2)
+    expect(source).not.toMatch(/(?<!internal)Mutation\s*\(/u)
+    expect(
+      'wineInternal' in (api as unknown as Record<string, unknown>),
+    ).toBe(false)
   })
 })
