@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 05
-current_phase_name: Mural de Memórias + Moderação
+current_phase: 06
+current_phase_name: Dashboard Interno (/admin
 status: executing
-stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-07-25T03:54:48.804Z"
-last_activity: 2026-07-24
-last_activity_desc: Phase 4 complete, transitioned to Phase 05
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-07-25T04:01:46.517Z"
+last_activity: 2026-07-25
+last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
+  total_plans: 30
+  completed_plans: 27
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-25)
 
 **Core value:** Convidados confirmam presença e escolhem presente sem atrito; donos veem tudo ao vivo, sem trabalho manual.
-**Current focus:** Phase 5 — Mural de Memórias + Moderação
+**Current focus:** Phase 06 — Dashboard Interno (/admin)
 
 ## Current Position
 
-Phase: 05 — Mural de Memórias + Moderação
-Plan: Not started
+Phase: 06 (Dashboard Interno (/admin)) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-24 — Phase 4 complete, transitioned to Phase 05
+Last activity: 2026-07-25 — Phase 06 execution started
 
-Progress: [████████████████████] 26/26 plans (100%)
+Progress: [████████████████████] 26/26 plans ([█████████░] 90%)
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Progress: [████████████████████] 26/26 p
 | Phase 04 P02 | 5 min | 2 tasks | 8 files |
 | Phase 04 P03 | 6 min | 3 tasks | 7 files |
 | Phase 04 P04 | 5 min | 3 tasks | 5 files |
+| Phase 06 P01 | 5 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 04]: Presentes usam 37 registros canônicos em três faixas, com o WhatsApp da Vanessa como handoff externo e sem reserva/checkout.
 - [Phase 04]: Uma silhueta vetorial neutra compartilhada e duas cores auditáveis por vinho substituem fotos licenciadas; proveniência permanece privada.
 - [Phase 04]: Gift state é reativo e separado da reconciliação comercial; `gifted` mantém o card e remove a ação.
+- [Phase 06]: Sessões administrativas usam uma capability opaca por navegador, armazenada apenas por hash no servidor. — Mantém a senha compartilhada como credencial única sem criar identidades, papéis ou credenciais reutilizáveis.
+- [Phase 06]: A sessão administrativa expira absolutamente após sete dias e nunca renova por leitura. — Evita acesso indefinido e mantém o limite simples, revogável e verificável no servidor.
+- [Phase 06]: O cliente preserva somente o destino na URL e limpa dados protegidos em expiração, revogação, logout e remoção cross-tab. — Impede remontagem por respostas assíncronas antigas e vazamento de rascunhos ou DTOs no armazenamento.
 
 ### Pending Todos
 
@@ -143,6 +147,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T03:20:11.692Z
-Stopped at: Phase 6 UI-SPEC approved
-Resume file: .planning/phases/06-dashboard-interno-admin/06-UI-SPEC.md
+Last session: 2026-07-25T04:01:32.321Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None

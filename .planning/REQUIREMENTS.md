@@ -48,7 +48,7 @@
 
 ### Dashboard Interno (/admin)
 
-- [ ] **ADMIN-01**: Auth do dono — senha compartilhada verificada no servidor, emitindo sessão
+- [x] **ADMIN-01**: Auth do dono — senha compartilhada verificada no servidor, emitindo sessão
 - [ ] **ADMIN-02**: Shell `/admin` (sidebar no desktop, barra inferior no mobile)
 - [ ] **ADMIN-03**: Visão geral — contagem de confirmações ao vivo (queries reativas Convex)
 - [ ] **ADMIN-04**: Convidados — listar / buscar / editar / remover RSVP
@@ -115,7 +115,7 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | WALL-03 | Phase 5 | Complete |
 | WALL-04 | Phase 5 | Complete |
 | WALL-05 | Phase 5 | Complete |
-| ADMIN-01 | Phase 6 | Pending |
+| ADMIN-01 | Phase 6 | Complete |
 | ADMIN-02 | Phase 6 | Pending |
 | ADMIN-03 | Phase 6 | Pending |
 | ADMIN-04 | Phase 6 | Pending |

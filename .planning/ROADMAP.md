@@ -170,12 +170,18 @@ Plans:
   4. O dono aprova/oculta posts do mural na fila de moderação
   5. O dono marca vinhos como presenteados
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
+
+- [x] 06-01-PLAN.md
+- [ ] 06-02-PLAN.md
+- [ ] 06-03-PLAN.md
+- [ ] 06-04-PLAN.md
+
 **Wave 1**
 
-- [ ] 06-01: Auth do dono — senha compartilhada, sessão opaca revogável de 7 dias e gate cliente fail-closed
+- [x] 06-01: Auth do dono — senha compartilhada, sessão opaca revogável de 7 dias e gate cliente fail-closed
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -220,5 +226,5 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 3. RSVP | 5/5 | Complete    | 2026-07-24 |
 | 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
-| 6. Dashboard Interno (/admin) | 0/4 | Not started | - |
+| 6. Dashboard Interno (/admin) | 1/4 | In Progress|  |
 | 7. Endurecimento & Lançamento | 0/2 | Not started | - |
