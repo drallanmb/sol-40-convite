@@ -100,3 +100,47 @@ export async function transitionWineGiftState(
   if (!updated) throw new Error('Vinho desapareceu durante a atualização.')
   return { kind: 'updated', wine: updated, previousWine: wine } as const
 }
+
+export async function editWineGiftDetails(
+  ctx: MutationCtx,
+  {
+    wineId,
+    expectedUpdatedAt,
+    giftedBy,
+    giftNote,
+    now = Date.now(),
+  }: {
+    wineId: Id<'wines'>
+    expectedUpdatedAt: number
+    giftedBy: string
+    giftNote?: string
+    now?: number
+  },
+) {
+  const wine = await ctx.db.get(wineId)
+  if (!wine) return { kind: 'not_found' } as const
+  const current = readWineGiftState(wine)
+  if (wine.status !== 'gifted' || wine.updatedAt !== expectedUpdatedAt) {
+    return { kind: 'conflict', wine } as const
+  }
+  if (current.status !== 'gifted') {
+    throw new Error('Estado de presente inconsistente durante a correção.')
+  }
+  const normalized = normalizeWineGiftState({
+    status: 'gifted',
+    giftedBy,
+    ...(giftNote === undefined ? {} : { giftNote }),
+    giftedAt: current.giftedAt,
+  })
+  if (normalized.status !== 'gifted') {
+    throw new Error('Correção de presente produziu estado inválido.')
+  }
+  await ctx.db.patch(wine._id, {
+    giftedBy: normalized.giftedBy,
+    giftNote: normalized.giftNote,
+    updatedAt: nextWineUpdatedAt(wine.updatedAt, now),
+  })
+  const updated = await ctx.db.get(wine._id)
+  if (!updated) throw new Error('Vinho desapareceu durante a correção.')
+  return { kind: 'updated', wine: updated, previousWine: wine } as const
+}

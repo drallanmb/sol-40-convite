@@ -12,6 +12,7 @@ import {
   wineStatusValidator,
 } from './wineModel'
 import {
+  editWineGiftDetails,
   readWineGiftState,
   transitionWineGiftState,
 } from './wineOperations'
@@ -184,7 +185,8 @@ export const makeAvailable = mutation({
   },
   returns: resultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
       return { kind: 'unauthorized' } as const
     }
     const result = await transitionWineGiftState(ctx, {
@@ -197,6 +199,65 @@ export const makeAvailable = mutation({
       return { kind: 'conflict', wine: projectWine(result.wine) } as const
     }
     if (result.kind === 'not_found') return result
+    await auditGiftChange(
+      ctx,
+      authorization.principal,
+      'gift_reopened',
+      result.previousWine,
+      result.wine,
+    )
+    return { kind: 'updated', wine: projectWine(result.wine) } as const
+  },
+})
+
+export const editGift = mutation({
+  args: {
+    token: v.string(),
+    wineId: v.id('wines'),
+    expectedUpdatedAt: v.number(),
+    giftedBy: v.string(),
+    giftNote: v.optional(v.string()),
+  },
+  returns: resultValidator,
+  handler: async (ctx, args) => {
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return { kind: 'unauthorized' } as const
+    }
+    const giftedBy = args.giftedBy.trim()
+    const giftNote = args.giftNote?.trim() || undefined
+    if (!giftedBy || giftedBy.length > WINE_GIFTED_BY_MAX_LENGTH) {
+      return {
+        kind: 'invalid',
+        message: 'Informe o nome de quem presenteou.',
+      } as const
+    }
+    if (
+      giftNote !== undefined &&
+      giftNote.length > WINE_GIFT_NOTE_MAX_LENGTH
+    ) {
+      return {
+        kind: 'invalid',
+        message: 'A observação deve ter no máximo 500 caracteres.',
+      } as const
+    }
+    const result = await editWineGiftDetails(ctx, {
+      wineId: args.wineId,
+      expectedUpdatedAt: args.expectedUpdatedAt,
+      giftedBy,
+      ...(giftNote === undefined ? {} : { giftNote }),
+    })
+    if (result.kind === 'conflict') {
+      return { kind: 'conflict', wine: projectWine(result.wine) } as const
+    }
+    if (result.kind === 'not_found') return result
+    await auditGiftChange(
+      ctx,
+      authorization.principal,
+      'gift_updated',
+      result.previousWine,
+      result.wine,
+    )
     return { kind: 'updated', wine: projectWine(result.wine) } as const
   },
 })
