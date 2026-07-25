@@ -47,6 +47,91 @@ function deviceKeyFor(index: number) {
     .replace(/=+$/u, '')
 }
 
+function concatBytes(...parts: Uint8Array[]) {
+  const bytes = new Uint8Array(
+    parts.reduce((total, part) => total + part.byteLength, 0),
+  )
+  let offset = 0
+  for (const part of parts) {
+    bytes.set(part, offset)
+    offset += part.byteLength
+  }
+  return bytes
+}
+
+function uint32(value: number, littleEndian = false) {
+  const bytes = new Uint8Array(4)
+  new DataView(bytes.buffer).setUint32(0, value, littleEndian)
+  return bytes
+}
+
+function testCrc32(bytes: Uint8Array) {
+  let crc = 0xffffffff
+  for (const byte of bytes) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function testPngChunk(type: string, data = new Uint8Array()) {
+  const typed = concatBytes(new TextEncoder().encode(type), data)
+  return concatBytes(
+    uint32(data.byteLength),
+    typed,
+    uint32(testCrc32(typed)),
+  )
+}
+
+function validJpegBytes(totalSize?: number) {
+  const header = new Uint8Array([
+    0xff, 0xd8, 0xff, 0xe0, 0, 2,
+    0xff, 0xc0, 0, 11, 8, 0, 2, 0, 2, 1, 1, 0x11, 0,
+    0xff, 0xda, 0, 8, 1, 1, 0, 0, 0x3f, 0,
+  ])
+  const scanSize = (totalSize ?? header.byteLength + 3) -
+    header.byteLength - 2
+  return concatBytes(
+    header,
+    new Uint8Array(Math.max(1, scanSize)),
+    new Uint8Array([0xff, 0xd9]),
+  )
+}
+
+function validPngBytes() {
+  const signature = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ])
+  return concatBytes(
+    signature,
+    testPngChunk(
+      'IHDR',
+      concatBytes(
+        uint32(2),
+        uint32(2),
+        new Uint8Array([8, 2, 0, 0, 0]),
+      ),
+    ),
+    testPngChunk('IDAT', new Uint8Array([0])),
+    testPngChunk('IEND'),
+  )
+}
+
+function validWebpBytes() {
+  const body = concatBytes(
+    new TextEncoder().encode('WEBPVP8X'),
+    uint32(10, true),
+    new Uint8Array([0, 0, 0, 0, 1, 0, 0, 1, 0, 0]),
+  )
+  return concatBytes(
+    new TextEncoder().encode('RIFF'),
+    uint32(body.byteLength, true),
+    body,
+  )
+}
+
 describe('Phase 5 Convex harness', () => {
   it('executes against the live schema with the official rate-limiter component', async () => {
     const t = makePostTest()
@@ -727,19 +812,9 @@ describe('photo upload reservation and validation', () => {
   })
 
   it.each([
-    ['jpeg', 'image/jpeg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0])],
-    [
-      'png',
-      'image/png',
-      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    ],
-    [
-      'webp',
-      'image/webp',
-      new Uint8Array([
-        0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
-      ]),
-    ],
+    ['jpeg', 'image/jpeg', validJpegBytes()],
+    ['png', 'image/png', validPngBytes()],
+    ['webp', 'image/webp', validWebpBytes()],
   ])('accepts real %s bytes into exactly one pending post', async (_label, mime, bytes) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
@@ -872,8 +947,7 @@ describe('photo upload reservation and validation', () => {
     const t = makePostTest()
     const token = deviceKeyFor(65_000)
     const reservation = await reserve(t, { token })
-    const exactBytes = new Uint8Array(MAX_FINAL_IMAGE_BYTES)
-    exactBytes.set([0xff, 0xd8, 0xff, 0xe0])
+    const exactBytes = validJpegBytes(MAX_FINAL_IMAGE_BYTES)
     const storageId = await storeUpload(t, exactBytes, 'image/jpeg')
 
     await expect(
@@ -901,12 +975,12 @@ describe('photo upload reservation and validation', () => {
     const reservation = await reserve(t, { token })
     const firstStorageId = await storeUpload(
       t,
-      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      validJpegBytes(),
       'image/jpeg',
     )
     const otherStorageId = await storeUpload(
       t,
-      new Uint8Array([0xff, 0xd8, 0xff, 0xe1]),
+      validJpegBytes(),
       'image/jpeg',
     )
 
@@ -943,7 +1017,7 @@ describe('photo upload reservation and validation', () => {
     const tokenHash = await hashPostCapability(token)
     const storageId = await storeUpload(
       t,
-      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      validJpegBytes(),
       'image/jpeg',
     )
     const reservationId = await t.run((ctx) =>
@@ -980,7 +1054,7 @@ describe('photo upload reservation and validation', () => {
     const reservation = await reserve(t, { token })
     const storageId = await storeUpload(
       t,
-      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      validJpegBytes(),
       'image/jpeg',
     )
     const command = {
