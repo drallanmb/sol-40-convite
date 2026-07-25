@@ -119,13 +119,17 @@ class FakeMediaQuery implements ReducedMotionMediaQuery {
     this.matches = matches
   }
 
-  addEventListener = vi.fn((_type: 'change', listener: () => void) => {
-    this.modernListeners.add(listener)
-  })
+  addEventListener: ReducedMotionMediaQuery['addEventListener'] = vi.fn(
+    (_type: 'change', listener: () => void) => {
+      this.modernListeners.add(listener)
+    },
+  )
 
-  removeEventListener = vi.fn((_type: 'change', listener: () => void) => {
-    this.modernListeners.delete(listener)
-  })
+  removeEventListener: ReducedMotionMediaQuery['removeEventListener'] = vi.fn(
+    (_type: 'change', listener: () => void) => {
+      this.modernListeners.delete(listener)
+    },
+  )
 
   addListener = vi.fn((listener: () => void) => {
     this.legacyListeners.add(listener)
