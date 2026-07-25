@@ -19,6 +19,7 @@ import {
   requireAdminSession,
   validateAdminToken,
 } from './adminSecurity'
+import { appendAuditEvent } from './adminAuditModel'
 
 declare const process: {
   env: Record<string, string | undefined>
@@ -139,6 +140,7 @@ export const logout = mutation({
   },
   returns: adminLogoutResultValidator,
   handler: async (ctx, args) => {
+    const authorization = await requireAdminSession(ctx, args.token)
     if (validateAdminToken(args.token)) {
       const tokenHash = await hashAdminToken(args.token)
       const sessions = await ctx.db
@@ -150,6 +152,21 @@ export const logout = mutation({
       for (const session of sessions) {
         await ctx.db.delete(session._id)
       }
+    }
+    if (authorization.kind === 'authorized') {
+      await appendAuditEvent(ctx, {
+        principal: authorization.principal,
+        subjectAccountId:
+          authorization.principal.kind === 'account'
+            ? authorization.principal.account._id
+            : undefined,
+        area: 'sessions',
+        action: 'logout',
+        targetType: 'adminSession',
+        targetId: authorization.session._id,
+        targetLabel:
+          authorization.session.deviceLabel ?? 'Aparelho sem nome',
+      })
     }
 
     return { kind: 'logged_out' } as const
