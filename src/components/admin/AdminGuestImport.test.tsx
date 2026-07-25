@@ -183,6 +183,21 @@ describe('admin guest csv importer', () => {
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:guest-csv-template')
   })
 
+  it('closes with Escape, returns focus and keeps actions at the 44px target', async () => {
+    await renderImporter()
+    const trigger = buttonWithText(container!, 'Importar CSV')
+    const dialog = container!.querySelector<HTMLDialogElement>('dialog[open]')!
+    const close = buttonWithText(dialog, 'Fechar')
+
+    expect(close.className).toContain('min-h-[44px]')
+    await act(async () => {
+      dialog.dispatchEvent(new Event('cancel', { cancelable: true }))
+    })
+
+    expect(container!.querySelector('dialog[open]')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
   it('shows normalized stacked preview issues and exact confirmation counts', async () => {
     await renderImporter()
     await chooseCsv(
@@ -316,6 +331,36 @@ describe('admin guest csv importer', () => {
     )
     expect(container!.querySelector('dialog[open]')).toBeNull()
     expect(container!.textContent).not.toContain('Pessoa Fictícia')
+  })
+
+  it('does not restore protected results when an in-flight batch settles after clear', async () => {
+    const pending = deferred<any>()
+    convexMocks.mutation.mockReturnValue(vi.fn(() => pending.promise))
+    await renderImporter()
+    await chooseCsv(familyCsv(1))
+    await startImport()
+
+    await act(async () =>
+      window.dispatchEvent(new Event('admin-sensitive-state-clear')),
+    )
+    await act(async () => {
+      pending.resolve({
+        kind: 'ready',
+        created: [
+          {
+            sourceRows: [2],
+            familyId: 'family-late',
+            displayName: 'Família Fictícia Tardia',
+            people: 1,
+          },
+        ],
+        ignored: [],
+      })
+      await pending.promise
+    })
+
+    expect(container!.querySelector('dialog[open]')).toBeNull()
+    expect(container!.textContent).not.toContain('Família Fictícia Tardia')
   })
 
   it('keeps manual family creation rendered and operational beside csv import', async () => {
