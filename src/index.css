@@ -154,3 +154,34 @@ body {
   scrollbar-color: var(--color-cellar-line) transparent;
   scrollbar-width: thin;
 }
+
+.overflow-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.wine-card[data-selected="true"] {
+  outline: 3px solid var(--color-peach);
+  outline-offset: 6px;
+  transition-duration: var(--duration-medium);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wine-card[data-wine-status="available"]:hover {
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wine-card,
+  .wine-card a {
+    transition-duration: 0.01ms;
+  }
+
+  .wine-card[data-wine-status="available"]:hover {
+    transform: none;
+  }
+
+  .wine-card a:active {
+    transform: none;
+  }
+}
