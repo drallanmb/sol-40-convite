@@ -1,4 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import decodePng, {
+  init as initPngDecode,
+} from '@jsquash/png/decode.js'
+import decodeWebp, {
+  init as initWebpDecode,
+} from '@jsquash/webp/decode.js'
+import jpeg from 'jpeg-js'
+import { beforeAll, describe, expect, it } from 'vitest'
+import {
+  ENCODED_JPEG_BASE64,
+  ENCODED_PNG_BASE64,
+  ENCODED_WEBP_LOSSLESS_BASE64,
+  ENCODED_WEBP_LOSSY_BASE64,
+  decodeFixtureBase64,
+  padEncodedJpeg,
+  padEncodedPng,
+  padEncodedWebp,
+} from '../src/test/imageFixtures'
 import { MAX_FINAL_IMAGE_BYTES } from './postModel'
 import {
   detectImageType,
@@ -154,9 +173,9 @@ function heifFixture(brand: 'heic' | 'mif1') {
 }
 
 const validImages = {
-  'image/jpeg': validJpeg(),
-  'image/png': validPng(),
-  'image/webp': validWebp(),
+  'image/jpeg': decodeFixtureBase64(ENCODED_JPEG_BASE64),
+  'image/png': decodeFixtureBase64(ENCODED_PNG_BASE64),
+  'image/webp': decodeFixtureBase64(ENCODED_WEBP_LOSSLESS_BASE64),
 } as const
 
 const signatures: Record<DetectedImageType, Uint8Array> = {
@@ -180,15 +199,61 @@ describe('image magic-byte detection', () => {
 })
 
 describe('bounded structural image validation', () => {
+  beforeAll(async () => {
+    const pngWasm = await readFile(
+      join(
+        process.cwd(),
+        'node_modules/@jsquash/png/codec/pkg/squoosh_png_bg.wasm',
+      ),
+    )
+    await initPngDecode(pngWasm)
+    const webpWasm = await WebAssembly.compile(
+      await readFile(
+        join(
+          process.cwd(),
+          'node_modules/@jsquash/webp/codec/dec/webp_dec.wasm',
+        ),
+      ),
+    )
+    initWebpDecode(webpWasm)
+  })
+
+  it('uses real encoder fixtures decodable by independent JPEG, PNG, and WebP decoders', async () => {
+    const decodedJpeg = jpeg.decode(validImages['image/jpeg'], {
+      useTArray: true,
+    })
+    const decodedPng = await decodePng(
+      validImages['image/png'].slice().buffer,
+    )
+    const decodedWebpLossless = await decodeWebp(
+      validImages['image/webp'].slice().buffer,
+    )
+    const lossyWebp = decodeFixtureBase64(
+      ENCODED_WEBP_LOSSY_BASE64,
+    )
+    const decodedWebpLossy = await decodeWebp(lossyWebp.slice().buffer)
+
+    expect(decodedJpeg).toMatchObject({ width: 2, height: 2 })
+    expect(decodedPng).toMatchObject({ width: 2, height: 2 })
+    expect(decodedWebpLossless).toMatchObject({ width: 2, height: 2 })
+    expect(decodedWebpLossy).toMatchObject({ width: 2, height: 2 })
+    expect(
+      validateImageBytes({
+        bytes: lossyWebp,
+        declaredMime: 'image/webp',
+      }),
+    ).toMatchObject({ kind: 'accepted', mediaType: 'image/webp' })
+  })
+
   it.each(Object.entries(validImages))(
-    'accepts structurally valid %s at small and exact 5 MiB sizes',
+    'accepts independently decodable %s at small and exact 5 MiB sizes',
     (type, bytes) => {
       const exactLimit =
         type === 'image/jpeg'
-          ? validJpeg({ totalSize: MAX_FINAL_IMAGE_BYTES })
+          ? padEncodedJpeg(bytes, MAX_FINAL_IMAGE_BYTES)
           : type === 'image/png'
-            ? validPng({ totalSize: MAX_FINAL_IMAGE_BYTES })
-            : validWebp({ totalSize: MAX_FINAL_IMAGE_BYTES })
+            ? padEncodedPng(bytes, MAX_FINAL_IMAGE_BYTES)
+            : padEncodedWebp(bytes, MAX_FINAL_IMAGE_BYTES)
 
       expect(validateImageBytes({ bytes, declaredMime: type })).toEqual({
         kind: 'accepted',
@@ -212,6 +277,25 @@ describe('bounded structural image validation', () => {
     ['zero dimensions', validJpeg({ width: 0 })],
     ['missing scan payload', validJpeg().slice(0, -3)],
     ['missing EOI', validJpeg().slice(0, -2)],
+    ['zero-filled fake entropy stream', validJpeg()],
+    ['SOS component not declared by SOF', (() => {
+      const bytes = validImages['image/jpeg'].slice()
+      const sos = bytes.findIndex(
+        (byte, index) => byte === 0xff && bytes[index + 1] === 0xda,
+      )
+      bytes[sos + 5] = 0x7f
+      return bytes
+    })()],
+    ['unescaped marker inside entropy stream', (() => {
+      const bytes = validImages['image/jpeg'].slice()
+      const sos = bytes.findIndex(
+        (byte, index) => byte === 0xff && bytes[index + 1] === 0xda,
+      )
+      const scanStart = sos + 2 + ((bytes[sos + 2] << 8) | bytes[sos + 3])
+      bytes[scanStart] = 0xff
+      bytes[scanStart + 1] = 0xe1
+      return bytes
+    })()],
   ])('rejects structurally invalid JPEG: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/jpeg' })).toEqual({
       kind: 'rejected',
@@ -230,6 +314,7 @@ describe('bounded structural image validation', () => {
       bytes.set(u32be(0x7fffffff), 33)
       return bytes
     })()],
+    ['CRC-valid but invalid IDAT zlib stream', validPng()],
   ])('rejects structurally invalid PNG: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/png' })).toEqual({
       kind: 'rejected',
@@ -257,6 +342,13 @@ describe('bounded structural image validation', () => {
       u32le(5),
       new Uint8Array([0x2f, 0, 0, 0, 0]),
     )],
+    ['VP8X metadata without VP8 image data', validWebp()],
+    ['truncated VP8L bitstream', (() => {
+      const bytes = validImages['image/webp'].slice(0, -6)
+      bytes.set(u32le(bytes.byteLength - 8), 4)
+      bytes.set(u32le(bytes.byteLength - 20), 16)
+      return bytes
+    })()],
   ])('rejects structurally invalid WebP: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/webp' })).toEqual({
       kind: 'rejected',

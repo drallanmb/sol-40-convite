@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "audit:wine-assets": "node scripts/audit-wine-assets.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@convex-dev/rate-limiter": "0.3.2",
@@ -18,17 +17,21 @@
     "convex": "1.42.3",
     "embla-carousel-autoplay": "8.6.0",
     "embla-carousel-react": "8.6.0",
+    "fflate": "0.8.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "7.18.1",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
+    "@jsquash/png": "3.1.1",
+    "@jsquash/webp": "1.5.0",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "convex-test": "0.0.54",
+    "jpeg-js": "0.4.4",
     "typescript": "6.0.3",
     "vite": "^8.1.1",
     "vitest": "4.1.10"

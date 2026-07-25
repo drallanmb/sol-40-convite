@@ -1,6 +1,13 @@
 import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { convexTest } from 'convex-test'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  ENCODED_JPEG_BASE64,
+  ENCODED_PNG_BASE64,
+  ENCODED_WEBP_LOSSLESS_BASE64,
+  decodeFixtureBase64,
+  padEncodedJpeg,
+} from '../src/test/imageFixtures'
 import { api, components, internal } from './_generated/api'
 import {
   AUTHOR_MAX_LENGTH,
@@ -65,71 +72,17 @@ function uint32(value: number, littleEndian = false) {
   return bytes
 }
 
-function testCrc32(bytes: Uint8Array) {
-  let crc = 0xffffffff
-  for (const byte of bytes) {
-    crc ^= byte
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
-    }
-  }
-  return (crc ^ 0xffffffff) >>> 0
-}
-
-function testPngChunk(type: string, data = new Uint8Array()) {
-  const typed = concatBytes(new TextEncoder().encode(type), data)
-  return concatBytes(
-    uint32(data.byteLength),
-    typed,
-    uint32(testCrc32(typed)),
-  )
-}
-
 function validJpegBytes(totalSize?: number) {
-  const header = new Uint8Array([
-    0xff, 0xd8, 0xff, 0xe0, 0, 2,
-    0xff, 0xc0, 0, 11, 8, 0, 2, 0, 2, 1, 1, 0x11, 0,
-    0xff, 0xda, 0, 8, 1, 1, 0, 0, 0x3f, 0,
-  ])
-  const scanSize = (totalSize ?? header.byteLength + 3) -
-    header.byteLength - 2
-  return concatBytes(
-    header,
-    new Uint8Array(Math.max(1, scanSize)),
-    new Uint8Array([0xff, 0xd9]),
-  )
+  const bytes = decodeFixtureBase64(ENCODED_JPEG_BASE64)
+  return totalSize === undefined ? bytes : padEncodedJpeg(bytes, totalSize)
 }
 
 function validPngBytes() {
-  const signature = new Uint8Array([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-  ])
-  return concatBytes(
-    signature,
-    testPngChunk(
-      'IHDR',
-      concatBytes(
-        uint32(2),
-        uint32(2),
-        new Uint8Array([8, 2, 0, 0, 0]),
-      ),
-    ),
-    testPngChunk('IDAT', new Uint8Array([0])),
-    testPngChunk('IEND'),
-  )
+  return decodeFixtureBase64(ENCODED_PNG_BASE64)
 }
 
 function validWebpBytes() {
-  const body = concatBytes(
-    new TextEncoder().encode('WEBPVP8X'),
-    uint32(10, true),
-    new Uint8Array([0, 0, 0, 0, 1, 0, 0, 1, 0, 0]),
-  )
-  return concatBytes(
-    new TextEncoder().encode('RIFF'),
-    uint32(body.byteLength, true),
-    body,
-  )
+  return decodeFixtureBase64(ENCODED_WEBP_LOSSLESS_BASE64)
 }
 
 describe('Phase 5 Convex harness', () => {
