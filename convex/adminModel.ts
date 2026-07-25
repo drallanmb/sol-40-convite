@@ -8,13 +8,11 @@ export const adminSessionStatusValidator = v.union(
   v.object({
     kind: v.literal('valid'),
     expiresAt: v.number(),
-    principal: v.optional(
-      v.object({
-        id: v.id('adminAccounts'),
-        displayName: v.string(),
-        role: adminRoleValidator,
-      }),
-    ),
+    principal: v.object({
+      id: v.optional(v.id('adminAccounts')),
+      displayName: v.string(),
+      role: adminRoleValidator,
+    }),
   }),
   v.object({ kind: v.literal('invalid') }),
 )
@@ -23,13 +21,11 @@ export const adminLoginResultValidator = v.union(
   v.object({
     kind: v.literal('authenticated'),
     expiresAt: v.number(),
-    principal: v.optional(
-      v.object({
-        id: v.id('adminAccounts'),
-        displayName: v.string(),
-        role: adminRoleValidator,
-      }),
-    ),
+    principal: v.object({
+      id: v.optional(v.id('adminAccounts')),
+      displayName: v.string(),
+      role: adminRoleValidator,
+    }),
   }),
   v.object({ kind: v.literal('invalid_credentials') }),
   v.object({ kind: v.literal('invalid_token') }),

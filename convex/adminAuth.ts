@@ -5,7 +5,6 @@ import { mutation, query } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import {
   ADMIN_SESSION_TTL_MS,
-  adminLoginResultValidator,
   adminLogoutResultValidator,
   adminSessionStatusValidator,
 } from './adminModel'
@@ -43,12 +42,26 @@ function retryAfterSeconds(retryAfterMs: number | undefined) {
   return Math.max(1, Math.ceil((retryAfterMs ?? 0) / 1_000))
 }
 
+const legacyLoginResultValidator = v.union(
+  v.object({
+    kind: v.literal('authenticated'),
+    expiresAt: v.number(),
+  }),
+  v.object({ kind: v.literal('invalid_credentials') }),
+  v.object({ kind: v.literal('invalid_token') }),
+  v.object({ kind: v.literal('token_conflict') }),
+  v.object({
+    kind: v.literal('rate_limited'),
+    retryAfterSeconds: v.number(),
+  }),
+)
+
 export const login = mutation({
   args: {
     password: v.string(),
     token: v.string(),
   },
-  returns: adminLoginResultValidator,
+  returns: legacyLoginResultValidator,
   handler: async (ctx, args) => {
     const rateLimit = await adminRateLimiter.limit(ctx, 'loginGlobal', {
       key: ADMIN_LOGIN_LIMIT_KEY,
@@ -129,7 +142,12 @@ export const getSessionStatus = query({
               role: authorization.principal.account.role,
             },
           }
-        : {}),
+        : {
+            principal: {
+              displayName: 'Acesso legado',
+              role: 'owner' as const,
+            },
+          }),
     } as const
   },
 })

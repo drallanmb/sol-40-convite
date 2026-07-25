@@ -87,6 +87,7 @@ function AdminSessionGate() {
         token: session.token,
         expiresAt: status.expiresAt,
         now: Date.now(),
+        principal: status.principal,
       })
     } else if (status?.kind === 'invalid') {
       dispatch({ type: 'status-invalid', sequence: session.sequence })
@@ -161,6 +162,7 @@ function AdminSessionGate() {
           token: capability,
           expiresAt: result.expiresAt,
           now: Date.now(),
+          principal: result.principal,
         })
       } else {
         dispatch({
@@ -243,6 +245,7 @@ function AdminSessionGate() {
       onLogout={handleLogout}
       onUnauthorized={handleUnauthorized}
       token={session.token}
+      principal={session.principal}
     />
   )
 }

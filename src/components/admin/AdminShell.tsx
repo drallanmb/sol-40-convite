@@ -25,6 +25,8 @@ import AdminOverview from './AdminOverview'
 import AdminGuests from './AdminGuests'
 import AdminGifts from './AdminGifts'
 import AdminModeration from './AdminModeration'
+import AdminMyAccount from './AdminMyAccount'
+import type { AdminPrincipalView } from '../../lib/adminSession'
 
 type AdminShellProps = {
   badges?: Partial<Record<AdminBadgeKind, number>>
@@ -33,6 +35,7 @@ type AdminShellProps = {
   onLogout: () => Promise<void>
   onUnauthorized: () => void
   token: string
+  principal: AdminPrincipalView
 }
 
 function AdminIcon({ name }: { name: AdminIconName }) {
@@ -105,6 +108,7 @@ export function AdminShell({
   onLogout,
   onUnauthorized,
   token,
+  principal,
 }: AdminShellProps) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -224,6 +228,22 @@ export function AdminShell({
           {navLinks(false)}
         </nav>
         <div className="border-t border-cream/20 p-4">
+          <p className="mb-3 px-1 text-sm text-cream/80">
+            {principal.displayName} ·{' '}
+            {principal.role === 'owner'
+              ? 'Proprietário'
+              : principal.role === 'manager'
+                ? 'Gestor'
+                : 'Vendedora'}
+          </p>
+          {principal.id ? (
+            <Link
+              to={ADMIN_ROUTES.myAccount}
+              className="mb-2 flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-bold text-cream hover:bg-cream/10"
+            >
+              Minha conta
+            </Link>
+          ) : null}
           <Button
             variant="adminSecondaryOnDark"
             className="w-full"
@@ -257,6 +277,22 @@ export function AdminShell({
               id="admin-utility-menu"
               className="absolute right-0 top-[calc(100%+8px)] min-w-40 rounded-lg border border-line bg-card p-2 shadow-[0_8px_24px_rgba(53,25,42,.16)]"
             >
+              <p className="mb-2 px-2 text-sm font-bold text-plum">
+                {principal.displayName} ·{' '}
+                {principal.role === 'owner'
+                  ? 'Proprietário'
+                  : principal.role === 'manager'
+                    ? 'Gestor'
+                    : 'Vendedora'}
+              </p>
+              {principal.id ? (
+                <Link
+                  to={ADMIN_ROUTES.myAccount}
+                  className="mb-2 flex min-h-11 items-center rounded-lg px-3 text-sm font-bold text-plum hover:bg-cream"
+                >
+                  Minha conta
+                </Link>
+              ) : null}
               <Button
                 variant="adminSecondary"
                 className="w-full"
@@ -309,6 +345,16 @@ export function AdminShell({
           <Route
             path="presentes"
             element={<AdminGifts token={token} onUnauthorized={onUnauthorized} />}
+          />
+          <Route
+            path="minha-conta"
+            element={
+              <AdminMyAccount
+                token={token}
+                onLogout={onLogout}
+                onUnauthorized={onUnauthorized}
+              />
+            }
           />
           <Route
             path="*"

@@ -4,6 +4,7 @@ export const ADMIN_ROUTES = {
   guests: '/admin/convidados',
   moderation: '/admin/moderacao',
   gifts: '/admin/presentes',
+  myAccount: '/admin/minha-conta',
   guestsPending: '/admin/convidados?presenca=pending',
   moderationPending: '/admin/moderacao?status=pendente',
   giftsGifted: '/admin/presentes?status=gifted',
@@ -147,6 +148,7 @@ export function canonicalAdminDestination(pathname: string, search = '') {
     return `${pathname}${filter ? `?status=${filter}` : ''}`
   }
   if (pathname === ADMIN_ROUTES.overview) return pathname
+  if (pathname === ADMIN_ROUTES.myAccount) return pathname
   return ADMIN_ROUTES.overview
 }
 

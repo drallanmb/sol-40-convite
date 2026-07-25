@@ -23,6 +23,12 @@ export type AdminSessionError =
 
 type SequencedState = { sequence: number }
 
+export type AdminPrincipalView = {
+  id?: string
+  displayName: string
+  role: 'owner' | 'manager' | 'seller'
+}
+
 export type AdminSessionState =
   | ({ kind: 'checking'; token: string | null } & SequencedState)
   | ({ kind: 'anonymous'; notice?: AdminSessionNotice } & SequencedState)
@@ -31,11 +37,13 @@ export type AdminSessionState =
       kind: 'authenticated'
       token: string
       expiresAt: number
+      principal: AdminPrincipalView
     } & SequencedState)
   | ({
       kind: 'logging-out'
       token: string
       expiresAt: number
+      principal: AdminPrincipalView
     } & SequencedState)
   | ({
       kind: 'error'
@@ -52,6 +60,7 @@ export type AdminSessionAction =
       token: string
       expiresAt: number
       now: number
+      principal: AdminPrincipalView
     }
   | { type: 'status-invalid'; sequence: number }
   | { type: 'login-started'; sequence: number }
@@ -61,6 +70,7 @@ export type AdminSessionAction =
       token: string
       expiresAt: number
       now: number
+      principal: AdminPrincipalView
     }
   | {
       type: 'login-failed'
@@ -264,6 +274,7 @@ export function reduceAdminSession(
           sequence: action.sequence,
           token: action.token,
           expiresAt: action.expiresAt,
+          principal: action.principal,
         },
         effects: [
           {
@@ -304,6 +315,7 @@ export function reduceAdminSession(
           sequence: action.sequence,
           token: state.token,
           expiresAt: state.expiresAt,
+          principal: state.principal,
         },
         effects: [{ type: 'clear-sensitive-state' }],
       }
@@ -332,7 +344,7 @@ export function reduceAdminSession(
     case 'session-revoked':
     case 'storage-removed':
       if (action.sequence < state.sequence) return { state, effects: [] }
-      return failClosed(action.sequence, 'revoked')
+      return failClosed(action.sequence + 1, 'revoked')
   }
 }
 

@@ -1281,7 +1281,11 @@ describe('admin login, status and logout lifecycle', () => {
     vi.setSystemTime(login.expiresAt - 1)
     await expect(
       t.query(api.adminAuth.getSessionStatus, { token: TOKEN_A }),
-    ).resolves.toEqual({ kind: 'valid', expiresAt: login.expiresAt })
+    ).resolves.toMatchObject({
+      kind: 'valid',
+      expiresAt: login.expiresAt,
+      principal: { displayName: 'Acesso legado', role: 'owner' },
+    })
 
     vi.setSystemTime(login.expiresAt)
     await expect(
