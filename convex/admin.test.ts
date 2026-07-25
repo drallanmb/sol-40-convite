@@ -2,6 +2,14 @@ import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, internal } from './_generated/api'
+import {
+  hasAdminCapability,
+  normalizeAdminEmail,
+} from './adminAccountModel'
+import {
+  appendAuditEvent,
+  buildAuditChanges,
+} from './adminAuditModel'
 import { ADMIN_SESSION_TTL_MS, isAdminSessionActive } from './adminModel'
 import { ADMIN_RATE_LIMITS } from './adminRateLimits'
 import {
@@ -192,6 +200,185 @@ describe('admin authorization boundary', () => {
     expect(isAdminSessionActive(expiresAt, expiresAt - 1)).toBe(true)
     expect(isAdminSessionActive(expiresAt, expiresAt)).toBe(false)
     expect(isAdminSessionActive(expiresAt, expiresAt + 1)).toBe(false)
+  })
+
+  it('resolves an active account principal and rejects disabled or stale credentials', async () => {
+    const t = makeAdminTest()
+    const now = 10_000
+    const accountId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert('adminAccounts', {
+        email: normalizeAdminEmail(' AllanMesquitaB@GMAIL.com '),
+        displayName: 'Allan',
+        role: 'owner',
+        state: 'active',
+        passwordHash: 'redacted-test-envelope',
+        credentialVersion: 3,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+        activatedAt: 1_000,
+      })
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        accountId: id,
+        credentialVersion: 3,
+        createdAt: 1_000,
+        expiresAt: now + 1,
+      })
+      return id
+    })
+
+    const authorization = await t.run((ctx) =>
+      requireAdminSession(ctx, TOKEN_A, now),
+    )
+    expect(authorization).toMatchObject({
+      kind: 'authorized',
+      principal: {
+        kind: 'account',
+        account: {
+          _id: accountId,
+          email: 'allanmesquitab@gmail.com',
+          role: 'owner',
+        },
+      },
+    })
+    expect(hasAdminCapability('owner', 'audit')).toBe(true)
+    expect(hasAdminCapability('manager', 'audit')).toBe(false)
+    expect(hasAdminCapability('seller', 'gifts')).toBe(true)
+    expect(hasAdminCapability('seller', 'overview')).toBe(false)
+
+    await t.run((ctx) => ctx.db.patch(accountId, { state: 'disabled' }))
+    await expect(
+      t.run((ctx) => requireAdminSession(ctx, TOKEN_A, now)),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+
+    await t.run((ctx) =>
+      ctx.db.patch(accountId, { state: 'active', credentialVersion: 4 }),
+    )
+    await expect(
+      t.run((ctx) => requireAdminSession(ctx, TOKEN_A, now)),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+  })
+
+  it('allows legacy sessions only before the global cutoff', async () => {
+    const t = makeAdminTest()
+    await t.run(async (ctx) => {
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        createdAt: 1_000,
+        expiresAt: 10_000,
+      })
+    })
+
+    await expect(
+      t.run((ctx) => requireAdminSession(ctx, TOKEN_A, 9_999)),
+    ).resolves.toMatchObject({
+      kind: 'authorized',
+      principal: { kind: 'legacy' },
+    })
+
+    await t.run((ctx) =>
+      ctx.db.insert('adminAuthConfig', {
+        key: 'primary',
+        legacyDisabledAt: 9_000,
+      }),
+    )
+    await expect(
+      t.run((ctx) => requireAdminSession(ctx, TOKEN_A, 9_999)),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+  })
+
+  it('fails closed when a token hash resolves to duplicate sessions', async () => {
+    const t = makeAdminTest()
+    await t.run(async (ctx) => {
+      const tokenHash = await hashAdminToken(TOKEN_A)
+      await ctx.db.insert('adminSessions', {
+        tokenHash,
+        createdAt: 1_000,
+        expiresAt: 10_000,
+      })
+      await ctx.db.insert('adminSessions', {
+        tokenHash,
+        createdAt: 1_001,
+        expiresAt: 10_000,
+      })
+    })
+
+    await expect(
+      t.run((ctx) => requireAdminSession(ctx, TOKEN_A, 9_999)),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+  })
+})
+
+describe('admin audit model', () => {
+  it('keeps only allowlisted scalar diffs and rejects secrets by structure', async () => {
+    const changes = buildAuditChanges({
+      before: {
+        displayName: 'Antes',
+        token: TOKEN_A,
+        nested: { password: 'não persistir' },
+      },
+      after: {
+        displayName: 'Depois',
+        token: TOKEN_B,
+        passwordHash: 'não persistir',
+      },
+      allowedFields: ['displayName', 'token', 'passwordHash', 'nested'],
+    })
+
+    expect(changes).toEqual([
+      { field: 'displayName', before: 'Antes', after: 'Depois' },
+    ])
+    expect(JSON.stringify(changes)).not.toMatch(/token|password|hash/i)
+  })
+
+  it('appends a redacted event with actor derived from the principal', async () => {
+    const t = makeAdminTest()
+    const event = await t.run(async (ctx) => {
+      const accountId = await ctx.db.insert('adminAccounts', {
+        email: 'allanmesquitab@gmail.com',
+        displayName: 'Allan',
+        role: 'owner',
+        state: 'active',
+        passwordHash: 'must-never-be-copied',
+        credentialVersion: 1,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      })
+      await appendAuditEvent(ctx, {
+        principal: {
+          kind: 'account',
+          account: {
+            _id: accountId,
+            displayName: 'Allan',
+            email: 'allanmesquitab@gmail.com',
+            role: 'owner',
+          },
+        },
+        area: 'accounts',
+        action: 'account_updated',
+        targetType: 'adminAccount',
+        targetId: accountId,
+        changes: buildAuditChanges({
+          before: { displayName: 'Allan', passwordHash: 'old-secret' },
+          after: { displayName: 'Allan M.', passwordHash: 'new-secret' },
+          allowedFields: ['displayName', 'passwordHash'],
+        }),
+        occurredAt: 5_000,
+      })
+      return ctx.db.get(event)
+    })
+
+    expect(event).toMatchObject({
+      actorKind: 'account',
+      actorName: 'Allan',
+      actorRole: 'owner',
+      area: 'accounts',
+      action: 'account_updated',
+      changes: [
+        { field: 'displayName', before: 'Allan', after: 'Allan M.' },
+      ],
+    })
+    expect(JSON.stringify(event)).not.toMatch(/old-secret|new-secret/)
   })
 })
 
