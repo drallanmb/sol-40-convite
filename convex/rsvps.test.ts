@@ -1617,3 +1617,37 @@ describe('save privacy', () => {
     expect(JSON.stringify(saved)).not.toContain(tokenA)
   })
 })
+
+describe('public RSVP monotonic revision', () => {
+  it.each([
+    ['equal clock', 40_000],
+    ['backward clock', 30_000],
+  ])('advances exactly once under %s', async (_label, saveAt) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(40_000)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-8701',
+      displayName: 'Convite com revisão monotônica',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    const token = opaqueToken(saveAt)
+    await createTestSession(t, invitation.rsvpId, token)
+    const before = await t.query(api.rsvps.getCurrent, { token })
+    if (!before) throw new Error('missing family view')
+
+    vi.setSystemTime(saveAt)
+    const saved = await t.mutation(api.rsvps.saveResponses, {
+      token,
+      guestUpdates: [
+        { guestRef: before.guests[0].guestRef, attendance: 'yes' },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+
+    expect(saved.kind).toBe('saved')
+    if (saved.kind === 'saved') {
+      expect(saved.view.updatedAt).toBe(before.updatedAt + 1)
+    }
+  })
+})

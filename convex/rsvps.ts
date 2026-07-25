@@ -6,6 +6,7 @@ import {
   attendanceValidator,
   CONTACT_MAX_LENGTH,
   MAX_RSVP_GUESTS,
+  nextRsvpUpdatedAt,
 } from './rsvpModel'
 import { rsvpRateLimiter } from './rsvpRateLimits'
 import {
@@ -360,7 +361,10 @@ export const saveResponses = mutation({
 
       await ctx.db.patch(authorization.scoped.rsvp._id, {
         ...(contactChanged ? { contact: nextContact } : {}),
-        updatedAt: now,
+        updatedAt: nextRsvpUpdatedAt(
+          authorization.scoped.rsvp.updatedAt,
+          now,
+        ),
       })
     }
 

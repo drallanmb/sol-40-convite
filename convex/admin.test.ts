@@ -10,6 +10,8 @@ import {
   requireAdminSession,
   validateAdminToken,
 } from './adminSecurity'
+import { insertInvitation } from './rsvpInternal'
+import { createRsvpSession } from './rsvpSecurity'
 import schema from './schema'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
@@ -536,6 +538,299 @@ describe('admin login, status and logout lifecycle', () => {
     expect(JSON.stringify(result)).not.toContain('token')
     expect(
       await t.run((ctx) => ctx.db.query('adminSessions').collect()),
+    ).toEqual([])
+  })
+})
+
+async function seedAdminFamily(
+  t: ReturnType<typeof makeAdminTest>,
+  phone = '(79) 99999-8101',
+  guests: Array<{ name: string; attendance: 'pending' | 'yes' | 'no' }> = [
+    { name: 'Pessoa inicial', attendance: 'pending' },
+  ],
+) {
+  return t.mutation((ctx) =>
+    insertInvitation(ctx, {
+      phone,
+      displayName: 'Família Operacional',
+      contact: 'Contato inicial',
+      guests,
+    }),
+  )
+}
+
+describe('admin family authorization matrix', () => {
+  it('denies every family and guest endpoint uniformly without any write', async () => {
+    const t = makeAdminTest()
+    const seeded = await seedAdminFamily(t)
+    const [guestId] = seeded.guestIds
+    await t.run(async (ctx) => {
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        createdAt: 1,
+        expiresAt: 2,
+      })
+    })
+    await insertActiveAdminSession(t, TOKEN_B)
+    await t.mutation(api.adminAuth.logout, { token: TOKEN_B })
+
+    const before = await t.run(async (ctx) => ({
+      families: await ctx.db.query('rsvps').collect(),
+      guests: await ctx.db.query('rsvpGuests').collect(),
+      sessions: await ctx.db.query('rsvpSessions').collect(),
+    }))
+    const calls = [
+      (token: string) => t.query(api.adminRsvps.listFamilies, { token }),
+      (token: string) =>
+        t.mutation(api.adminRsvps.createFamily, {
+          token,
+          displayName: 'Não criar',
+          phone: '(79) 99999-8199',
+          guests: [],
+        }),
+      (token: string) =>
+        t.mutation(api.adminRsvps.updateFamily, {
+          token,
+          familyId: seeded.rsvpId,
+          expectedUpdatedAt: 0,
+          patch: { displayName: 'Não editar' },
+        }),
+      (token: string) =>
+        t.mutation(api.adminRsvps.addGuest, {
+          token,
+          familyId: seeded.rsvpId,
+          expectedUpdatedAt: 0,
+          name: 'Não adicionar',
+          attendance: 'pending',
+        }),
+      (token: string) =>
+        t.mutation(api.adminRsvps.updateGuest, {
+          token,
+          familyId: seeded.rsvpId,
+          guestId,
+          expectedUpdatedAt: 0,
+          patch: { name: 'Não editar' },
+        }),
+      (token: string) =>
+        t.mutation(api.adminRsvps.removeGuest, {
+          token,
+          familyId: seeded.rsvpId,
+          guestId,
+          expectedUpdatedAt: 0,
+        }),
+      (token: string) =>
+        t.mutation(api.adminRsvps.removeFamily, {
+          token,
+          familyId: seeded.rsvpId,
+          expectedUpdatedAt: 0,
+        }),
+    ]
+
+    for (const token of ['malformed', TOKEN_A, TOKEN_B]) {
+      for (const call of calls) {
+        await expect(call(token)).resolves.toEqual({ kind: 'unauthorized' })
+      }
+    }
+    const after = await t.run(async (ctx) => ({
+      families: await ctx.db.query('rsvps').collect(),
+      guests: await ctx.db.query('rsvpGuests').collect(),
+      sessions: await ctx.db.query('rsvpSessions').collect(),
+    }))
+    expect(after).toEqual(before)
+  })
+})
+
+describe('admin family and guest operations', () => {
+  it('creates, lists, edits, adds to and removes a zero-person family', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(10_000)
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+
+    const created = await t.mutation(api.adminRsvps.createFamily, {
+      token: TOKEN_A,
+      displayName: 'Família sem pessoas',
+      phone: '(79) 99999-8201',
+      guests: [],
+    })
+    expect(created.kind).toBe('saved')
+    if (created.kind !== 'saved') return
+    expect(created.family.guests).toEqual([])
+    expect(
+      await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A }),
+    ).toMatchObject({
+      kind: 'ready',
+      families: [expect.objectContaining({ id: created.family.id, guests: [] })],
+    })
+
+    vi.setSystemTime(9_000)
+    const edited = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: created.family.id,
+      expectedUpdatedAt: created.family.updatedAt,
+      patch: { displayName: 'Família editada' },
+    })
+    expect(edited.kind).toBe('saved')
+    if (edited.kind !== 'saved') return
+    expect(edited.family.updatedAt).toBe(created.family.updatedAt + 1)
+
+    const added = await t.mutation(api.adminRsvps.addGuest, {
+      token: TOKEN_A,
+      familyId: edited.family.id,
+      expectedUpdatedAt: edited.family.updatedAt,
+      name: 'Pessoa adicionada',
+      attendance: 'yes',
+    })
+    expect(added.kind).toBe('saved')
+    if (added.kind !== 'saved') return
+    expect(added.family.updatedAt).toBe(edited.family.updatedAt + 1)
+    expect(added.family.guests[0]).toMatchObject({
+      name: 'Pessoa adicionada',
+      attendance: 'yes',
+      publicRef: expect.stringMatching(/^guest_[a-f0-9]{32}$/u),
+    })
+
+    const updatedPerson = await t.mutation(api.adminRsvps.updateGuest, {
+      token: TOKEN_A,
+      familyId: added.family.id,
+      guestId: added.family.guests[0].id,
+      expectedUpdatedAt: added.family.updatedAt,
+      patch: { name: 'Pessoa corrigida', attendance: 'no' },
+    })
+    expect(updatedPerson.kind).toBe('saved')
+    if (updatedPerson.kind !== 'saved') return
+    expect(updatedPerson.family.updatedAt).toBe(added.family.updatedAt + 1)
+    expect(updatedPerson.family.guests[0]).toMatchObject({
+      name: 'Pessoa corrigida',
+      attendance: 'no',
+      publicRef: added.family.guests[0].publicRef,
+    })
+
+    const removedPerson = await t.mutation(api.adminRsvps.removeGuest, {
+      token: TOKEN_A,
+      familyId: updatedPerson.family.id,
+      guestId: updatedPerson.family.guests[0].id,
+      expectedUpdatedAt: updatedPerson.family.updatedAt,
+    })
+    expect(removedPerson.kind).toBe('saved')
+    if (removedPerson.kind !== 'saved') return
+    expect(removedPerson.family.guests).toEqual([])
+    expect(removedPerson.family.updatedAt).toBe(
+      updatedPerson.family.updatedAt + 1,
+    )
+
+    await expect(
+      t.mutation(api.adminRsvps.removeFamily, {
+        token: TOKEN_A,
+        familyId: removedPerson.family.id,
+        expectedUpdatedAt: removedPerson.family.updatedAt,
+      }),
+    ).resolves.toEqual({ kind: 'removed' })
+  })
+
+  it('keeps public refs stable, revokes only on logical phone change and cascades sessions', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const seeded = await seedAdminFamily(t, '(79) 99999-8301')
+    const before = await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    if (before.kind !== 'ready') throw new Error('missing family')
+    const family = before.families[0]
+    const publicRef = family.guests[0].publicRef
+    const publicToken = 'C'.repeat(42) + 'I'
+    await t.mutation((ctx) =>
+      createRsvpSession(ctx, { rsvpId: seeded.rsvpId, token: publicToken }),
+    )
+
+    const samePhone = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: family.id,
+      expectedUpdatedAt: family.updatedAt,
+      patch: { phone: '+55 79 99999-8301' },
+    })
+    expect(samePhone.kind).toBe('saved')
+    expect(await t.query(api.rsvps.getCurrent, { token: publicToken })).not.toBeNull()
+    if (samePhone.kind !== 'saved') return
+    expect(samePhone.family.guests[0].publicRef).toBe(publicRef)
+
+    const changed = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: samePhone.family.id,
+      expectedUpdatedAt: samePhone.family.updatedAt,
+      patch: { phone: '(79) 99999-8302' },
+    })
+    expect(changed.kind).toBe('saved')
+    expect(await t.query(api.rsvps.getCurrent, { token: publicToken })).toBeNull()
+    if (changed.kind !== 'saved') return
+    expect(changed.family.guests[0].publicRef).toBe(publicRef)
+    await expect(
+      t.mutation(api.adminRsvps.removeFamily, {
+        token: TOKEN_A,
+        familyId: changed.family.id,
+        expectedUpdatedAt: changed.family.updatedAt,
+      }),
+    ).resolves.toEqual({ kind: 'removed' })
+    const remaining = await t.run(async (ctx) => ({
+      family: await ctx.db.get(changed.family.id),
+      guests: await ctx.db
+        .query('rsvpGuests')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', changed.family.id))
+        .collect(),
+      sessions: await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', changed.family.id))
+        .collect(),
+    }))
+    expect(remaining).toEqual({ family: null, guests: [], sessions: [] })
+  })
+
+  it('rejects a stale admin write after a public save and preserves the public response', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(50_000)
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const seeded = await seedAdminFamily(t, '(79) 99999-8401')
+    const listed = await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    if (listed.kind !== 'ready') throw new Error('missing family')
+    const snapshot = listed.families[0]
+    const publicToken = `${'D'.repeat(42)}Q`
+    await t.mutation((ctx) =>
+      createRsvpSession(ctx, { rsvpId: seeded.rsvpId, token: publicToken }),
+    )
+    const saved = await t.mutation(api.rsvps.saveResponses, {
+      token: publicToken,
+      guestUpdates: [
+        { guestRef: snapshot.guests[0].publicRef, attendance: 'yes' },
+      ],
+      contact: { kind: 'unchanged' },
+    })
+    expect(saved.kind).toBe('saved')
+    const conflict = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: snapshot.id,
+      expectedUpdatedAt: snapshot.updatedAt,
+      patch: { displayName: 'Sobrescrita indevida' },
+    })
+    expect(conflict.kind).toBe('conflict')
+    if (conflict.kind === 'conflict') {
+      expect(conflict.family.displayName).toBe('Família Operacional')
+      expect(conflict.family.guests[0].attendance).toBe('yes')
+    }
+  })
+
+  it('runs the bounded family cascade smoke and leaves no fixture rows', async () => {
+    const t = makeAdminTest()
+    await expect(
+      t.mutation(internal.adminTest.smokeFamilyCascade, {}),
+    ).resolves.toEqual({
+      createdFamily: true,
+      indexedGuestCount: 1,
+      indexedSessionCount: 1,
+      cascadeRemovedEverything: true,
+    })
+    expect(
+      (await t.run((ctx) => ctx.db.query('rsvps').collect())).filter((row) =>
+        row.displayName.startsWith('Smoke admin RSVP 06-03'),
+      ),
     ).toEqual([])
   })
 })

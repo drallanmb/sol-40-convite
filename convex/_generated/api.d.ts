@@ -13,6 +13,7 @@ import type * as adminInternal from "../adminInternal.js";
 import type * as adminModel from "../adminModel.js";
 import type * as adminOverview from "../adminOverview.js";
 import type * as adminRateLimits from "../adminRateLimits.js";
+import type * as adminRsvps from "../adminRsvps.js";
 import type * as adminSecurity from "../adminSecurity.js";
 import type * as adminTest from "../adminTest.js";
 import type * as crons from "../crons.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   adminModel: typeof adminModel;
   adminOverview: typeof adminOverview;
   adminRateLimits: typeof adminRateLimits;
+  adminRsvps: typeof adminRsvps;
   adminSecurity: typeof adminSecurity;
   adminTest: typeof adminTest;
   crons: typeof crons;

@@ -26,3 +26,7 @@ export const RSVP_TOKEN_HASH_HEX_LENGTH = 64
 
 export const RSVP_DEMO_FIXTURE_FLAG = 'development-only'
 export const RSVP_DEMO_SEED_MIN_BYTES = 32
+
+export function nextRsvpUpdatedAt(currentUpdatedAt: number, now: number) {
+  return Math.max(now, currentUpdatedAt + 1)
+}

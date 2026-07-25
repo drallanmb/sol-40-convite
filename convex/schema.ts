@@ -39,7 +39,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index('by_token_hash', ['tokenHash'])
-    .index('by_expires_at', ['expiresAt']),
+    .index('by_expires_at', ['expiresAt'])
+    .index('by_rsvp', ['rsvpId']),
 
   adminSessions: defineTable({
     tokenHash: v.string(),

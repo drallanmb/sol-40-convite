@@ -89,7 +89,7 @@ async function derivePublicRef(
   return `guest_${bytesToHex(digest.slice(0, 16))}`
 }
 
-function normalizedLookupCandidates(normalized: Exclude<NormalizedPhone, { kind: 'invalid' }>) {
+export function normalizedLookupCandidates(normalized: Exclude<NormalizedPhone, { kind: 'invalid' }>) {
   const candidates = new Set(normalized.lookupCandidates)
 
   // Dados importados antigos podem ter guardado a forma de oito dígitos.
@@ -101,7 +101,7 @@ function normalizedLookupCandidates(normalized: Exclude<NormalizedPhone, { kind:
   return [...candidates]
 }
 
-async function findLogicalInvitation(
+export async function findLogicalInvitation(
   ctx: MutationCtx,
   normalized: Exclude<NormalizedPhone, { kind: 'invalid' }>,
 ) {
@@ -127,6 +127,25 @@ async function findLogicalInvitation(
   }
 
   return [...matches.values()][0] ?? null
+}
+
+export async function createUniqueGuestPublicRef(
+  ctx: Pick<MutationCtx, 'db'>,
+  rsvpId: Id<'rsvps'>,
+) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const bytes = new Uint8Array(16)
+    crypto.getRandomValues(bytes)
+    const publicRef = `guest_${bytesToHex(bytes)}`
+    const collision = await ctx.db
+      .query('rsvpGuests')
+      .withIndex('by_rsvp_public_ref', (query) =>
+        query.eq('rsvpId', rsvpId).eq('publicRef', publicRef),
+      )
+      .first()
+    if (!collision) return publicRef
+  }
+  throw new Error('Não foi possível gerar uma referência pública única.')
 }
 
 function normalizeInvitationInput(input: InvitationInput) {

@@ -1,10 +1,13 @@
 import { internalMutation } from './_generated/server'
+import type { Id } from './_generated/dataModel'
 import { ADMIN_SESSION_TTL_MS } from './adminModel'
 import { expireAdminSessionRecord } from './adminInternal'
 import {
   hashAdminToken,
   requireAdminSession,
 } from './adminSecurity'
+import { insertInvitation } from './rsvpInternal'
+import { createRsvpSession } from './rsvpSecurity'
 
 const SMOKE_TOKEN = 'c29sNDAtaW50ZXJuYWwtc21va2UtdG9rZW4tMDAwMDA'
 
@@ -39,6 +42,97 @@ export const smokeSessionLifecycle = internalMutation({
       expiryResult: expired.kind,
       repeatedExpiryResult: repeated.kind,
       revokedAfterExpiry: after.kind === 'unauthorized',
+    }
+  },
+})
+
+const FAMILY_SMOKE_PREFIX = 'Smoke admin RSVP 06-03'
+const FAMILY_SMOKE_MAX_ROWS = 8
+
+/**
+ * Bounded, internal and self-cleaning. The fixture is required to be disjoint
+ * from existing rows; every created id is tracked and removed from `finally`.
+ */
+export const smokeFamilyCascade = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const suffix = String(Date.now()).slice(-8)
+    const phone = `799${suffix}`
+    const preExisting = await ctx.db
+      .query('rsvps')
+      .withIndex('by_phone', (index) => index.eq('phone', phone))
+      .take(2)
+    if (preExisting.length > 0) {
+      throw new Error('Smoke family fixture collided with pre-existing data.')
+    }
+
+    let familyId: Awaited<ReturnType<typeof insertInvitation>>['rsvpId'] | null = null
+    const createdGuestIds: Array<Awaited<ReturnType<typeof insertInvitation>>['guestIds'][number]> = []
+    let createdSessionId: Id<'rsvpSessions'> | null = null
+
+    try {
+      const inserted = await insertInvitation(ctx, {
+        phone,
+        displayName: `${FAMILY_SMOKE_PREFIX} ${suffix}`,
+        guests: [{ name: 'Pessoa smoke', attendance: 'pending' }],
+      })
+      familyId = inserted.rsvpId
+      createdGuestIds.push(...inserted.guestIds)
+      const session = await createRsvpSession(ctx, {
+        rsvpId: inserted.rsvpId,
+        token: 'A'.repeat(43),
+      })
+      if (session.kind !== 'created') throw new Error('Smoke session was not created.')
+      const storedSession = await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_token_hash', (index) => index.eq('tokenHash', session.tokenHash))
+        .unique()
+      if (!storedSession) throw new Error('Smoke session row was not found.')
+      createdSessionId = storedSession._id
+
+      const guests = await ctx.db
+        .query('rsvpGuests')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', inserted.rsvpId))
+        .take(FAMILY_SMOKE_MAX_ROWS + 1)
+      const sessions = await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', inserted.rsvpId))
+        .take(FAMILY_SMOKE_MAX_ROWS + 1)
+      if (
+        guests.length !== 1 ||
+        sessions.length !== 1 ||
+        guests.length + sessions.length > FAMILY_SMOKE_MAX_ROWS
+      ) {
+        throw new Error('Smoke family fixture exceeded its bounded shape.')
+      }
+
+      for (const guest of guests) await ctx.db.delete(guest._id)
+      for (const publicSession of sessions) await ctx.db.delete(publicSession._id)
+      await ctx.db.delete(inserted.rsvpId)
+      familyId = null
+
+      return {
+        createdFamily: true,
+        indexedGuestCount: guests.length,
+        indexedSessionCount: sessions.length,
+        cascadeRemovedEverything:
+          (await ctx.db.get(inserted.rsvpId)) === null &&
+          (await ctx.db.get(guests[0]._id)) === null &&
+          (await ctx.db.get(sessions[0]._id)) === null,
+      }
+    } finally {
+      if (createdSessionId) {
+        const row = await ctx.db.get(createdSessionId)
+        if (row) await ctx.db.delete(createdSessionId)
+      }
+      for (const guestId of createdGuestIds) {
+        const row = await ctx.db.get(guestId)
+        if (row) await ctx.db.delete(guestId)
+      }
+      if (familyId) {
+        const row = await ctx.db.get(familyId)
+        if (row) await ctx.db.delete(familyId)
+      }
     }
   },
 })
