@@ -216,15 +216,39 @@ Plans:
 
   1. `wa.me`, countdown e upload de foto foram testados em dispositivo real (WebView iOS/Android, fuso diferente, HEIC no Safari)
   2. Acessibilidade AA e uso no celular revisados
-  3. Checklist dos donos concluído (domínio, `PUBLIC_ORIGIN`, senha forte, lista real importada)
+  3. Checklist dos donos concluído (domínio/origem canônica, senha forte e lista real importada/revisada, sem introduzir variável não consumida)
   4. O site está no ar em produção e verificado ao vivo
 
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
 
-- [ ] 07-01: Rate-limit final + testes manuais em dispositivo + acessibilidade/mobile
-- [ ] 07-02: Settings + checklist dos donos + deploy de produção
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Importador CSV protegido: tracer vertical, pending-only, lotes, partial success e relatório sem overwrite
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-02-PLAN.md — Origem canônica, gate Playwright/axe AA/mobile e artefatos operacionais honestos
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-03-PLAN.md — Vercel + Convex Preview/Production, segredo server-only, backup e smoke `.vercel.app`
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 07-04-PLAN.md — Core de publicação: Cloudflare/domínio/redirect, verificações executáveis, smokes e rollback
+
+**Wave 5** *(07-05 e 07-06 independentes entre si; blocked on Wave 4 completion)*
+
+- [ ] 07-05-PLAN.md — Follow-up independente: importar/revisar lista real e assinar Gate E antes de divulgar
+- [ ] 07-06-PLAN.md — Follow-up independente: matriz física iOS/Android/WebViews/HEIC/fuso/admin
+
+**Cross-cutting constraints:**
+
+- Nenhum segredo, PII de convidado, foto privada, capability, CSV real ou backup entra em source control, logs ou evidência commitada.
+- Preview e Production permanecem isolados; rollback de frontend nunca é descrito como rollback de Convex, env ou dados.
+- Publicação não espera lista real ou hardware; 07-05 bloqueia apenas divulgação e 07-06 bloqueia apenas conclusão de LAUNCH-01/02.
 
 ## Progress
 
@@ -239,4 +263,4 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
 | 6. Dashboard Interno (/admin) | 7/7 | Complete    | 2026-07-25 |
-| 7. Endurecimento & Lançamento | 0/2 | Not started | - |
+| 7. Endurecimento & Lançamento | 0/6 | Planned | - |
