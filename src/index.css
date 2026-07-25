@@ -160,6 +160,37 @@ body {
   overflow-wrap: anywhere;
 }
 
+.admin-bottom-nav {
+  min-height: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.admin-main {
+  padding-bottom: calc(64px + 24px + env(safe-area-inset-bottom));
+}
+
+.admin-toast {
+  bottom: calc(64px + 16px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .admin-main {
+    padding-bottom: 3rem;
+  }
+
+  .admin-toast {
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-main *,
+  .admin-bottom-nav * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
+}
+
 .wine-card[data-selected="true"] {
   outline: 3px solid var(--color-peach);
   outline-offset: 6px;

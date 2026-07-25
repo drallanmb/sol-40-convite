@@ -1,6 +1,13 @@
 import type { ButtonHTMLAttributes } from 'react'
 
-export type ButtonVariant = 'primary' | 'quiet' | 'rsvp'
+export type ButtonVariant =
+  | 'primary'
+  | 'quiet'
+  | 'rsvp'
+  | 'adminPrimary'
+  | 'adminSecondary'
+  | 'adminSecondaryOnDark'
+  | 'adminDestructive'
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
@@ -14,6 +21,14 @@ const variantClasses: Record<ButtonVariant, string> = {
   quiet: 'border border-plum bg-transparent text-plum hover:bg-plum/5 active:scale-[0.98]',
   rsvp:
     'border-0 bg-plum text-cream hover:bg-ink active:scale-[0.98] active:bg-ink focus-visible:outline-[3px]! focus-visible:outline-sea! focus-visible:outline-offset-[3px]!',
+  adminPrimary:
+    'rounded-lg border border-plum bg-plum px-4 py-2 text-sm normal-case tracking-normal text-cream hover:bg-ink active:scale-[0.98]',
+  adminSecondary:
+    'rounded-lg border border-plum bg-transparent px-4 py-2 text-sm normal-case tracking-normal text-plum hover:bg-plum/5 active:scale-[0.98]',
+  adminSecondaryOnDark:
+    'rounded-lg border border-cream/40 bg-transparent px-4 py-2 text-sm normal-case tracking-normal text-cream hover:bg-cream/10 active:scale-[0.98] focus-visible:outline-cream',
+  adminDestructive:
+    'rounded-lg border border-wine bg-transparent px-4 py-2 text-sm normal-case tracking-normal text-wine hover:bg-wine/10 active:scale-[0.98]',
 }
 
 /** Shared primitive classes for both native buttons and semantic route links. */

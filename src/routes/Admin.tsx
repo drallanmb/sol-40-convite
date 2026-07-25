@@ -1,11 +1,221 @@
-// Placeholder de rota — SEM auth, SEM dados. O gate real (requireOwner no
-// servidor Convex + tela de login) é escopo da Phase 6. Nada sensível é
-// renderizado ou consultado aqui.
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
+import AdminLogin from '../components/admin/AdminLogin'
+import AdminShell from '../components/admin/AdminShell'
+import { ADMIN_COPY } from '../content/admin'
+import {
+  adminDeadlineAction,
+  adminStorageEventAction,
+  clearAdminSession,
+  generateAdminCapability,
+  nextAdminSessionSequence,
+  readAdminSession,
+  reduceAdminSession,
+  storeAdminSession,
+  type AdminSessionAction,
+  type AdminSessionEffect,
+  type AdminSessionState,
+} from '../lib/adminSession'
+
+function initialSessionState(): AdminSessionState {
+  const stored = readAdminSession(window.localStorage)
+  return {
+    kind: 'checking',
+    sequence: 1,
+    token: stored?.token ?? null,
+  }
+}
+
+function applyEffects(effects: AdminSessionEffect[]) {
+  for (const effect of effects) {
+    if (effect.type === 'store-session') {
+      storeAdminSession(window.localStorage, effect.session)
+    } else if (effect.type === 'clear-stored-session') {
+      clearAdminSession(window.localStorage)
+    } else {
+      window.dispatchEvent(new CustomEvent('admin-sensitive-state-clear'))
+    }
+  }
+}
+
 function Admin() {
+  const [session, setSession] = useState<AdminSessionState>(initialSessionState)
+  const sessionRef = useRef(session)
+  const login = useMutation(api.adminAuth.login)
+  const logout = useMutation(api.adminAuth.logout)
+  const token =
+    session.kind === 'checking' ||
+    session.kind === 'authenticated' ||
+    session.kind === 'logging-out'
+      ? session.token
+      : null
+  const status = useQuery(
+    api.adminAuth.getSessionStatus,
+    token ? { token } : 'skip',
+  )
+
+  const dispatch = useCallback((action: AdminSessionAction) => {
+    const transition = reduceAdminSession(sessionRef.current, action)
+    applyEffects(transition.effects)
+    sessionRef.current = transition.state
+    setSession(transition.state)
+  }, [])
+
+  useEffect(() => {
+    sessionRef.current = session
+  }, [session])
+
+  useEffect(() => {
+    if (session.kind !== 'checking') return
+    if (!session.token) {
+      const anonymous: AdminSessionState = {
+        kind: 'anonymous',
+        sequence: session.sequence,
+      }
+      sessionRef.current = anonymous
+      setSession(anonymous)
+      return
+    }
+    if (status?.kind === 'valid') {
+      dispatch({
+        type: 'status-valid',
+        sequence: session.sequence,
+        token: session.token,
+        expiresAt: status.expiresAt,
+        now: Date.now(),
+      })
+    } else if (status?.kind === 'invalid') {
+      dispatch({ type: 'status-invalid', sequence: session.sequence })
+    }
+  }, [dispatch, session, status])
+
+  useEffect(() => {
+    if (session.kind !== 'authenticated') return
+    if (status?.kind === 'invalid') {
+      dispatch({
+        type: 'session-revoked',
+        sequence: session.sequence,
+      })
+    }
+  }, [dispatch, session, status])
+
+  useEffect(() => {
+    if (session.kind !== 'authenticated') return
+    const delay = Math.max(0, session.expiresAt - Date.now())
+    const timeout = window.setTimeout(() => {
+      const action = adminDeadlineAction(
+        { token: session.token, expiresAt: session.expiresAt },
+        Date.now(),
+        session.sequence,
+      )
+      if (action) dispatch(action)
+    }, delay)
+    return () => window.clearTimeout(timeout)
+  }, [dispatch, session])
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      const action = adminStorageEventAction(
+        event,
+        sessionRef.current.sequence,
+      )
+      if (action) dispatch(action)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [dispatch])
+
+  const handleLogin = async (password: string) => {
+    const sequence = nextAdminSessionSequence(sessionRef.current)
+    dispatch({ type: 'login-started', sequence })
+    try {
+      let capability = generateAdminCapability()
+      let result = await login({ password, token: capability })
+      if (result.kind === 'token_conflict') {
+        capability = generateAdminCapability()
+        result = await login({ password, token: capability })
+      }
+      if (result.kind === 'authenticated') {
+        dispatch({
+          type: 'login-succeeded',
+          sequence,
+          token: capability,
+          expiresAt: result.expiresAt,
+          now: Date.now(),
+        })
+      } else {
+        dispatch({
+          type: 'login-failed',
+          sequence,
+          reason:
+            result.kind === 'invalid_credentials'
+              ? 'invalid_credentials'
+              : result.kind === 'rate_limited'
+                ? 'rate_limited'
+                : 'configuration',
+          ...(result.kind === 'rate_limited'
+            ? { retryAfterSeconds: result.retryAfterSeconds }
+            : {}),
+        })
+      }
+    } catch {
+      dispatch({
+        type: 'login-failed',
+        sequence,
+        reason: 'network',
+      })
+    }
+  }
+
+  const handleLogout = async () => {
+    const current = sessionRef.current
+    if (current.kind !== 'authenticated') return
+    const sequence = nextAdminSessionSequence(current)
+    dispatch({ type: 'logout-started', sequence })
+    try {
+      await logout({ token: current.token })
+      dispatch({ type: 'logout-succeeded', sequence })
+    } catch {
+      dispatch({ type: 'logout-failed', sequence })
+    }
+  }
+
+  if (session.kind === 'checking') {
+    return (
+      <main className="grid min-h-screen place-items-center bg-cream px-4 text-center text-plum">
+        <div>
+          <p className="font-serif text-2xl font-bold">Sol 40</p>
+          <p className="mt-4 text-sm" role="status">
+            {ADMIN_COPY.login.checking}
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  if (session.kind !== 'authenticated' && session.kind !== 'logging-out') {
+    return (
+      <AdminLogin
+        busy={session.kind === 'authenticating'}
+        error={session.kind === 'error' ? session.reason : undefined}
+        notice={
+          session.kind === 'anonymous'
+            ? session.notice
+            : session.kind === 'error' && session.retryToken
+              ? 'logout_unconfirmed'
+              : undefined
+        }
+        onSubmit={handleLogin}
+      />
+    )
+  }
+
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-3xl font-bold">Admin — área dos donos (em breve)</h1>
-    </main>
+    <AdminShell
+      loggingOut={session.kind === 'logging-out'}
+      onLogout={handleLogout}
+    />
   )
 }
 
