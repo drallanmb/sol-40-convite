@@ -1,15 +1,14 @@
 ---
 phase: 05-mural-de-mem-rias-modera-o
-verified: 2026-07-24T22:14:29-03:00
-status: gaps_found
-score: "3/5 requirements satisfied"
+verified: 2026-07-24T23:14:11-03:00
+status: human_needed
+score: "5/5 requirements satisfied by automated and source verification"
 requirements:
-  satisfied: [WALL-01, WALL-03, WALL-04]
-  gaps: [WALL-02, WALL-05]
-review_warnings:
-  blocking_gaps: [WR-01, WR-02, WR-03, WR-04]
-  verification_debt: []
-  acceptable_warnings: []
+  satisfied: [WALL-01, WALL-02, WALL-03, WALL-04, WALL-05]
+  gaps: []
+review_findings:
+  closed: [WR-01, WR-02, WR-03, WR-04, WR-05, CR-01]
+  blocking_gaps: []
 human_verification:
   pending:
     - populated_carousel_focus_swipe_reduced_motion_zoom
@@ -20,226 +19,240 @@ human_verification:
 # Phase 5: Mural de Memórias + Moderação — Verification Report
 
 **Phase Goal:** Convidado envia foto/recado; nada aparece em público sem aprovação.  
-**Status:** gaps_found  
-**Score:** 3/5 requirements satisfied
+**Status:** human_needed
+**Automated score:** 5/5 requirements satisfied
 
 ## Verdict
 
-The moderation boundary itself is achieved: public-created posts begin as
-`pendente`, the public album reads through a backend `aprovado` index, and its
-payload contains only the minimal public projection. A pending or hidden post,
-its storage URL, reservation, capability, device key, moderation state, and
-storage metadata are not returned by `listApproved`.
+The Phase 5 implementation and its gap closure satisfy WALL-01 through WALL-05
+in code, automated tests, production build, Convex production typecheck, and a
+real `convex dev --once` preparation/deployment check.
 
-The phase is not ready to close because four review warnings are real blocking
-gaps against the Phase 5 must-haves:
+The previous four blocking gaps are closed. Follow-up review findings WR-05 and
+CR-01 are also closed:
 
-1. upload requests can force an unbounded reservation-table scan before the
-   limiter is consulted;
-2. upload retry can indefinitely reuse an expired short-lived upload URL;
-3. an ambiguous claim followed by text editing can confirm success for older
-   persisted content while clearing the newer visible draft;
-4. server validation accepts header-prefixed arbitrary bytes as a JPEG, PNG, or
-   WebP without establishing a structurally valid image.
+- capability collision lookup is index-bounded and terminal rows have a
+  cursor-safe, ownership-aware retention lifecycle;
+- every failed upload transport is discarded and retry reserves a fresh URL;
+- ambiguous photo claims retain one immutable content snapshot, and acceptance
+  of older content never clears or misrepresents newer edits;
+- JPEG, PNG, and WebP must pass bounded real pixel decoding before a post is
+  created;
+- PNG decompression is capped natively before output materialization;
+- public reads remain approved-only and expose only the minimal card view.
 
-The automated suite and production/runtime checks are green, but the tests
-encode the fourth defect and do not cover the first three failure scenarios.
+No automated or source-verification gap remains. Final closure still requires
+the three explicitly manual browser/device scenarios. They are not marked
+passed by this report.
 
 ## Requirement Traceability
 
-| Requirement | Status | Evidence and assessment |
+| Requirement | Status | Independent evidence |
 |---|---|---|
-| WALL-01 | ✓ SATISFIED | `convex/schema.ts:44-75` defines one `posts` memory plus `pendente`/`aprovado`/`oculto` state support and upload reservations. `submitTextMemory` and `acceptPhoto` create one `pendente` post. Duplicate claim/finalization tests converge on one post. |
-| WALL-02 | ✗ GAP | The three-step flow, client downscale, `_storage` metadata checks, byte action, capability ownership, idempotent finalization, expiry, and blob cleanup exist. However WR-02 and WR-03 make retry/content convergence unreliable, and WR-04 allows non-images through server-side validation. |
-| WALL-03 | ✓ SATISFIED | Text-only submission is public, normalized, plain text, optional-author, bounded to 280 Unicode code points, rate-limited, and persisted as `pendente`. Client and backend boundary tests pass. |
-| WALL-04 | ✓ SATISFIED | `convex/posts.ts:499-521` queries `posts.by_status(aprovado)` before calling `storage.getUrl` and returns only `{id, author, message?, imageUrl?, createdAt}`. The client calls only `api.posts.listApproved`; no client-side moderation filter exists. The projection test proves pending/hidden exclusion and the exact field allowlist. |
-| WALL-05 | ✗ GAP | Device/global limiters do prevent upload URL generation and reservation insertion after denial, and N/N+1 tests pass. WR-01 nevertheless leaves an unbounded full-table collision scan before the limiter, so rejected anonymous traffic can repeatedly impose growing database work without an effective cost gate. |
+| WALL-01 | ✓ SATISFIED | `convex/schema.ts` defines one memory post with photo, recado, or both and the three moderation states. `submitTextMemory` and `acceptPhoto` create `pendente` rows. Duplicate claim/finalization tests converge to one post. |
+| WALL-02 | ✓ SATISFIED (manual UAT pending) | The client performs downscale and a three-step reservation/upload/claim flow. The server checks storage metadata, reads the stored blob, and accepts it only after bounded Node decoding. Retry and immutable-snapshot regressions pass. Real browser upload/interruption and Safari iOS HEIC remain human checks. |
+| WALL-03 | ✓ SATISFIED | Text-only submission is public, normalized as plain text, supports optional author, enforces 280 Unicode code points, applies device/global rate limits, and persists as `pendente`. |
+| WALL-04 | ✓ SATISFIED (manual UAT pending) | `listApproved` queries `posts.by_status(aprovado)` before URL generation and returns only `{id, author, message?, imageUrl?, createdAt}`. The React album consumes only this projection and performs no moderation filter. Populated interaction/zoom remains a human check. |
+| WALL-05 | ✓ SATISFIED | Device/global limiters run before URL generation and insertion. Capability collision resolution uses `by_token_hash` with `take(1)`, and historical-set tests prove the path remains bounded. There is no product lifetime cap. |
 
-## Review Warning Classification
+## Gap-Closure Verification
 
-### WR-01 — blocking gap (WALL-05, D-17)
+### WR-01 — closed
 
-`requestUpload` hashes the token, then uses
-`.query('postUploadReservations').filter(...tokenHash...).take(2)` at
-`convex/posts.ts:217-229`. The table has no `tokenHash` index
-(`convex/schema.ts:61-75`) and terminal reservations are not retired.
+`requestUpload` hashes the capability and performs:
 
-The limiter still correctly gates `generateUploadUrl` and storage reservation
-creation, so the narrow “no storage URL on denial” test passes. That is not
-enough for the stated abuse-control goal: every denied request can first scan
-an ever-growing table. Because D-17 says the limiter exists to contain bursts
-and abuse, and the plans classify the anonymous upload cost boundary as a
-high-severity blocking threat, this is a blocking gap rather than acceptable
-performance debt.
+`postUploadReservations.by_token_hash -> take(1) -> existing limiters -> generateUploadUrl`
 
-Required closure: add an indexed bounded token-hash lookup, define retention
-for terminal reservations, and test collision/non-collision behavior with a
-large historical set while proving the denial path remains bounded.
+There is no `tokenHash` table filter. The integration suite seeds 1,000
+historical reservations and verifies both late collision and fresh-token
+denial without producing a URL or inserting a reservation.
 
-### WR-02 — blocking gap (WALL-02, D-08)
+Terminal reservations record `terminalAt`, retain for seven days, and retire
+through `by_terminal_at` in pages of 50. Each candidate is re-read before
+deletion. Accepted rows are removed only after their post/storage ownership is
+confirmed, while rejected/expired orphan storage is deleted before retirement.
+Cursor tests cover a full page of invalid-ownership candidates and prevent
+zero-delay rescanning. A separate bounded migration handles legacy terminal
+rows without `terminalAt`.
 
-After an upload/network/HTTP/invalid-response failure, the reducer retains a
-`reserved` transport. `ensureReservation` returns immediately for every
-non-`none` transport (`MemoryForm.tsx:228-231`), and retry posts to the same
-stored URL (`MemoryForm.tsx:281-296`). The URL can expire well before the
-24-hour reservation.
+### WR-02 — closed
 
-This violates the explicit recoverable “Tentar novamente” must-have. The draft
-is preserved, but the retry may be permanently doomed until reservation expiry.
-It is therefore a goal gap, not merely missing test coverage.
+`runFreshMemoryUploadAttempt` owns exactly one reservation and upload URL.
+Network, abort, HTTP, invalid-response, and thrown failures return an upload
+failure; `MemoryForm` dispatches `transport_invalidated`. The selected file,
+processed blob, preview, author, and recado remain in the draft, while the next
+attempt calls `requestUpload` and receives a different transport.
 
-Required closure: invalidate the upload URL transport after upload-stage
-HTTP/invalid-response/expired-URL failure, preserve the processed blob and
-draft, acquire a fresh reservation on retry, and leave ambiguous old blobs to
-the expiry/orphan cleanup path. Add an orchestration test that proves the next
-attempt calls `requestUpload`.
+### WR-03 — closed
 
-### WR-03 — blocking gap (WALL-02, D-08, D-09)
+The first claim freezes normalized author, message, photo identity, and a
+length-prefixed deterministic fingerprint. Repeated claim/status resolution
+uses that snapshot, not later visible edits.
 
-Author/message edits clear the visible failure but retain an `uploaded`
-transport (`memoryDraft.ts:188-205`). If the first claim committed but its
-response was lost, the reservation holds the original text. A later retry with
-edited fields receives `accepted` or `processing` without updating that
-snapshot (`posts.ts:301-343`), and the UI can clear the edited draft as success
-(`MemoryForm.tsx:306-326`).
+The exact lost-response scenario is covered on both sides:
 
-That breaks truthful retry/idempotency: the UI may say the currently visible
-memory was received when different text was persisted. This directly violates
-the accepted-only, preserved-draft contract.
+1. claim A is persisted and its response is lost;
+2. the guest edits the visible draft to B;
+3. retry/status resolves accepted A;
+4. the UI reports A separately;
+5. B and its preview remain ready for a fresh submission.
 
-Required closure: freeze an explicit claimed snapshot until resolution, or
-invalidate the transport and start a fresh reservation when text changes after
-an ambiguous claim. Add the exact lost-response/edit/retry test and compare the
-confirmed UI content with the persisted post.
+The accepted reducer clears the form only when the current fingerprint still
+matches the accepted snapshot.
 
-### WR-04 — blocking gap (WALL-02, D-16)
+### WR-04 — closed
 
-`detectImageType` accepts JPEG from three signature bytes, PNG from the
-eight-byte signature, and WebP from `RIFF`/`WEBP`
-(`uploadValidation.ts:15-45`). No JPEG segment/SOF/EOI, PNG IHDR/chunk/IEND, or
-WebP RIFF/chunk coherence is checked. Current tests deliberately accept
-32-byte and 5 MiB zero-filled buffers bearing only those prefixes.
+Container signatures are now preflight only. Final acceptance crosses into the
+internal Node decoder, reads the actual stored blob, and requires decoded raw
+pixels:
 
-These payloads are not established to be images, so the implementation does
-not meet the planned malformed-file/real-image server validation gate and can
-create broken approved cards. This is a blocking validation gap.
+- JPEG: coherent envelope plus sharp/libvips metadata and raw decode, with a
+  second strict `jpeg-js` decode bounded to 6.5536 MP and 32 MiB;
+- PNG: CRC/chunk/order preflight, exact expected scanline size, Node
+  `inflateSync` with `maxOutputLength`, legal filter bytes, and sharp raw
+  decode;
+- WebP: exact RIFF/chunk framing with a real VP8/VP8L image chunk, then sharp
+  metadata and raw decode.
 
-Required closure: use a vetted server-side decoder/parser, or minimally parse
-bounded JPEG/PNG/WebP structure and dimensions. Replace prefix-only “valid”
-fixtures with structurally valid images and add adversarial truncated,
-impossible-dimension, and inconsistent-length cases.
+The common limits are 5 MiB input, 2560 pixels per axis, 2560² pixels, one
+page, at most four channels, disabled sharp caches, one decoder concurrency,
+sequential reads, and a five-second raw-decode timeout.
 
-## Decision Coverage (D-01–D-17)
+Real encoder-produced JPEG, PNG, lossless WebP, lossy WebP, and independently
+decodable exact-5-MiB fixtures pass. Truncated/prefix-only data, one-byte JPEG
+entropy, zeroed VP8L, indexed PNG without `PLTE`, spoofed MIME, and malformed
+containers fail.
 
-| Decision | Status | Evidence |
-|---|---|---|
-| D-01 photo, recado, or both | ✓ | Backend domain/integration tests cover all three shapes; missing-both is rejected. |
-| D-02 optional author/fallback | ✓ | Omission persists as absent; `listApproved` supplies exactly “De alguém que te ama”. |
-| D-03 one card per submission | ✓ | Single-file picker and single post per text/accepted reservation; concurrency test proves one post. |
-| D-04 retain author after success | ✓ | Reducer and success-flow tests retain author while clearing photo/message/transport. |
-| D-05 section after dress code | ✓ | `Home.tsx:26-27` mounts `DressCodeSection` then `MemoriesSection` before the shell footer. |
-| D-06 carousel before form | ✓ | `MemoriesSection.tsx:141-147` renders `ApprovedAlbum` before `MemoryForm`. |
-| D-07 whole preview, replace/remove | ◐ SOURCE VERIFIED | `PhotoPicker` uses `object-contain` and offers replace/remove. Real chooser/visual behavior remains part of human verification. |
-| D-08 progress and recoverable retry | ✗ GAP | Progress/preservation states exist, but WR-02 and WR-03 break reliable retry and snapshot convergence. |
-| D-09 accepted-only inline success | ✗ GAP | Success is only dispatched from `accepted` and copy/action are correct, but WR-03 can confirm and clear text different from the accepted snapshot. |
-| D-10 approved-only public payload | ✓ | Backend indexed filter and minimal validator/projection; pending/hidden projection test passes. |
-| D-11 stable random order per visit | ✓ | Cryptographic rank owner and reactive stability/immutability tests pass. |
-| D-12 autoplay, controls, swipe, pause, reduced motion | ◐ HUMAN NEEDED | Source implements Embla controls and motion policy; populated interactive behavior is not manually evidenced. |
-| D-13 consistent cards | ◐ HUMAN NEEDED | Source uses one fixed frame and centered text-only branch; populated visual/zoom behavior is not manually evidenced. |
-| D-14 280-character hard limit | ✓ | Client counter/block and server Unicode-code-point boundary tests pass. |
-| D-15 JPEG/PNG/WebP plus HEIC fallback | ◐ HUMAN NEEDED | Capability-based conversion/fallback logic is tested; real Safari iOS HEIC remains unverified. |
-| D-16 client reduction plus real server validation | ✗ GAP | Downscale and metadata/size gates exist, but WR-04 does not establish structurally valid image bytes. |
-| D-17 no lifetime cap, abuse-only limiter | ✗ GAP | No visible/product lifetime cap exists and refill tests pass; WR-01 leaves the anonymous pre-limit scan abuse path. |
+### WR-05 — closed
+
+The retention index range excludes active/no-terminal rows, pagination carries
+its cursor past candidates that cannot be deleted, and legacy terminal rows
+migrate in their own bounded state/index sweep. Tests cover 51-row boundaries,
+repetition, invalid ownership, legacy compatibility, and liveness.
+
+### CR-01 — closed
+
+PNG expected output is computed from preflight-validated IHDR fields and is
+capped before inflate. `inflateSync` receives
+`maxOutputLength: expectedLength + 1`; an attacker-declared 1×1 image with an
+8 MiB inflated stream is rejected without allowing application code to receive
+the expanded output.
 
 ## Security and Data-Flow Verification
 
-### Public read privacy
+### Moderation and public projection
 
-- `listApproved` filters through `by_status` with literal `aprovado` before URL
+- Public-created posts begin as `pendente`.
+- `listApproved` filters by the backend `by_status` index before storage URL
   generation.
-- Its return validator contains only `id`, `author`, optional `message`,
-  optional `imageUrl`, and `createdAt`.
-- The approved-projection integration test inserts approved, pending, and
-  hidden rows and returns only the approved row with the exact field allowlist.
-- `MemoryCard` derives its type from `FunctionReturnType<typeof
-  api.posts.listApproved>` and renders ordinary JSX text. It has no access to
-  status, storage IDs, reservation IDs, hashes, capabilities, or device keys.
+- Pending and hidden rows are excluded by integration test.
+- The return validator exposes only the five public card fields.
+- Status, storage ID, reservation ID, token/device hashes, capabilities,
+  moderation metadata, and upload URLs are absent from the public album view.
+- React consumes `api.posts.listApproved` directly and has no client-side
+  approval filter.
 
-Conclusion: the core goal “nada aparece em público sem aprovação” is enforced
-backend-side, not by React convention.
+### Ownership, cleanup, and idempotency
 
-### Upload ownership, idempotency, and cleanup
+- Reservation capabilities are canonical high-entropy base64url values and are
+  purpose-separated SHA-256 hashes at rest.
+- Claim verifies capability ownership, reservation state, storage identity,
+  uniqueness, metadata size, and metadata MIME before scheduling decode.
+- Decoder verdicts enter ownership-rechecking internal accept/reject mutations.
+- Concurrent/repeated claims and finalization create at most one pending post.
+- Rejected, expired, and unowned blobs have bounded cleanup paths.
+- Accepted post media survives reservation retirement.
+- Decoder, retention, migration, cleanup, and finalization functions remain
+  internal; `convex/posts.ts` exports exactly the five planned anonymous
+  functions.
 
-- Capabilities are canonical 256-bit base64url values, purpose-separated and
-  SHA-256 hashed at rest.
-- Claim verifies capability/reservation ownership, storage ownership,
-  `_storage` metadata size/type, and schedules internal byte validation.
-- `acceptPhoto` is reservation-scoped and creates at most one `pendente` post;
-  duplicate claim/finalization tests pass.
-- Invalid known blobs, expired reservation blobs, and old unowned blobs have
-  deletion paths; the sweep is paginated and ownership-aware.
-- The retry implementation is not sound until WR-02 and WR-03 are closed.
+### Abuse controls and resource bounds
 
-### Rate limiting
+- Upload device/global limits are consumed before URL generation and row
+  insertion.
+- Text and upload N/N+1, refill, global, concurrency, and whole-second retry
+  boundaries pass.
+- Capability lookup and terminal retention are index-bounded.
+- Image input, dimensions, pixels, channels, pages, decoder cache/concurrency,
+  JPEG memory, PNG output, and raw decode time are bounded.
+- There is no visible or backend lifetime submission quota.
 
-- Device and global limiters are checked and consumed before
-  `generateUploadUrl`; denial returns no URL and inserts no reservation.
-- Boundary/refill/whole-second tests pass.
-- The collision lookup before the limiter is unindexed and unbounded, so the
-  complete abuse-cost gate is not achieved.
+### Public surface and secrets
+
+Source scans found no raw HTML sink or capability/upload-URL logging in the
+memory feature. Human confirmation renders only accepted author/message
+content; internal photo identity is not displayed. No new admin or moderation
+writer was exposed by Phase 5.
+
+## Decision Coverage
+
+| Decision | Status | Evidence |
+|---|---|---|
+| D-01 photo, recado, or both | ✓ | Backend schema/domain/integration coverage for all three shapes. |
+| D-02 optional author/fallback | ✓ | Author may be absent; public projection supplies exactly “De alguém que te ama”. |
+| D-03 one card per submission | ✓ | One file picker and one post per accepted submission; duplicate flow is idempotent. |
+| D-04 retain author after success | ✓ | Reducer keeps author while clearing accepted matching photo/recado. |
+| D-05 home section after dress code | ✓ | `Home.tsx` mounts `MemoriesSection` immediately after `DressCodeSection` and before the shell footer. |
+| D-06 carousel before form | ✓ | `MemoriesSection` renders the approved album before `MemoryForm`. |
+| D-07 whole preview, replace/remove | ◐ HUMAN NEEDED | Source uses `object-contain` and replace/remove actions; real chooser/visual behavior remains manual. |
+| D-08 progress and recoverable retry | ✓ + HUMAN | Automated fresh-URL and preserved-draft behavior passes; real interrupted network remains manual. |
+| D-09 accepted-only inline success | ✓ | Success is accepted-only and older accepted content is reported separately from newer edits. |
+| D-10 approved-only payload | ✓ | Indexed backend projection and exact allowlist test pass. |
+| D-11 stable random order per visit | ✓ | Cryptographic rank ownership, reactive stability, and input immutability tests pass. |
+| D-12 autoplay, controls, swipe, pause, reduced motion | ◐ HUMAN NEEDED | Source implements pinned Embla behavior; populated interaction remains manual. |
+| D-13 consistent cards | ◐ HUMAN NEEDED | Source uses one fixed frame and centered text-only composition; populated visual/zoom behavior remains manual. |
+| D-14 280-character limit | ✓ | Client counter/block and server Unicode-code-point tests pass. |
+| D-15 JPEG/PNG/WebP plus HEIC fallback | ✓ + HUMAN | Real format decoder fixtures pass; Safari iOS HEIC behavior remains manual. |
+| D-16 client reduction plus server validation | ✓ + HUMAN | Client bounds and bounded real server decode pass; real browser attachment remains manual. |
+| D-17 abuse-only limiter | ✓ | Burst protection, refill, bounded pre-limit work, and no lifetime cap are verified. |
 
 ## Automated Verification
 
 | Check | Result |
 |---|---|
-| `npm test` | PASS — 16 files, 338 tests |
-| `npm run build` | PASS — TypeScript and Vite production build |
-| `npx convex dev --once` | PASS — development functions ready |
-| Approved-only backend projection | PASS |
-| Text/rate/idempotency/cleanup suites | PASS within their current coverage |
-| Structural image validity | FAIL by source/adversarial review; current tests encode prefix-only acceptance |
-| Expired upload URL retry | NOT COVERED; source proves stale URL reuse |
-| Ambiguous claim/edit/retry snapshot | NOT COVERED; source proves mutable draft over immutable claim |
-| Large historical reservation collision lookup | NOT COVERED; source proves full-table filter |
+| Focused upload/decoder/retry suite | PASS — 5 files, 133 tests |
+| Full repository suite | PASS — 18 files, 393 tests |
+| `npm run build` | PASS |
+| `npx tsc -p convex/tsconfig.json` | PASS |
+| `npx convex dev --once` | PASS — functions ready with the external sharp package |
+| Indexed large-history collision and denial | PASS |
+| Terminal retention/migration/ownership/liveness | PASS |
+| Real JPEG/PNG/WebP plus exact-5-MiB fixtures | PASS |
+| One-byte JPEG, zeroed VP8L, palette-less PNG, PNG bomb | REJECTED as required |
+| Invalid-storage cleanup and no-post creation | PASS |
+| Fresh upload URL after every upload-stage failure | PASS |
+| Lost response A / edit B / accepted A / preserved B | PASS |
+| Approved-only projection and exact public allowlist | PASS |
+| Public export and secret/raw-HTML source scans | PASS |
+| `git diff --check` | PASS |
 
-The shared working tree changed concurrently during verification: unrelated
-Phase 4 edits were present first in `src/content/event.ts` and, at the final
-status check, in `src/routes/Home.tsx` plus
-`src/components/gifts/GiftPreview.tsx`. Verification did not modify or stage
-those files.
+The only unrelated working-tree item during this verification was the untracked
+`.planning/phases/04-carta-de-vinhos/04-VERIFICATION.md`. It was not read,
+modified, staged, or included.
 
 ## Human Verification Required
 
-These items remain **pending** and are not marked passed:
+These items remain **pending**:
 
 1. **Populated carousel focus/swipe/reduced motion/zoom** — with one, few, and
    many approved memories, verify keyboard focus, previous/next, touch swipe,
-   pause/resume, focus/hover pause, `prefers-reduced-motion`, photo-only,
-   message-only and combined cards, and 200% zoom.
-2. **Real JPEG/PNG/WebP upload and interruption** — attach each real format in
-   a browser, observe actual progress, interrupt the network, retry, verify the
-   whole draft remains, verify one pending post is created, and inspect the
-   public network payload to confirm pending/private data never appears.
-3. **Safari iOS HEIC fallback** — on a real iPhone/Safari, choose a HEIC/HEIF
-   photo and verify either successful browser conversion/upload or actionable
-   fallback while preserving author and recado.
+   pause/resume, focus/hover pause, `prefers-reduced-motion`, all card variants,
+   responsive visibility, and 200% zoom.
+2. **Real JPEG/PNG/WebP upload and interruption** — attach each format through
+   a real browser chooser, observe real progress, interrupt the network, retry,
+   confirm the full draft remains and exactly one pending post is created, and
+   inspect the public payload for pending/private data.
+3. **Safari iOS HEIC fallback** — on a real iPhone/Safari, choose HEIC/HEIF and
+   verify successful conversion/upload or actionable fallback while preserving
+   author and recado.
 
-These manual items do not supersede the four code gaps above; both the blocking
-fixes and the manual evidence are required before a final pass.
+## Final Status
 
-## Gaps Summary
-
-1. Add a bounded indexed token-hash collision lookup and terminal reservation
-   retention/cleanup; prove abusive denied traffic cannot force growing scans.
-2. Refresh reservation/upload URL after upload-stage URL failures while
-   preserving the processed image and draft.
-3. Make claim content immutable or start a fresh reservation when the user
-   edits after an ambiguous claim; test persisted content against UI success.
-4. Replace signature-only image acceptance with structural/decoder-backed
-   JPEG, PNG, and WebP validation and adversarial fixtures.
-5. Complete the three explicit human-verification scenarios.
+Automated implementation verification is complete with no remaining code gap.
+Phase 5 should remain `human_needed` until the three UAT scenarios above have
+recorded evidence.
 
 ---
 
-_Verified: 2026-07-25_  
-_Verifier: Codex (gsd-verifier)_
+_Verified: 2026-07-24T23:14:11-03:00_
+_Verifier: Codex (gsd-verifier, independent gap-closure pass)_
