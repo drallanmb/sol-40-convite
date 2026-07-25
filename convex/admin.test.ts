@@ -783,6 +783,30 @@ describe('admin family and guest operations', () => {
     expect(remaining).toEqual({ family: null, guests: [], sessions: [] })
   })
 
+  it('does not revoke a legacy-phone session when only its equivalent formatting changes', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const familyId = await t.run((ctx) =>
+      ctx.db.insert('rsvps', {
+        phone: '7999998303',
+        displayName: 'Família com telefone legado',
+        updatedAt: 1_000,
+      }),
+    )
+    const publicToken = `${'E'.repeat(42)}U`
+    await t.mutation((ctx) => createRsvpSession(ctx, { rsvpId: familyId, token: publicToken }))
+
+    const result = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId,
+      expectedUpdatedAt: 1_000,
+      patch: { phone: '(79) 99999-8303' },
+    })
+
+    expect(result.kind).toBe('saved')
+    expect(await t.query(api.rsvps.getCurrent, { token: publicToken })).not.toBeNull()
+  })
+
   it('rejects a stale admin write after a public save and preserves the public response', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(50_000)

@@ -213,7 +213,12 @@ export const updateFamily = mutation({
     const clean = cleanFamilyPatch(args.patch)
     if (clean.kind !== 'valid') return clean
 
-    const phoneChanged = clean.phone !== undefined && clean.phone !== expected.family.phone
+    const currentPhone = normalizePhone(expected.family.phone)
+    const phoneChanged =
+      clean.normalizedPhone !== undefined &&
+      (currentPhone.kind === 'invalid'
+        ? clean.phone !== expected.family.phone
+        : clean.normalizedPhone.normalizedKey !== currentPhone.normalizedKey)
     if (phoneChanged && clean.normalizedPhone) {
       const existing = await findLogicalInvitation(ctx, clean.normalizedPhone)
       if (existing && existing._id !== expected.family._id) {
