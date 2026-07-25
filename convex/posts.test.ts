@@ -1,9 +1,10 @@
 import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { convexTest } from 'convex-test'
 import { describe, expect, it, vi } from 'vitest'
-import { api, components } from './_generated/api'
+import { api, components, internal } from './_generated/api'
 import {
   AUTHOR_MAX_LENGTH,
+  MAX_FINAL_IMAGE_BYTES,
   MESSAGE_MAX_LENGTH,
   VALIDATION_RETRY_MS,
   countUnicodeCodePoints,
@@ -27,12 +28,8 @@ function makePostTest() {
   })
 }
 
-const postApi = (api as unknown as {
-  posts: {
-    submitTextMemory: never
-    listApproved: never
-  }
-}).posts
+const postApi = (api as any).posts
+const postInternalApi = (internal as any).postInternal
 
 const DEVICE_KEY_A = `${'B'.repeat(42)}g`
 const DEVICE_KEY_B = `${'C'.repeat(42)}w`
@@ -40,7 +37,10 @@ const DEVICE_KEY_B = `${'C'.repeat(42)}w`
 function deviceKeyFor(index: number) {
   const bytes = new Uint8Array(32)
   new DataView(bytes.buffer).setUint32(28, index)
-  return Buffer.from(bytes).toString('base64url')
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/u, '')
 }
 
 describe('Phase 5 Convex harness', () => {
@@ -541,5 +541,442 @@ describe('approved public projection', () => {
     expect(Object.keys(result[0]).sort()).toEqual(
       ['author', 'createdAt', 'id', 'imageUrl', 'message'].sort(),
     )
+  })
+})
+
+describe('photo upload reservation and validation', () => {
+  async function reserve(
+    t: ReturnType<typeof makePostTest>,
+    {
+      deviceKey = DEVICE_KEY_A,
+      token = deviceKeyFor(10_001),
+    }: { deviceKey?: string; token?: string } = {},
+  ) {
+    const result = await t.mutation(postApi.requestUpload, {
+      deviceKey,
+      token,
+    })
+    expect(result).toMatchObject({ kind: 'reserved' })
+    return result as {
+      kind: 'reserved'
+      reservationId: string
+      uploadUrl: string
+    }
+  }
+
+  async function runImmediateScheduled(t: ReturnType<typeof makePostTest>) {
+    vi.advanceTimersByTime(0)
+    await t.finishInProgressScheduledFunctions()
+  }
+
+  async function storeUpload(
+    t: ReturnType<typeof makePostTest>,
+    bytes: Uint8Array,
+    mime: string,
+  ) {
+    return t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(
+        new Blob([Uint8Array.from(bytes).buffer], { type: mime }),
+      )
+      // convex-test omits the upload Content-Type from its `_storage` mock.
+      // Patch the system fixture so metadata behavior matches the real backend.
+      await ctx.db.patch(
+        storageId as never,
+        { contentType: mime } as never,
+      )
+      return storageId
+    })
+  }
+
+  it('rate-limits before creating a fifth reservation or upload URL', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+
+    const results: Array<{ kind: string; retryAfterSeconds?: number }> = []
+    for (let index = 0; index < 5; index += 1) {
+      results.push(
+        await t.mutation(postApi.requestUpload, {
+          deviceKey: DEVICE_KEY_A,
+          token: deviceKeyFor(20_000 + index),
+        }),
+      )
+    }
+
+    expect(results.slice(0, 4).every((result) => result.kind === 'reserved')).toBe(true)
+    expect(results[4]).toMatchObject({ kind: 'rate_limited' })
+    expect(results[4]).not.toHaveProperty('uploadUrl')
+    const reservations = await t.run((ctx) =>
+      ctx.db.query('postUploadReservations').collect(),
+    )
+    expect(reservations).toHaveLength(4)
+    vi.useRealTimers()
+  })
+
+  it('enforces the global upload boundary before reservation and URL generation', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+
+    for (let index = 1; index <= 300; index += 1) {
+      await expect(
+        t.mutation(postApi.requestUpload, {
+          deviceKey: deviceKeyFor(90_000 + index),
+          token: deviceKeyFor(100_000 + index),
+        }),
+      ).resolves.toMatchObject({ kind: 'reserved' })
+    }
+    const denied = await t.mutation(postApi.requestUpload, {
+      deviceKey: deviceKeyFor(90_301),
+      token: deviceKeyFor(100_301),
+    })
+    const reservations = await t.run((ctx) =>
+      ctx.db.query('postUploadReservations').collect(),
+    )
+
+    expect(denied).toMatchObject({ kind: 'rate_limited' })
+    expect(denied).not.toHaveProperty('uploadUrl')
+    expect(reservations).toHaveLength(300)
+    vi.useRealTimers()
+  })
+
+  it('hashes reservation secrets and rejects capability collisions without rebinding', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(30_000)
+
+    const first = await reserve(t, { token })
+    const second = await t.mutation(postApi.requestUpload, {
+      deviceKey: DEVICE_KEY_B,
+      token,
+    })
+    const reservations = await t.run((ctx) =>
+      ctx.db.query('postUploadReservations').collect(),
+    )
+
+    expect(second).toEqual({ kind: 'token_conflict' })
+    expect(reservations).toHaveLength(1)
+    expect(reservations[0]).toMatchObject({
+      _id: first.reservationId,
+      state: 'awaiting_upload',
+    })
+    expect(reservations[0].tokenHash).not.toContain(token)
+    expect(reservations[0].deviceKeyHash).not.toContain(DEVICE_KEY_A)
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['jpeg', 'image/jpeg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0])],
+    [
+      'png',
+      'image/png',
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    ],
+    [
+      'webp',
+      'image/webp',
+      new Uint8Array([
+        0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
+      ]),
+    ],
+  ])('accepts real %s bytes into exactly one pending post', async (_label, mime, bytes) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(bytes[0] + 40_000)
+    const reservation = await reserve(t, { token })
+    const storageId = await storeUpload(t, bytes, mime)
+
+    const claim = await t.mutation(postApi.submitPhotoMemory, {
+      reservationId: reservation.reservationId,
+      token,
+      storageId,
+      author: '  Sol  ',
+      message: '  Foto e recado  ',
+    })
+    expect(claim).toEqual({ kind: 'processing' })
+
+    await runImmediateScheduled(t)
+
+    const status = await t.query(postApi.getSubmissionStatus, {
+      reservationId: reservation.reservationId,
+      token,
+    })
+    const snapshot = await t.run(async (ctx) => ({
+      posts: await ctx.db.query('posts').collect(),
+      reservation: await ctx.db.get(reservation.reservationId as never),
+    }))
+    expect(status).toEqual({ kind: 'accepted' })
+    expect(snapshot.posts).toHaveLength(1)
+    expect(snapshot.posts[0]).toMatchObject({
+      author: 'Sol',
+      message: 'Foto e recado',
+      storageId,
+      mediaType: mime,
+      mediaSize: bytes.byteLength,
+      status: 'pendente',
+      source: 'convidado',
+    })
+    expect(snapshot.reservation).toMatchObject({ state: 'accepted' })
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['html', 'text/html', new TextEncoder().encode('<script>alert(1)</script>'), 'unsupported_metadata'],
+    ['spoofed jpeg', 'image/jpeg', new TextEncoder().encode('<script>'), 'unsupported_type'],
+    [
+      'raw heic',
+      'image/heic',
+      new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]),
+      'unsupported_metadata',
+    ],
+  ])('rejects and deletes invalid %s storage with a stable safe code', async (_label, mime, bytes, code) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(bytes[0] + bytes.byteLength + 50_000)
+    const reservation = await reserve(t, { token })
+    const storageId = await storeUpload(t, bytes, mime)
+
+    const claim = await t.mutation(postApi.submitPhotoMemory, {
+      reservationId: reservation.reservationId,
+      token,
+      storageId,
+    })
+    if (claim.kind === 'processing') {
+      await runImmediateScheduled(t)
+    }
+
+    const status = await t.query(postApi.getSubmissionStatus, {
+      reservationId: reservation.reservationId,
+      token,
+    })
+    const snapshot = await t.run(async (ctx) => ({
+      blob: await ctx.storage.get(storageId),
+      posts: await ctx.db.query('posts').collect(),
+    }))
+    expect(status).toEqual({ kind: 'rejected', code })
+    expect(snapshot.blob).toBeNull()
+    expect(snapshot.posts).toHaveLength(0)
+    expect(status).not.toHaveProperty('storageId')
+    expect(status).not.toHaveProperty('tokenHash')
+    expect(status).not.toHaveProperty('postId')
+    vi.useRealTimers()
+  })
+
+  it('rejects missing and oversized metadata before scheduling byte validation', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const missingToken = deviceKeyFor(60_000)
+    const oversizedToken = deviceKeyFor(60_001)
+    const missingReservation = await reserve(t, { token: missingToken })
+    const oversizedReservation = await reserve(t, { token: oversizedToken })
+    const missingStorageId = await t.run(async (ctx) => {
+      const id = await ctx.storage.store(
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }),
+      )
+      await ctx.storage.delete(id)
+      return id
+    })
+    const oversizedStorageId = await storeUpload(
+      t,
+      new Uint8Array(MAX_FINAL_IMAGE_BYTES + 1),
+      'image/jpeg',
+    )
+
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: missingReservation.reservationId,
+        token: missingToken,
+        storageId: missingStorageId,
+      }),
+    ).resolves.toEqual({ kind: 'rejected', code: 'missing_storage' })
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: oversizedReservation.reservationId,
+        token: oversizedToken,
+        storageId: oversizedStorageId,
+      }),
+    ).resolves.toEqual({ kind: 'rejected', code: 'too_large' })
+    await expect(
+      t.run((ctx) => ctx.storage.get(oversizedStorageId)),
+    ).resolves.toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('accepts metadata and real JPEG bytes exactly at the 5 MiB boundary', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(65_000)
+    const reservation = await reserve(t, { token })
+    const exactBytes = new Uint8Array(MAX_FINAL_IMAGE_BYTES)
+    exactBytes.set([0xff, 0xd8, 0xff, 0xe0])
+    const storageId = await storeUpload(t, exactBytes, 'image/jpeg')
+
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: reservation.reservationId,
+        token,
+        storageId,
+      }),
+    ).resolves.toEqual({ kind: 'processing' })
+    await runImmediateScheduled(t)
+    await expect(
+      t.query(postApi.getSubmissionStatus, {
+        reservationId: reservation.reservationId,
+        token,
+      }),
+    ).resolves.toEqual({ kind: 'accepted' })
+    vi.useRealTimers()
+  })
+
+  it('prevents a different storage ID from stealing a processing reservation', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(66_000)
+    const reservation = await reserve(t, { token })
+    const firstStorageId = await storeUpload(
+      t,
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      'image/jpeg',
+    )
+    const otherStorageId = await storeUpload(
+      t,
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe1]),
+      'image/jpeg',
+    )
+
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: reservation.reservationId,
+        token,
+        storageId: firstStorageId,
+      }),
+    ).resolves.toEqual({ kind: 'processing' })
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: reservation.reservationId,
+        token,
+        storageId: otherStorageId,
+      }),
+    ).resolves.toEqual({ kind: 'storage_conflict' })
+    await expect(
+      t.run(async (ctx) => (await ctx.storage.get(otherStorageId)) !== null),
+    ).resolves.toBe(true)
+    vi.useRealTimers()
+  })
+
+  it.each([
+    [VALIDATION_RETRY_MS - 1, false],
+    [VALIDATION_RETRY_MS, true],
+    [VALIDATION_RETRY_MS + 1, true],
+  ])('requeues stuck processing only at the cooldown boundary (%i ms)', async (elapsed, shouldRequeue) => {
+    vi.useFakeTimers()
+    const base = new Date('2026-07-25T01:00:00.000Z').getTime()
+    vi.setSystemTime(base + elapsed)
+    const t = makePostTest()
+    const token = deviceKeyFor(67_000 + elapsed)
+    const tokenHash = await hashPostCapability(token)
+    const storageId = await storeUpload(
+      t,
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      'image/jpeg',
+    )
+    const reservationId = await t.run((ctx) =>
+      ctx.db.insert('postUploadReservations', {
+        tokenHash,
+        deviceKeyHash: 'fairness-hash',
+        state: 'processing',
+        storageId,
+        expiresAt: base + 24 * 60 * 60 * 1_000,
+        validationRequestedAt: base,
+        createdAt: base - 1_000,
+      }),
+    )
+
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId,
+        token,
+        storageId,
+      }),
+    ).resolves.toEqual({ kind: 'processing' })
+    const updated = await t.run((ctx) => ctx.db.get(reservationId))
+    expect(updated?.validationRequestedAt).toBe(
+      shouldRequeue ? base + elapsed : base,
+    )
+    vi.useRealTimers()
+  })
+
+  it('makes duplicate claim and finalization converge to the same accepted post', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(70_000)
+    const reservation = await reserve(t, { token })
+    const storageId = await storeUpload(
+      t,
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      'image/jpeg',
+    )
+    const command = {
+      reservationId: reservation.reservationId,
+      token,
+      storageId,
+      message: 'Uma só memória',
+    }
+
+    const [first, second] = await Promise.all([
+      t.mutation(postApi.submitPhotoMemory, command),
+      t.mutation(postApi.submitPhotoMemory, command),
+    ])
+    expect(first).toEqual({ kind: 'processing' })
+    expect(second).toEqual({ kind: 'processing' })
+
+    await runImmediateScheduled(t)
+    const accepted = await t.mutation(postInternalApi.acceptPhoto, {
+      reservationId: reservation.reservationId,
+      storageId,
+      mediaType: 'image/jpeg',
+      mediaSize: 4,
+    })
+    const repeated = await t.mutation(postInternalApi.acceptPhoto, {
+      reservationId: reservation.reservationId,
+      storageId,
+      mediaType: 'image/jpeg',
+      mediaSize: 4,
+    })
+    const posts = await t.run((ctx) => ctx.db.query('posts').collect())
+
+    expect(accepted).toEqual(repeated)
+    expect(accepted).toMatchObject({ kind: 'accepted' })
+    expect(posts).toHaveLength(1)
+    vi.useRealTimers()
+  })
+
+  it('does not reveal submission state to a different capability', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(80_000)
+    const reservation = await reserve(t, { token })
+
+    await expect(
+      t.query(postApi.getSubmissionStatus, {
+        reservationId: reservation.reservationId,
+        token: deviceKeyFor(80_001),
+      }),
+    ).resolves.toEqual({ kind: 'invalid_capability' })
+    await expect(
+      t.query(postApi.getSubmissionStatus, {
+        reservationId: reservation.reservationId,
+        token,
+      }),
+    ).resolves.toEqual({ kind: 'awaiting_upload' })
+    vi.useRealTimers()
   })
 })
