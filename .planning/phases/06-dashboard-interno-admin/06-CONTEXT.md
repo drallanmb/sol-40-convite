@@ -58,14 +58,72 @@ estrutura já decidida de sidebar no desktop e barra inferior no celular.
   família com respostas individuais; a moderação usa os estados `pendente`,
   `aprovado` e `oculto`; presentes usam `available` e `gifted`.
 
+### Visão geral e navegação
+
+- **D-09:** A Visão geral abre com um **resumo operacional completo**:
+  contagens por pessoa de confirmados, recusas e pendentes, quantidade de
+  memórias aguardando moderação e quantidade de vinhos presenteados. As
+  pendências recebem prioridade visual.
+- **D-10:** A navegação exibe badge em **Convidados** com o número de pessoas
+  pendentes e em **Moderação** com o número de memórias pendentes. Presentes
+  não recebe badge porque seu estado é informativo, não uma obrigação.
+- **D-11:** A barra inferior móvel mantém quatro destinos fixos, nesta ordem:
+  **Visão, Convidados, Moderação e Presentes**, cada um com ícone e rótulo
+  curto.
+- **D-12:** Os cards da Visão geral são links inteiros e acessíveis. Cada card
+  abre a área correspondente já filtrada para o estado representado.
+
+### Operação de convidados
+
+- **D-13:** A lista principal mostra uma linha por convite/família, expansível,
+  com telefone e resumo das respostas. O painel aberto exibe todas as pessoas
+  e permite edição no contexto da família.
+- **D-14:** A busca encontra nome da família, nome de qualquer pessoa e
+  telefone. É parcial, não diferencia caixa ou acentos e normaliza a entrada
+  numérica do telefone.
+- **D-15:** Filtros de presença selecionam famílias que contenham pelo menos
+  uma pessoa no estado escolhido, mas mantêm todas as pessoas da família
+  visíveis para evitar edição sem contexto.
+- **D-16:** Remover uma pessoa usa confirmação simples e preserva a família.
+  Remover o RSVP/família inteira é uma ação separada e menos proeminente, com
+  confirmação reforçada; a remoção também apaga pessoas filhas e revoga todas
+  as sessões públicas daquele RSVP.
+- **D-17:** O painel permite criar manualmente uma família e acrescentar uma
+  pessoa a uma família existente. A importação em massa da lista real continua
+  na Phase 7 (`LAUNCH-03`).
+- **D-18:** Presença, nomes, contato e telefone podem ser editados. Alterar o
+  telefone revoga as capabilities públicas existentes daquele RSVP antes de o
+  novo telefone se tornar a única chave válida.
+
+### Moderação e presentes
+
+- **D-19:** Memórias pendentes aparecem em fila cronológica, mais antigas
+  primeiro, em cards amplos com foto inteira, recado, autor, data e ações
+  separadas de Aprovar e Ocultar.
+- **D-20:** A moderação possui abas **Pendentes, Aprovadas e Ocultas**. As
+  transições válidas são `pendente → aprovado/oculto`, `aprovado → oculto` e
+  `oculto → aprovado`. Após uma ação, o card muda de aba e um toast oferece
+  Desfazer por poucos segundos.
+- **D-21:** O Desfazer de moderação é condicional ao estado que a ação acabou de
+  gravar; se outra sessão administrativa tiver alterado o item depois, não
+  sobrescreve a mudança concorrente.
+- **D-22:** Marcar um vinho como presenteado exige o nome de quem presenteou e
+  registra data/hora automaticamente.
+- **D-23:** Presentes possui abas **Disponíveis** e **Presenteados**, preserva
+  as três faixas de preço e busca por nome do vinho, código Mistral ou nome de
+  quem presenteou.
+- **D-24:** Desfazer a marcação de presente exige confirmação e limpa em
+  conjunto `giftedBy` e `giftedAt`.
+- **D-25:** Visão geral, convidados, moderação e presentes consomem queries
+  reativas protegidas; mudanças válidas aparecem ao vivo nas demais sessões
+  dos donos e, quando aplicável, nas superfícies públicas.
+
 ### Claude's Discretion
 
-- Detalhes visuais e operacionais não discutidos — composição da tela de
-  login, métricas complementares da Visão geral, apresentação da busca e das
-  filas, confirmações destrutivas, estados vazios/loading/erro e microcopy —
-  ficam a critério do planejamento, respeitando os requisitos ADMIN-01 a
-  ADMIN-06, o layout sobrevivente do dashboard anterior e as invariantes já
-  existentes no código.
+- Composição exata da tela de login, densidade visual das listas, estados
+  vazios/loading/erro, microcopy e detalhes responsivos ficam a critério do
+  planejamento, respeitando as decisões acima e o layout sobrevivente do
+  dashboard anterior.
 - A duração da sessão foi delegada parcialmente: o prazo de sete dias é fixo
   por D-01, e o planejamento deve usar expiração absoluta conforme D-02.
 
@@ -192,9 +250,8 @@ estrutura já decidida de sidebar no desktop e barra inferior no celular.
 
 - Contas nomeadas, moderadora e códigos de equipe continuam fora do v1.
 - Instagram, telão e QR das mesas continuam no backlog de v2.
-- Importação em massa da lista real e ajustes de lançamento permanecem para
-  decisão específica da Phase 7 caso não sejam necessários ao CRUD já
-  contratado.
+- Importação em massa da lista real permanece na Phase 7 (`LAUNCH-03`);
+  criação e correções pontuais existem no dashboard da Phase 6.
 
 </deferred>
 
