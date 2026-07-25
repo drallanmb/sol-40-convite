@@ -11,11 +11,11 @@ CSV real, conteúdo de backup ou foto privada.
 |---|---|
 | Commit candidato | `3d7aa1c` |
 | Deployment Vercel Preview | `dpl_ESX56bbFXwVLAF6KonicutRm3rzB` |
-| Deployment Vercel Production | `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` — candidato; Gate C pendente |
+| Deployment Vercel Production | `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` — saudável no Gate C |
 | Deployment Convex Preview | `wooden-hound-372` |
 | Deployment Convex Production | `necessary-coyote-763` |
-| URL `.vercel.app` saudável | Preview `sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app`; Production candidata `sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` |
-| Alvo saudável para rollback | Preview confirmado; Production candidata até concluir Gate C |
+| URL `.vercel.app` saudável | Preview `sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app`; Production `sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` |
+| Alvo saudável para rollback | Frontend `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` no commit `3d7aa1c`; backup `20260725T122803Z` |
 | Domínio público | pending — não equivale a convite divulgado |
 | Link enviado aos convidados | pending — proibido antes do Gate E |
 
@@ -34,7 +34,7 @@ CSV real, conteúdo de backup ou foto privada.
 |---|---|---|---|---|---|---|
 | A | Repositório: unitários, build, browser/axe, privacidade e `git diff --check` | passou | 2026-07-25 09:17 -03:00 | checkout limpo do commit `3d7aa1c`: 525/525 unitários + 40/40 browser; build e `git diff --check` verdes · repository/emulated | Codex | Codex |
 | B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | passou | 2026-07-25 09:39 -03:00 | Vercel `dpl_ESX56bbFXwVLAF6KonicutRm3rzB`; Convex `wooden-hound-372`; 40/40 browser · live/emulated | Codex + dono | Codex; autorização prévia do dono |
-| C | Production `.vercel.app`: commit esperado, Convex production, login e logs | pending | pending | pending · live/emulated | Codex + dono | pending |
+| C | Production `.vercel.app`: commit esperado, Convex production, login e logs | passou | 2026-07-25 09:54 -03:00 | Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763`; 40/40 browser + login/logout real + logs sanitizados · live/emulated | Codex + dono | Codex; autorização explícita do dono para uso único do segredo no Chaveiro |
 | D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | pending | pending | pending · live | Codex + dono | pending |
 | E | Backup validado, lista real importada/revisada, amostragem RSVP e autorização para divulgar | pending | pending | pending · live/manual | Donos | pending |
 
@@ -100,13 +100,28 @@ CSV real, conteúdo de backup ou foto privada.
 
 ### Gate C — produção antes do domínio
 
-- [ ] Deployment Vercel corresponde ao commit candidato.
-- [ ] Frontend abre WebSocket contra Convex Production.
-- [ ] `npx convex env list --names-only --prod` contém
+- [x] Deployment Vercel corresponde ao commit candidato `3d7aa1c`.
+- [x] Bundle do frontend contém somente o alvo público
+  `necessary-coyote-763.convex.cloud`, sem alvo Preview.
+- [x] `npx convex env list --names-only --prod` contém
   `ADMIN_PASSWORD`, sem imprimir o valor.
-- [ ] Login real funciona sem segredo em log, trace ou screenshot.
-- [ ] Logs Vercel/Convex sanitizados não mostram erro inesperado.
-- [ ] URL `.vercel.app` e commit saudável foram registrados para rollback.
+- [x] Login e logout reais funcionaram; o segredo foi lido uma única vez do
+  Chaveiro e consumido no mesmo processo efêmero, sem argumento, `.env`,
+  trace, screenshot, arquivo, Markdown ou saída.
+- [x] Logs sanitizados: Vercel sem evento `error`; Convex com login,
+  overview, status e logout concluídos. Três falhas anteriores de
+  `wines:listFeatured`, ocorridas antes da reconciliação do catálogo, foram
+  sucedidas por `listFeatured` e `listCatalog` sem erro; nenhuma falha atual
+  de alta severidade ficou aberta.
+- [x] URL `.vercel.app`, commit e alvos compostos foram registrados em
+  `07-ROLLBACK.md`.
+
+O gate de produção executou 40/40 casos Playwright em Chromium/WebKit
+desktop/mobile emulados, 528/528 testes unitários, build, dry-run Convex,
+seis rotas HTTP e inspeção estática do bundle. O smoke não realizou escrita.
+Os limites permanecem inalterados: login real consumiu somente uma tentativa
+válida; RSVP e memória/upload foram auditados pelos contratos recuperáveis
+`rate_limited`/`retryAfterSeconds`, sem provocar carga artificial em produção.
 
 ### Gate D — domínio
 

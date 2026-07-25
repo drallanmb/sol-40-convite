@@ -9,16 +9,27 @@ uma ação explícita na camada correspondente.
 | Camada | Ambiente | Commit/deployment saudável | Verificado em | Evidência | Estado |
 |---|---|---|---|---|---|
 | Frontend Vercel | Preview | commit `3d7aa1c`; `dpl_ESX56bbFXwVLAF6KonicutRm3rzB` | 2026-07-25 09:39 -03:00 | 40/40 browser no `.vercel.app` | saudável |
-| Frontend Vercel | Production | commit `3d7aa1c`; `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` | 2026-07-25 09:34 -03:00 | build no alvo correto; Gate C ainda pendente | candidato |
+| Frontend Vercel | Production | commit `3d7aa1c`; `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` | 2026-07-25 09:54 -03:00 | 40/40 browser, seis rotas HTTP e login/logout no `.vercel.app` | saudável |
 | Convex functions/schema | Preview | `wooden-hound-372`; commit `3d7aa1c` | 2026-07-25 09:39 -03:00 | log Vercel + deployment presente no projeto correto | saudável |
-| Convex functions/schema | Production | `necessary-coyote-763`; commit `3d7aa1c` | 2026-07-25 09:46 -03:00 | log Vercel no alvo correto; catálogo 37/37 e segunda reconciliação 0/37; Gate C ainda pendente | candidato |
-| Env names-only | Production | `ADMIN_PASSWORD` | 2026-07-25 09:41 -03:00 | `npx convex env list --names-only --prod` | presente; login pendente |
+| Convex functions/schema | Production | `necessary-coyote-763`; commit `3d7aa1c` | 2026-07-25 09:54 -03:00 | bundle no alvo correto; catálogo 37/37, repetição 0/37 e funções atuais sem erro | saudável |
+| Env names-only | Production | `ADMIN_PASSWORD` | 2026-07-25 09:54 -03:00 | nome presente e login/logout funcional sem captura do valor | saudável |
 | Backup de dados/storage | Production | `20260725T122803Z`; SHA-256 `65ec820bbd06fcb213cb80784719b76994fb081b0aa87480b5de4fb112d89af1` | 2026-07-25 09:28 -03:00 | ZIP `3897` bytes fora do git, storage incluído | concluído antes da primeira mutação |
 
 Os deployments `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X` (Preview) e
 `dpl_8KU4YX7BFRCeVKg236WjFk1uSsGf` (Production) **não são alvos de
 rollback**: ambos foram substituídos depois que o log revelou vínculo com o
 projeto Convex incorreto `convex-crimson-cloud`.
+
+O alvo Production saudável é composto e deve ser tratado em camadas:
+
+- frontend: Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`;
+- functions/schema: commit `3d7aa1c` no Convex `necessary-coyote-763`;
+- environment: inventário names-only contendo `ADMIN_PASSWORD`;
+- dados/storage: backup `20260725T122803Z`, SHA-256
+  `65ec820bbd06fcb213cb80784719b76994fb081b0aa87480b5de4fb112d89af1`.
+
+Reassociar ou promover o frontend Vercel **não** reverte functions, schema,
+environment variables, scheduled work, file storage ou linhas do Convex.
 
 ## Matriz de incidente
 
