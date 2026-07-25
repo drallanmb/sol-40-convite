@@ -1,4 +1,7 @@
-import { internalMutation } from './_generated/server'
+import { v } from 'convex/values'
+import type { FunctionReference } from 'convex/server'
+import { internal } from './_generated/api'
+import { internalAction, internalMutation } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { ADMIN_SESSION_TTL_MS } from './adminModel'
 import { expireAdminSessionRecord } from './adminInternal'
@@ -149,18 +152,18 @@ export const smokeRsvpSessionLifecycle = internalMutation({
   },
 })
 
-const FAMILY_SMOKE_PREFIX = 'Smoke admin RSVP 06-03'
-const FAMILY_SMOKE_MAX_ROWS = 8
+const FAMILY_SMOKE_PREFIX = 'Smoke admin RSVP 06-06'
 
-/**
- * Bounded, internal and self-cleaning. The fixture is required to be disjoint
- * from existing rows; every created id is tracked and removed from `finally`.
- */
-export const smokeFamilyCascade = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const suffix = String(Date.now()).slice(-8)
-    const phone = `799${suffix}`
+export const setupFamilyCascadeSmoke = internalMutation({
+  args: {
+    suffix: v.string(),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!/^\d{8}$/u.test(args.suffix)) {
+      throw new Error('Invalid smoke family suffix.')
+    }
+    const phone = `799${args.suffix}`
     const preExisting = await ctx.db
       .query('rsvps')
       .withIndex('by_phone', (index) => index.eq('phone', phone))
@@ -169,72 +172,286 @@ export const smokeFamilyCascade = internalMutation({
       throw new Error('Smoke family fixture collided with pre-existing data.')
     }
 
-    let familyId: Awaited<ReturnType<typeof insertInvitation>>['rsvpId'] | null = null
-    const createdGuestIds: Array<Awaited<ReturnType<typeof insertInvitation>>['guestIds'][number]> = []
-    let createdSessionId: Id<'rsvpSessions'> | null = null
+    const inserted = await insertInvitation(ctx, {
+      phone,
+      displayName: `${FAMILY_SMOKE_PREFIX} ${args.suffix}`,
+      guests: [{ name: 'Pessoa smoke', attendance: 'pending' }],
+    })
+    const session = await createRsvpSession(ctx, {
+      rsvpId: inserted.rsvpId,
+      token: args.token,
+    })
+    if (session.kind !== 'created') {
+      throw new Error('Smoke session was not created.')
+    }
+
+    return {
+      familyId: inserted.rsvpId,
+      guestId: inserted.guestIds[0],
+    }
+  },
+})
+
+export const advanceFamilyCascadeSmokeGeneration = internalMutation({
+  args: {
+    familyId: v.id('rsvps'),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const before = await resolveActiveRsvpSession(ctx, args.token)
+    const family = await ctx.db.get(args.familyId)
+    if (!family) throw new Error('Smoke family was not found.')
+    await ctx.db.patch(family._id, {
+      generation: (family.generation ?? 0) + 1,
+    })
+    const after = await resolveActiveRsvpSession(ctx, args.token)
+    return {
+      beforeAuthorized: before !== null,
+      afterUnauthorized: after === null,
+    }
+  },
+})
+
+export const issueFamilyCascadeSmokeSession = internalMutation({
+  args: {
+    familyId: v.id('rsvps'),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const created = await createRsvpSession(ctx, {
+      rsvpId: args.familyId,
+      token: args.token,
+    })
+    if (created.kind !== 'created') {
+      throw new Error('Smoke orphan control session was not created.')
+    }
+    return { created: true }
+  },
+})
+
+export const removeFamilyCascadeSmokeFamily = internalMutation({
+  args: {
+    familyId: v.id('rsvps'),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const guests = await ctx.db
+      .query('rsvpGuests')
+      .withIndex('by_rsvp', (index) => index.eq('rsvpId', args.familyId))
+      .take(3)
+    if (guests.length !== 1) {
+      throw new Error('Smoke family guest shape changed.')
+    }
+    for (const guest of guests) await ctx.db.delete(guest._id)
+    await ctx.db.delete(args.familyId)
+    return {
+      familyAbsent: (await ctx.db.get(args.familyId)) === null,
+      capabilityUnauthorized:
+        (await resolveActiveRsvpSession(ctx, args.token)) === null,
+    }
+  },
+})
+
+export const inspectFamilyCascadeSmoke = internalMutation({
+  args: {
+    familyId: v.id('rsvps'),
+  },
+  handler: async (ctx, args) => {
+    const guests = await ctx.db
+      .query('rsvpGuests')
+      .withIndex('by_rsvp', (index) => index.eq('rsvpId', args.familyId))
+      .collect()
+    const sessions = await ctx.db
+      .query('rsvpSessions')
+      .withIndex('by_rsvp', (index) => index.eq('rsvpId', args.familyId))
+      .collect()
+    return {
+      familyMissing: (await ctx.db.get(args.familyId)) === null,
+      guestCount: guests.length,
+      sessionCount: sessions.length,
+    }
+  },
+})
+
+export const cleanupFamilyCascadeSmoke = internalMutation({
+  args: {
+    familyId: v.id('rsvps'),
+  },
+  handler: async (ctx, args) => {
+    const guests = await ctx.db
+      .query('rsvpGuests')
+      .withIndex('by_rsvp', (index) => index.eq('rsvpId', args.familyId))
+      .collect()
+    const sessions = await ctx.db
+      .query('rsvpSessions')
+      .withIndex('by_rsvp', (index) => index.eq('rsvpId', args.familyId))
+      .collect()
+    for (const guest of guests) await ctx.db.delete(guest._id)
+    for (const session of sessions) await ctx.db.delete(session._id)
+    const family = await ctx.db.get(args.familyId)
+    if (family) await ctx.db.delete(family._id)
+    return { cleaned: true }
+  },
+})
+
+type FamilyCascadeFixture = {
+  familyId: Id<'rsvps'>
+  guestId: Id<'rsvpGuests'>
+}
+
+type PurgeResult = {
+  scanned: number
+  deleted: number
+  done: boolean
+  nextCursor?: string
+}
+
+const familyCascadeSmokeRefs = (internal as unknown as {
+  adminTest: {
+    setupFamilyCascadeSmoke: FunctionReference<
+      'mutation',
+      'internal',
+      { suffix: string; token: string },
+      FamilyCascadeFixture
+    >
+    advanceFamilyCascadeSmokeGeneration: FunctionReference<
+      'mutation',
+      'internal',
+      { familyId: Id<'rsvps'>; token: string },
+      { beforeAuthorized: boolean; afterUnauthorized: boolean }
+    >
+    issueFamilyCascadeSmokeSession: FunctionReference<
+      'mutation',
+      'internal',
+      { familyId: Id<'rsvps'>; token: string },
+      { created: boolean }
+    >
+    removeFamilyCascadeSmokeFamily: FunctionReference<
+      'mutation',
+      'internal',
+      { familyId: Id<'rsvps'>; token: string },
+      { familyAbsent: boolean; capabilityUnauthorized: boolean }
+    >
+    inspectFamilyCascadeSmoke: FunctionReference<
+      'mutation',
+      'internal',
+      { familyId: Id<'rsvps'> },
+      { familyMissing: boolean; guestCount: number; sessionCount: number }
+    >
+    cleanupFamilyCascadeSmoke: FunctionReference<
+      'mutation',
+      'internal',
+      { familyId: Id<'rsvps'> },
+      { cleaned: boolean }
+    >
+  }
+  rsvpInternal: {
+    purgeRsvpSessionsBatch: FunctionReference<
+      'mutation',
+      'internal',
+      {
+        rsvpId: Id<'rsvps'>
+        command:
+          | { kind: 'olderThanGeneration'; commandGeneration: number }
+          | { kind: 'deleteAll' }
+      },
+      PurgeResult
+    >
+  }
+})
+
+/**
+ * Internal-only and self-cleaning. Separate bounded mutations let the action
+ * exercise each paginated cleanup transaction against the real deployment.
+ */
+export const smokeFamilyCascade = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const suffixBytes = new Uint8Array(4)
+    const oldTokenBytes = new Uint8Array(32)
+    const orphanTokenBytes = new Uint8Array(32)
+    crypto.getRandomValues(suffixBytes)
+    crypto.getRandomValues(oldTokenBytes)
+    crypto.getRandomValues(orphanTokenBytes)
+    const suffix = String(
+      new DataView(suffixBytes.buffer).getUint32(0) % 100_000_000,
+    ).padStart(8, '0')
+    const oldToken = encodeOpaqueToken(oldTokenBytes)
+    const orphanToken = encodeOpaqueToken(orphanTokenBytes)
+    let fixture: FamilyCascadeFixture | null = null
 
     try {
-      const inserted = await insertInvitation(ctx, {
-        phone,
-        displayName: `${FAMILY_SMOKE_PREFIX} ${suffix}`,
-        guests: [{ name: 'Pessoa smoke', attendance: 'pending' }],
-      })
-      familyId = inserted.rsvpId
-      createdGuestIds.push(...inserted.guestIds)
-      const session = await createRsvpSession(ctx, {
-        rsvpId: inserted.rsvpId,
-        token: 'A'.repeat(43),
-      })
-      if (session.kind !== 'created') throw new Error('Smoke session was not created.')
-      const storedSession = await ctx.db
-        .query('rsvpSessions')
-        .withIndex('by_token_hash', (index) => index.eq('tokenHash', session.tokenHash))
-        .unique()
-      if (!storedSession) throw new Error('Smoke session row was not found.')
-      createdSessionId = storedSession._id
-
-      const guests = await ctx.db
-        .query('rsvpGuests')
-        .withIndex('by_rsvp', (index) => index.eq('rsvpId', inserted.rsvpId))
-        .take(FAMILY_SMOKE_MAX_ROWS + 1)
-      const sessions = await ctx.db
-        .query('rsvpSessions')
-        .withIndex('by_rsvp', (index) => index.eq('rsvpId', inserted.rsvpId))
-        .take(FAMILY_SMOKE_MAX_ROWS + 1)
-      if (
-        guests.length !== 1 ||
-        sessions.length !== 1 ||
-        guests.length + sessions.length > FAMILY_SMOKE_MAX_ROWS
-      ) {
-        throw new Error('Smoke family fixture exceeded its bounded shape.')
-      }
-
-      for (const guest of guests) await ctx.db.delete(guest._id)
-      for (const publicSession of sessions) await ctx.db.delete(publicSession._id)
-      await ctx.db.delete(inserted.rsvpId)
-      familyId = null
+      fixture = await ctx.runMutation(
+        familyCascadeSmokeRefs.adminTest.setupFamilyCascadeSmoke,
+        { suffix, token: oldToken },
+      )
+      const logical = await ctx.runMutation(
+        familyCascadeSmokeRefs.adminTest.advanceFamilyCascadeSmokeGeneration,
+        { familyId: fixture.familyId, token: oldToken },
+      )
+      const firstPurge = await ctx.runMutation(
+        familyCascadeSmokeRefs.rsvpInternal.purgeRsvpSessionsBatch,
+        {
+          rsvpId: fixture.familyId,
+          command: {
+            kind: 'olderThanGeneration',
+            commandGeneration: 1,
+          },
+        },
+      )
+      const repeatedPurge = await ctx.runMutation(
+        familyCascadeSmokeRefs.rsvpInternal.purgeRsvpSessionsBatch,
+        {
+          rsvpId: fixture.familyId,
+          command: {
+            kind: 'olderThanGeneration',
+            commandGeneration: 1,
+          },
+        },
+      )
+      await ctx.runMutation(
+        familyCascadeSmokeRefs.adminTest.issueFamilyCascadeSmokeSession,
+        { familyId: fixture.familyId, token: orphanToken },
+      )
+      const removed = await ctx.runMutation(
+        familyCascadeSmokeRefs.adminTest.removeFamilyCascadeSmokeFamily,
+        { familyId: fixture.familyId, token: orphanToken },
+      )
+      const orphanPurge = await ctx.runMutation(
+        familyCascadeSmokeRefs.rsvpInternal.purgeRsvpSessionsBatch,
+        {
+          rsvpId: fixture.familyId,
+          command: { kind: 'deleteAll' },
+        },
+      )
+      const inspected = await ctx.runMutation(
+        familyCascadeSmokeRefs.adminTest.inspectFamilyCascadeSmoke,
+        { familyId: fixture.familyId },
+      )
 
       return {
         createdFamily: true,
-        indexedGuestCount: guests.length,
-        indexedSessionCount: sessions.length,
-        cascadeRemovedEverything:
-          (await ctx.db.get(inserted.rsvpId)) === null &&
-          (await ctx.db.get(guests[0]._id)) === null &&
-          (await ctx.db.get(sessions[0]._id)) === null,
+        logicalPhoneRevocationImmediate:
+          logical.beforeAuthorized && logical.afterUnauthorized,
+        staleGenerationPurged:
+          firstPurge.deleted === 1 && firstPurge.done,
+        purgeRetryIdempotent:
+          repeatedPurge.deleted === 0 && repeatedPurge.done,
+        familyAbsenceRevocationImmediate:
+          removed.familyAbsent && removed.capabilityUnauthorized,
+        orphanSessionsPurged:
+          orphanPurge.deleted === 1 && orphanPurge.done,
+        fixturesRemoved:
+          inspected.familyMissing &&
+          inspected.guestCount === 0 &&
+          inspected.sessionCount === 0,
       }
     } finally {
-      if (createdSessionId) {
-        const row = await ctx.db.get(createdSessionId)
-        if (row) await ctx.db.delete(createdSessionId)
-      }
-      for (const guestId of createdGuestIds) {
-        const row = await ctx.db.get(guestId)
-        if (row) await ctx.db.delete(guestId)
-      }
-      if (familyId) {
-        const row = await ctx.db.get(familyId)
-        if (row) await ctx.db.delete(familyId)
+      if (fixture) {
+        await ctx.runMutation(
+          familyCascadeSmokeRefs.adminTest.cleanupFamilyCascadeSmoke,
+          { familyId: fixture.familyId },
+        )
       }
     }
   },
