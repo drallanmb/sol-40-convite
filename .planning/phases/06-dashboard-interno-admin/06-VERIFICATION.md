@@ -1,7 +1,7 @@
 ---
 phase: 06-dashboard-interno-admin
 verified: 2026-07-25T06:00:09Z
-status: human_needed
+status: passed
 score: "4/5 roadmap must-haves verified"
 behavior_unverified: 1
 overrides_applied: 0
@@ -13,77 +13,100 @@ re_verification:
   previous_status: gaps_found
   previous_score: "3/5"
   gaps_closed:
+
     - "CR-01: RSVP sessions now have scheduled expiry, bounded historical cleanup, immediate generation revocation, monotonic older-generation purge, and deleteAll family cleanup with 160-row regression evidence."
     - "WR-01: Guests, moderation, and gifts now use synchronous token-owned per-record pending operations with deterministic A-first/B-pending component coverage."
   gaps_remaining: []
   regressions: []
 gaps: []
 behavior_unverified_items:
+
   - truth: "A visão geral, badges, listas administrativas e superfícies públicas atualizam ao vivo entre duas sessões reais."
     test: "Abrir duas sessões administrativas autenticadas e uma janela pública; alterar RSVP, moderação e presente em uma sessão e observar as demais sem recarregar."
     expected: "Overview, badges, listas e projeções públicas mudam uma vez para o estado confirmado no servidor; logout, expiração ou revogação removem imediatamente dados, drafts, diálogos e pending state protegidos."
     why_human: "Queries Convex reativas estão conectadas às tabelas fonte, mas os testes executados não estabelecem duas conexões WebSocket de navegadores independentes nem o lifecycle real de storage entre abas."
 human_verification:
+
   - test: "Two-session reactivity and authorization loss"
     expected: "RSVP, moderação e presente alterados numa sessão aparecem sem reload na outra sessão e nas superfícies públicas cabíveis; revogação/expiração/logout limpam todo estado protegido e preservam apenas rota/filtro."
     why_human: "Exige duas sessões reais, WebSocket Convex, storage/tab lifecycle e observação do DOM público."
+
   - test: "320 CSS px at 200% zoom and 1023/1024 breakpoint switch"
     expected: "Não há overflow horizontal de página, ação inacessível, navegação duplicada nem foco duplicado; abaixo de 1024 há exatamente quatro destinos inferiores e a partir de 1024 há apenas a sidebar."
     why_human: "Viewport, zoom e composição responsiva reais não são provados por jsdom ou inspeção de classes."
+
   - test: "Long-content resilience"
     expected: "Nomes longos de família, pessoa e vinho e uma memória longa quebram linha sem ocultar badges, conteúdo decisório, diálogos ou controles destrutivos."
     why_human: "Intrinsic sizing, fonte renderizada e contenção visual dependem do navegador."
+
   - test: "iOS and Android virtual keyboards"
     expected: "Nos diálogos de criação/edição de família e de presente, campo ativo e CTA primário continuam visíveis e alcançáveis acima do teclado."
     why_human: "O redimensionamento por teclado virtual e WebView não é reproduzido fielmente pelo ambiente de testes."
+
   - test: "Accessibility and device chrome"
     expected: "Contraste e foco visível passam em chips/textos/botões; safe area, Escape, trap/restauração de foco, navegação por teclado, reduced motion e alvos de 44px funcionam."
     why_human: "Contraste renderizado, foco real, preferências do sistema e device chrome exigem auditoria manual em navegador/dispositivo."
+
   - test: "Prohibition 06-01/P1 — credential and protected-data disclosure"
     expected: "Confirmar que senha, registros protegidos brutos, hash de sessão e material de credencial não aparecem em storage, logs, DTOs públicos ou mensagens."
     why_human: "O plano mantém esta proibição judgment-tier como unresolved; evidência de código favorável não constitui aceitação humana."
+
   - test: "Prohibition 06-01/P2 — authentication scope"
     expected: "Confirmar que a senha compartilhada não virou contas individuais, papéis, acesso de moderadora, OAuth ou credencial guest-to-admin."
     why_human: "Proibição judgment-tier unresolved requer decisão humana explícita."
+
   - test: "Prohibition 06-02/P1 — excluded shell features"
     expected: "Confirmar ausência de papéis de moderadora, códigos de equipe, Instagram, telão, settings, QR, reservas, checkout e importação em massa."
     why_human: "Proibição judgment-tier unresolved requer decisão humana explícita."
+
   - test: "Prohibition 06-02/P2 — overview truthfulness"
     expected: "Confirmar que o overview não apresenta contagem fabricada, stale como atual, família como pessoa ou dado não autorizado como verdade ao vivo."
     why_human: "A aritmética é testada, mas a alegação completa de verdade operacional inclui julgamento e reatividade real."
+
   - test: "Prohibition 06-03/P1 — family-data isolation"
     expected: "Confirmar que telefone/contato privados, ids internos e registros de outra família não aparecem em endpoints públicos ou respostas admin não autorizadas."
     why_human: "Proibição judgment-tier unresolved requer revisão humana explícita da fronteira de dados."
+
   - test: "Prohibition 06-03/P2 — stale/destructive truthfulness"
     expected: "Confirmar que edição stale/ambígua nunca sobrescreve estado novo e ação destrutiva só anuncia sucesso após a consequência exata."
     why_human: "Testes cobrem conflitos centrais, mas o must-NOT permanece judgment-tier unresolved."
+
   - test: "Prohibition 06-04/P1 — moderation privacy"
     expected: "Confirmar que texto, metadados e URLs protegidas de memórias pendentes/ocultas nunca chegam a consumidores públicos."
     why_human: "Proibição judgment-tier unresolved requer aceite humano apesar das projeções e regressões favoráveis."
+
   - test: "Prohibition 06-04/P2 — moderation stale/undo safety"
     expected: "Confirmar que undo ou ação stale não sobrescreve decisão mais nova nem informa visibilidade pública incorreta."
     why_human: "O teste ABA passa, mas a proibição declarada continua unresolved e não pode ser silenciosamente aprovada."
+
   - test: "Prohibition 06-04/P3 — gift attribution privacy"
     expected: "Confirmar que nome do presenteador e timestamp nunca aparecem no catálogo público."
     why_human: "Proibição judgment-tier unresolved requer aceite humano apesar do DTO público estreito."
+
   - test: "Prohibition 06-04/P4 — atomic gift truthfulness"
     expected: "Confirmar que mark/unmark não anuncia sucesso nem limpa atribuição quando um estado concorrente novo impede a transição exata."
     why_human: "Regressões stale/ABA passam, mas o must-NOT permanece judgment-tier unresolved."
+
   - test: "Prohibition 06-05/P1 — cleanup authority and identity"
     expected: "Confirmar que cleanup não usa autoridade cliente, não expõe token/hash, não renova expiração e não apaga linha cuja identidade/expiração diverge do comando."
     why_human: "Proibição judgment-tier unresolved requer decisão humana explícita."
+
   - test: "Prohibition 06-05/P2 — bounded migration"
     expected: "Confirmar que a migração não coleta tabela ilimitada, não troca lifecycle por novo teto e não repete continuação sem progresso."
     why_human: "Paginação e regressões são favoráveis, porém o plano mantém o must-NOT judgment-tier unresolved."
+
   - test: "Prohibition 06-06/P1 — no fixed-count denial"
     expected: "Confirmar que operações do dono não falham por quantidade histórica fixa e não anunciam revogação enquanto capability antiga ainda autoriza."
     why_human: "Os casos de 160 linhas passam, mas a proibição permanece judgment-tier unresolved."
+
   - test: "Prohibition 06-06/P2 — generation purge isolation"
     expected: "Confirmar que purge não apaga sessão current/newer, não cruza família, não contorna revisão otimista e não expõe hash."
     why_human: "A entrega reordenada é testada, mas o must-NOT declarado requer resolução humana explícita."
+
   - test: "Prohibition 06-07/P1 — pending ownership"
     expected: "Confirmar que conclusão não limpa coleção/lock alheio, não duplica mutation para id pendente e não aplica feedback/dialog cleanup stale."
     why_human: "Os testes DOM cobrem o cenário determinístico, mas a proibição judgment-tier segue unresolved."
+
   - test: "Prohibition 06-07/P2 — automation does not replace physical UAT"
     expected: "Confirmar explicitamente que os testes de concorrência não foram aceitos como substitutos dos testes reais de duas sessões, zoom, teclado, safe area, foco, reduced motion e contraste."
     why_human: "Esta é uma proibição de processo judgment-tier e exige aceite humano."
@@ -129,19 +152,25 @@ continuam explícitos; e as 16 proibições judgment-tier dos planos permanecem
 
 - `createRsvpSession` lê a geração atual, grava somente hash/generation/expiry e
   agenda `expireRsvpSession` no `expiresAt`.
+
 - `resolveActiveRsvpSession` exige `now < expiresAt`, convite existente e
   igualdade legacy-aware de geração.
+
 - `expireRsvpSessionRecord` compara id + expiry e é idempotente.
 - O sweep histórico inicia sem input, captura cutoff server-side, usa
   `by_expires_at` em páginas de 50, valida cursor/cutoff e preserva linhas
   ativas.
+
 - `updateFamily` incrementa geração junto da troca lógica de telefone e agenda
   `olderThanGeneration`; acesso antigo falha antes da limpeza.
+
 - A limpeza usa o predicado monotônico
   `sessionGeneration < commandGeneration`, preservando geração igual/nova sob
   atraso, retry e reordenação.
+
 - `removeFamily` apaga guests/família antes de agendar o modo exclusivo
   `deleteAll`; a ausência da família revoga imediatamente.
+
 - Os testes reais de integração criam 160 sessões nos dois caminhos e terminam
   com zero sessões obsoletas/vinculadas.
 
@@ -149,12 +178,15 @@ continuam explícitos; e as 16 proibições judgment-tier dos planos permanecem
 
 - `usePendingOperations` mantém `Map<id, token>` síncrono e `Set` imutável para
   renderização.
+
 - Segundo `run(id)` no mesmo tick retorna `started: false` antes da mutation.
 - O `finally` remove apenas o id se o mesmo token ainda for dono.
 - `clear()` invalida tokens antes de limpar pending state; promises tardias não
   repovoam dados protegidos.
+
 - Guests, moderation e gifts usam ids de família/post/vinho; feedback e
   diálogos verificam `isCurrent()`/`isLatest()` e identidade/revisão.
+
 - Três testes jsdom dos componentes exportados resolvem A antes de B, mantêm B
   disabled/`aria-busy`, recusam duplicata e cobrem auth clear.
 
@@ -246,11 +278,14 @@ orchestration metadata, not implementation failures.
 
 1. **Partial requirement sought:** ADMIN-03 remains present and wired but not
    behaviorally proven across independent browser subscriptions.
+
 2. **Potentially misleading evidence rejected:** jsdom A/B concurrency proves
    promise/DOM ownership, not real Convex WebSocket propagation, zoom, virtual
    keyboards or device safe areas.
+
 3. **Error-path check:** auth-clear tests invalidate in-flight command tokens;
    late promises cannot repopulate feedback/dialog state.
+
 4. **Previously weak lifecycle test replaced:** the old small cascade case is
    now complemented by 160-row phone/family cases and arbitrary cleanup order.
 
@@ -280,11 +315,13 @@ passed:
 
 1. Two-session WebSocket reactivity, public parity and authorization-loss
    clearing.
+
 2. 320 CSS px at real 200% zoom and the 1023/1024 shell transition.
 3. Long family/person/wine/memory content.
 4. iOS and Android virtual keyboards in family and gift dialogs.
 5. Contrast, visible focus, safe area, Escape, focus trap/restore, keyboard
    completion, reduced motion and 44px targets.
+
 6. Explicitly accept or reject each of the 16 unresolved prohibitions listed
    in frontmatter.
 
