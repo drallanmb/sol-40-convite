@@ -10,12 +10,12 @@ CSV real, conteúdo de backup ou foto privada.
 | Campo | Valor |
 |---|---|
 | Commit candidato | `3d7aa1c` |
-| Deployment Vercel Preview | `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X` |
-| Deployment Vercel Production | pending |
-| Deployment Convex Preview | `prestigious-roadrunner-782` |
+| Deployment Vercel Preview | `dpl_ESX56bbFXwVLAF6KonicutRm3rzB` |
+| Deployment Vercel Production | `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` — candidato; Gate C pendente |
+| Deployment Convex Preview | `wooden-hound-372` |
 | Deployment Convex Production | `necessary-coyote-763` |
-| URL `.vercel.app` saudável | pending |
-| Alvo saudável para rollback | pending |
+| URL `.vercel.app` saudável | Preview `sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app`; Production candidata `sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` |
+| Alvo saudável para rollback | Preview confirmado; Production candidata até concluir Gate C |
 | Domínio público | pending — não equivale a convite divulgado |
 | Link enviado aos convidados | pending — proibido antes do Gate E |
 
@@ -32,8 +32,8 @@ CSV real, conteúdo de backup ou foto privada.
 
 | Gate | Escopo | Estado | Executado em | Evidência/identificador | Responsável | Sign-off |
 |---|---|---|---|---|---|---|
-| A | Repositório: unitários, build, browser/axe, privacidade e `git diff --check` | pending | pending | pending · repository/emulated | Codex | pending |
-| B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | passou | 2026-07-25 08:59 -03:00 | Vercel `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X`; Convex `prestigious-roadrunner-782`; 40/40 browser + 528/528 unitários · live/emulated | Codex + dono | Codex; autorização prévia do dono |
+| A | Repositório: unitários, build, browser/axe, privacidade e `git diff --check` | passou | 2026-07-25 09:17 -03:00 | checkout limpo do commit `3d7aa1c`: 525/525 unitários + 40/40 browser; build e `git diff --check` verdes · repository/emulated | Codex | Codex |
+| B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | passou | 2026-07-25 09:39 -03:00 | Vercel `dpl_ESX56bbFXwVLAF6KonicutRm3rzB`; Convex `wooden-hound-372`; 40/40 browser · live/emulated | Codex + dono | Codex; autorização prévia do dono |
 | C | Production `.vercel.app`: commit esperado, Convex production, login e logs | pending | pending | pending · live/emulated | Codex + dono | pending |
 | D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | pending | pending | pending · live | Codex + dono | pending |
 | E | Backup validado, lista real importada/revisada, amostragem RSVP e autorização para divulgar | pending | pending | pending · live/manual | Donos | pending |
@@ -42,17 +42,17 @@ CSV real, conteúdo de backup ou foto privada.
 
 ### Gate A — repositório
 
-- [ ] `npm run test:release` verde.
-- [ ] Nenhuma violação axe A/AA séria ou crítica sem justificativa estreita.
-- [ ] `/`, `/confirmar`, `/presentes`, `/admin`, `/admin/convidados` e 404
+- [x] `npm run test:release` verde no checkout limpo do candidato.
+- [x] Nenhuma violação axe A/AA séria ou crítica sem justificativa estreita.
+- [x] `/`, `/confirmar`, `/presentes`, `/admin`, `/admin/convidados` e 404
   carregam e sobrevivem a refresh em Chromium e WebKit emulados.
-- [ ] Pré-auth não monta navegação/DTO protegido nem função de domínio admin.
+- [x] Pré-auth não monta navegação/DTO protegido nem função de domínio admin.
 - [ ] Backstops humanos de teclado, zoom 200%, contraste, conteúdo longo e
   dispositivo permanecem honestamente pendentes quando não executados.
 
 ### Gate B — preview
 
-- [x] Preview Vercel aponta para `prestigious-roadrunner-782`, distinto de
+- [x] Preview Vercel aponta para `wooden-hound-372`, distinto de
   desenvolvimento (`judicious-pigeon-504`) e produção
   (`necessary-coyote-763`).
 - [x] Nenhum dado foi escrito no smoke: nenhuma lista real foi importada e não
@@ -71,14 +71,32 @@ CSV real, conteúdo de backup ou foto privada.
   `npx convex deploy --cmd 'npm run build'`, publicou `dist` e manteve o
   rewrite SPA. O log sanitizado confirmou injeção de `VITE_CONVEX_URL` pelo
   Convex; não existe valor manual dessa variável no Vercel.
-- Ambientes: existem entradas sensíveis, gerenciadas pela integração, chamadas
-  `CONVEX_DEPLOY_KEY` nos escopos Preview e Production; nenhum valor foi lido
-  ou registrado.
+- Ambientes: existem entradas sensíveis manuais chamadas
+  `CONVEX_DEPLOY_KEY`, uma somente para Preview e outra somente para
+  Production; nenhum valor foi exibido ou registrado. O Preview foi
+  reconstruído depois da correção e o log confirmou
+  `wooden-hound-372` no projeto Convex correto.
 - A autenticação Vercel do projeto foi desativada com confirmação explícita
   para tornar o Preview acessível ao smoke público. A alteração é reversível.
-- Uma deploy key manual redundante, criada durante a inspeção, foi revogada
-  imediatamente; somente as entradas mascaradas da integração permanecem
-  ativas.
+- O Preview anterior `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X` /
+  `prestigious-roadrunner-782` e o primeiro Production
+  `dpl_8KU4YX7BFRCeVKg236WjFk1uSsGf` foram rejeitados como não candidatos:
+  os logs mostraram o projeto Convex incorreto `convex-crimson-cloud`.
+  As entradas Production/Preview incorretas foram removidas antes dos novos
+  deployments.
+
+### Backup anterior à primeira mutação em produção
+
+- Export Convex Production `necessary-coyote-763`, incluindo file storage,
+  concluído em `2026-07-25 09:28:03 -03:00`.
+- Artefato armazenado fora do workspace/repositório; tamanho `3897` bytes.
+- SHA-256:
+  `65ec820bbd06fcb213cb80784719b76994fb081b0aa87480b5de4fb112d89af1`.
+- Conteúdo do ZIP não foi aberto nem copiado para evidência. A primeira
+  mutação posterior foi a reconciliação do catálogo público canônico:
+  `37` criados, `37` totais e nenhum código inesperado. A repetição
+  idempotente retornou `0` criados, `0` atualizados e `37` inalterados;
+  `wines:listFeatured` e `wines:listCatalog` passaram em seguida.
 
 ### Gate C — produção antes do domínio
 

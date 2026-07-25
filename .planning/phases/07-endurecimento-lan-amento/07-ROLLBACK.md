@@ -8,12 +8,17 @@ uma ação explícita na camada correspondente.
 
 | Camada | Ambiente | Commit/deployment saudável | Verificado em | Evidência | Estado |
 |---|---|---|---|---|---|
-| Frontend Vercel | Preview | pending | pending | pending | pending |
-| Frontend Vercel | Production | pending | pending | pending | pending |
-| Convex functions/schema | Preview | pending | pending | pending | pending |
-| Convex functions/schema | Production | pending | pending | pending | pending |
-| Env names-only | Production | `ADMIN_PASSWORD` esperado | pending | nomes somente | pending |
-| Backup de dados/storage | Production | timestamp + checksum fora do git | pending | metadados somente | pending |
+| Frontend Vercel | Preview | commit `3d7aa1c`; `dpl_ESX56bbFXwVLAF6KonicutRm3rzB` | 2026-07-25 09:39 -03:00 | 40/40 browser no `.vercel.app` | saudável |
+| Frontend Vercel | Production | commit `3d7aa1c`; `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` | 2026-07-25 09:34 -03:00 | build no alvo correto; Gate C ainda pendente | candidato |
+| Convex functions/schema | Preview | `wooden-hound-372`; commit `3d7aa1c` | 2026-07-25 09:39 -03:00 | log Vercel + deployment presente no projeto correto | saudável |
+| Convex functions/schema | Production | `necessary-coyote-763`; commit `3d7aa1c` | 2026-07-25 09:46 -03:00 | log Vercel no alvo correto; catálogo 37/37 e segunda reconciliação 0/37; Gate C ainda pendente | candidato |
+| Env names-only | Production | `ADMIN_PASSWORD` | 2026-07-25 09:41 -03:00 | `npx convex env list --names-only --prod` | presente; login pendente |
+| Backup de dados/storage | Production | `20260725T122803Z`; SHA-256 `65ec820bbd06fcb213cb80784719b76994fb081b0aa87480b5de4fb112d89af1` | 2026-07-25 09:28 -03:00 | ZIP `3897` bytes fora do git, storage incluído | concluído antes da primeira mutação |
+
+Os deployments `dpl_A1D9bmdwHbQxNAd6v7r25mSpms2X` (Preview) e
+`dpl_8KU4YX7BFRCeVKg236WjFk1uSsGf` (Production) **não são alvos de
+rollback**: ambos foram substituídos depois que o log revelou vínculo com o
+projeto Convex incorreto `convex-crimson-cloud`.
 
 ## Matriz de incidente
 
@@ -86,4 +91,3 @@ Instant rollback não reconstrói envs nem reaplica valores antigos.
 
 Incidente só fecha depois de registrar causa, camada revertida, alvo saudável,
 smoke pós-recuperação e ação preventiva.
-
