@@ -1,5 +1,6 @@
 const POST_CAPABILITY_LENGTH = 43
-const CANONICAL_BASE64URL_32_BYTES = /^[A-Za-z0-9_-]{42}[AQgw]$/u
+const CANONICAL_BASE64URL_32_BYTES =
+  /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/u
 
 function toHex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')

@@ -1,7 +1,7 @@
 import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { convexTest } from 'convex-test'
-import { describe, expect, it } from 'vitest'
-import { components } from './_generated/api'
+import { describe, expect, it, vi } from 'vitest'
+import { api, components } from './_generated/api'
 import {
   AUTHOR_MAX_LENGTH,
   MESSAGE_MAX_LENGTH,
@@ -25,6 +25,22 @@ function makePostTest() {
     modules,
     registerRateLimiter: (testInstance) => rateLimiterTest.register(testInstance),
   })
+}
+
+const postApi = (api as unknown as {
+  posts: {
+    submitTextMemory: never
+    listApproved: never
+  }
+}).posts
+
+const DEVICE_KEY_A = `${'B'.repeat(42)}g`
+const DEVICE_KEY_B = `${'C'.repeat(42)}w`
+
+function deviceKeyFor(index: number) {
+  const bytes = new Uint8Array(32)
+  new DataView(bytes.buffer).setUint32(28, index)
+  return Buffer.from(bytes).toString('base64url')
 }
 
 describe('Phase 5 Convex harness', () => {
@@ -139,6 +155,8 @@ describe('post capabilities', () => {
     expect(validatePostCapability(`${capability}=`)).toBe(false)
     expect(validatePostCapability(`${capability.slice(0, -1)}+`)).toBe(false)
     expect(validatePostCapability(`${'A'.repeat(42)}B`)).toBe(false)
+    expect(validatePostCapability(deviceKeyFor(1))).toBe(true)
+    expect(validatePostCapability(deviceKeyFor(255))).toBe(true)
   })
 
   it('hashes capabilities and fairness keys with separate purposes and no reflection', async () => {
@@ -337,5 +355,191 @@ describe('post and upload reservation schema', () => {
         } as never)
       }),
     ).rejects.toThrow()
+  })
+})
+
+describe('public text memories', () => {
+  it('creates exactly one pending plain-text post with normalized optional author', async () => {
+    const t = makePostTest()
+
+    const result = await t.mutation(postApi.submitTextMemory, {
+      deviceKey: DEVICE_KEY_A,
+      author: '  Allan  ',
+      message: '  <strong>Uma memória</strong>  ',
+    })
+    const posts = await t.run((ctx) => ctx.db.query('posts').collect())
+
+    expect(result).toEqual({ kind: 'submitted' })
+    expect(posts).toHaveLength(1)
+    expect(posts[0]).toMatchObject({
+      author: 'Allan',
+      message: '<strong>Uma memória</strong>',
+      status: 'pendente',
+      source: 'convidado',
+    })
+    expect(posts[0].storageId).toBeUndefined()
+  })
+
+  it('rejects invalid text without consuming a successful post write', async () => {
+    const t = makePostTest()
+
+    await expect(
+      t.mutation(postApi.submitTextMemory, {
+        deviceKey: DEVICE_KEY_A,
+        message: '🌅'.repeat(281),
+      }),
+    ).resolves.toEqual({ kind: 'invalid_message' })
+    await expect(
+      t.mutation(postApi.submitTextMemory, {
+        deviceKey: DEVICE_KEY_A,
+        author: 'a'.repeat(61),
+        message: 'Memória',
+      }),
+    ).resolves.toEqual({ kind: 'invalid_author' })
+
+    const posts = await t.run((ctx) => ctx.db.query('posts').collect())
+    expect(posts).toHaveLength(0)
+  })
+
+  it('enforces the device text burst boundary with a positive whole retry', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T00:00:00.000Z'))
+    const t = makePostTest()
+
+    const attempts = await Promise.all(
+      Array.from({ length: 6 }, (_, index) =>
+        t.mutation(postApi.submitTextMemory, {
+          deviceKey: DEVICE_KEY_A,
+          message: `Memória ${index + 1}`,
+        }),
+      ),
+    )
+
+    expect(attempts.slice(0, 5)).toEqual(
+      Array.from({ length: 5 }, () => ({ kind: 'submitted' })),
+    )
+    expect(attempts[5]).toMatchObject({ kind: 'rate_limited' })
+    expect((attempts[5] as { retryAfterSeconds: number }).retryAfterSeconds).toBeGreaterThan(0)
+    expect(Number.isInteger((attempts[5] as { retryAfterSeconds: number }).retryAfterSeconds)).toBe(true)
+
+    const posts = await t.run((ctx) => ctx.db.query('posts').collect())
+    expect(posts).toHaveLength(5)
+    vi.useRealTimers()
+  })
+
+  it('refills the device bucket and has no lifetime submission cap', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T00:00:00.000Z'))
+    const t = makePostTest()
+
+    for (let index = 0; index < 5; index += 1) {
+      await expect(
+        t.mutation(postApi.submitTextMemory, {
+          deviceKey: DEVICE_KEY_B,
+          message: `Primeira janela ${index + 1}`,
+        }),
+      ).resolves.toEqual({ kind: 'submitted' })
+    }
+
+    vi.advanceTimersByTime(60 * 60 * 1_000)
+
+    await expect(
+      t.mutation(postApi.submitTextMemory, {
+        deviceKey: DEVICE_KEY_B,
+        message: 'Depois do refill',
+      }),
+    ).resolves.toEqual({ kind: 'submitted' })
+    vi.useRealTimers()
+  })
+
+  it('enforces the global text boundary without partially consuming a denied device bucket', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T00:00:00.000Z'))
+    const t = makePostTest()
+
+    for (let index = 1; index <= 600; index += 1) {
+      await expect(
+        t.mutation(postApi.submitTextMemory, {
+          deviceKey: deviceKeyFor(index),
+          message: `Global ${index}`,
+        }),
+      ).resolves.toEqual({ kind: 'submitted' })
+    }
+
+    const denied = await t.mutation(postApi.submitTextMemory, {
+      deviceKey: deviceKeyFor(601),
+      message: 'Global 601',
+    })
+    expect(denied).toMatchObject({ kind: 'rate_limited' })
+    expect((denied as { retryAfterSeconds: number }).retryAfterSeconds).toBeGreaterThan(0)
+    expect((denied as { retryAfterSeconds: number }).retryAfterSeconds).toBeLessThanOrEqual(3_600)
+
+    vi.advanceTimersByTime(60 * 60 * 1_000)
+    await expect(
+      t.mutation(postApi.submitTextMemory, {
+        deviceKey: deviceKeyFor(601),
+        message: 'Global após reset',
+      }),
+    ).resolves.toEqual({ kind: 'submitted' })
+    vi.useRealTimers()
+  })
+})
+
+describe('approved public projection', () => {
+  it('returns only approved purpose-built views and applies the anonymous fallback', async () => {
+    const t = makePostTest()
+    const fixture = await t.run(async (ctx) => {
+      const approvedStorageId = await ctx.storage.store(
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: 'image/jpeg',
+        }),
+      )
+      const hiddenStorageId = await ctx.storage.store(
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: 'image/jpeg',
+        }),
+      )
+      const approvedId = await ctx.db.insert('posts', {
+        message: 'Aprovada',
+        storageId: approvedStorageId,
+        mediaType: 'image/jpeg',
+        mediaSize: 4,
+        status: 'aprovado',
+        source: 'convidado',
+        createdAt: 3,
+        approvedAt: 4,
+      })
+      await ctx.db.insert('posts', {
+        author: 'Pendente',
+        message: 'Não pode aparecer',
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: 2,
+      })
+      await ctx.db.insert('posts', {
+        author: 'Oculta',
+        storageId: hiddenStorageId,
+        mediaType: 'image/jpeg',
+        mediaSize: 4,
+        status: 'oculto',
+        source: 'convidado',
+        createdAt: 1,
+      })
+      return { approvedId }
+    })
+
+    const result = await t.query(postApi.listApproved, {})
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      id: fixture.approvedId,
+      author: 'De alguém que te ama',
+      message: 'Aprovada',
+      imageUrl: expect.stringMatching(/^https?:\/\//u),
+      createdAt: 3,
+    })
+    expect(Object.keys(result[0]).sort()).toEqual(
+      ['author', 'createdAt', 'id', 'imageUrl', 'message'].sort(),
+    )
   })
 })
