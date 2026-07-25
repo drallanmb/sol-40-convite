@@ -19,9 +19,17 @@ ou traces.
    `writesAttempted:0`. Production deve encerrar com código diferente de zero
    antes de iniciar qualquer subprocesso.
 
-4. Quando o Preview ainda não tiver as functions da branch, publique somente
-   no deployment isolado com `npx convex dev --once`. Não edite
+4. Antes de abrir `/admin`, publique as functions desta branch no deployment
+   isolado com `npx convex dev --once` (desenvolvimento) ou o deploy Preview
+   equivalente. Este passo é obrigatório mesmo quando o frontend já compila:
+   frontend e backend Convex precisam apontar para a mesma versão. Não edite
    `convex/_generated` manualmente.
+5. Abra `/admin`. Se aparecer “Painel temporariamente indisponível”, não tente
+   bootstrap, login ou criação de contas. Isso normalmente indica functions
+   ausentes ou frontend/backend fora de sincronia. Confirme o deployment
+   selecionado, execute novamente o codegen/deploy acima e então use
+   “Tentar novamente”. A tela é propositalmente genérica e não exibe o nome da
+   function, deployment ou resposta técnica.
 
 ## 2. Rollout aditivo
 

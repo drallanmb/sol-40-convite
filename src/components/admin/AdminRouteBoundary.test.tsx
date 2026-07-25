@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from 'react'
+import { act, createElement, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AdminRouteBoundary } from './AdminRouteBoundary'
@@ -19,7 +19,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-function render(element: React.ReactNode) {
+function render(element: ReactNode) {
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)

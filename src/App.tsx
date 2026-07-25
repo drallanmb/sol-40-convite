@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router'
+import AdminRouteBoundary from './components/admin/AdminRouteBoundary.tsx'
 import Home from './routes/Home.tsx'
 
 const Confirmar = lazy(() => import('./routes/Confirmar.tsx'))
@@ -32,7 +33,14 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/confirmar" element={<Confirmar />} />
         <Route path="/presentes" element={<Presentes />} />
-        <Route path="/admin/*" element={<Admin />} />
+        <Route
+          path="/admin/*"
+          element={
+            <AdminRouteBoundary>
+              <Admin />
+            </AdminRouteBoundary>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
