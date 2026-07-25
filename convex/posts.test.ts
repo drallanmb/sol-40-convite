@@ -861,6 +861,12 @@ describe('photo upload reservation and validation', () => {
     ['html', 'text/html', new TextEncoder().encode('<script>alert(1)</script>'), 'unsupported_metadata'],
     ['spoofed jpeg', 'image/jpeg', new TextEncoder().encode('<script>'), 'unsupported_type'],
     [
+      'structurally truncated jpeg',
+      'image/jpeg',
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 10]),
+      'unsupported_type',
+    ],
+    [
       'raw heic',
       'image/heic',
       new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]),
