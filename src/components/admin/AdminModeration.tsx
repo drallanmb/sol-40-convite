@@ -11,6 +11,7 @@ import {
 import {
   MODERATION_UNDO_MS,
   moderationTargets,
+  usePendingOperations,
   type ModerationStatus,
   type ModerationUndoCommand,
 } from '../../lib/adminOperations'
@@ -79,7 +80,7 @@ export function AdminModeration({
   const undoPost = useMutation(api.adminPosts.undoPost)
   const queries = { pendente: pending, aprovado: approved, oculto: hidden }
   const current = queries[status]
-  const [busyPost, setBusyPost] = useState<string | null>(null)
+  const pendingPosts = usePendingOperations()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [imageRetries, setImageRetries] = useState<Record<string, number>>({})
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
@@ -104,6 +105,7 @@ export function AdminModeration({
 
   useEffect(() => {
     const clear = () => {
+      pendingPosts.clear()
       setUndo(null)
       setExpanded(new Set())
       setFeedback(null)
@@ -111,7 +113,7 @@ export function AdminModeration({
     }
     window.addEventListener('admin-sensitive-state-clear', clear)
     return () => window.removeEventListener('admin-sensitive-state-clear', clear)
-  }, [])
+  }, [pendingPosts.clear])
 
   const counts = useMemo(
     () =>
@@ -130,42 +132,45 @@ export function AdminModeration({
   )
 
   async function apply(post: ModerationPost, targetStatus: ModerationStatus) {
-    setBusyPost(post.id)
-    setError(null)
-    try {
-      const result = await transitionPost({
-        token,
-        postId: post.id,
-        expectedStatus: post.status,
-        expectedRevision: post.moderationRevision,
-        targetStatus,
-      })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'conflict') {
-        setFeedback(
-          'Esta memória foi alterada em outra sessão. Mantivemos a versão mais recente.',
-        )
-      } else if (result.kind === 'updated') {
-        setUndo({
+    await pendingPosts.run(post.id, async (command) => {
+      if (command.isLatest()) setError(null)
+      try {
+        const result = await transitionPost({
+          token,
           postId: post.id,
-          priorStatus: post.status,
-          expectedStatus: result.post.status,
-          expectedRevision: result.post.moderationRevision,
-          expiresAt: Date.now() + MODERATION_UNDO_MS,
+          expectedStatus: post.status,
+          expectedRevision: post.moderationRevision,
+          targetStatus,
         })
-        setFeedback(
-          result.post.status === 'aprovado'
-            ? 'Memória aprovada.'
-            : 'Memória ocultada.',
-        )
-      } else {
-        setError('Não foi possível atualizar esta memória. Tente novamente.')
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (!command.isLatest()) return
+        if (result.kind === 'conflict') {
+          setFeedback(
+            'Esta memória foi alterada em outra sessão. Mantivemos a versão mais recente.',
+          )
+        } else if (result.kind === 'updated') {
+          setUndo({
+            postId: post.id,
+            priorStatus: post.status,
+            expectedStatus: result.post.status,
+            expectedRevision: result.post.moderationRevision,
+            expiresAt: Date.now() + MODERATION_UNDO_MS,
+          })
+          setFeedback(
+            result.post.status === 'aprovado'
+              ? 'Memória aprovada.'
+              : 'Memória ocultada.',
+          )
+        } else {
+          setError('Não foi possível atualizar esta memória. Tente novamente.')
+        }
+      } catch {
+        if (command.isCurrent() && command.isLatest()) {
+          setError('Não foi possível atualizar esta memória. Tente novamente.')
+        }
       }
-    } catch {
-      setError('Não foi possível atualizar esta memória. Tente novamente.')
-    } finally {
-      setBusyPost(null)
-    }
+    })
   }
 
   async function handleUndo() {
@@ -173,29 +178,33 @@ export function AdminModeration({
       setUndo(null)
       return
     }
-    setBusyPost(undo.postId)
-    try {
-      const result = await undoPost({
-        token,
-        postId: undo.postId as Id<'posts'>,
-        priorStatus: undo.priorStatus,
-        expectedStatus: undo.expectedStatus,
-        expectedRevision: undo.expectedRevision,
-      })
-      setUndo(null)
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      setFeedback(
-        result.kind === 'updated'
-          ? 'Alteração desfeita.'
-          : result.kind === 'conflict'
-            ? 'Esta memória foi alterada em outra sessão. Mantivemos a versão mais recente.'
-            : 'Não foi possível desfazer esta alteração.',
-      )
-    } catch {
-      setFeedback('Não foi possível desfazer esta alteração.')
-    } finally {
-      setBusyPost(null)
-    }
+    const commandUndo = undo
+    await pendingPosts.run(undo.postId, async (command) => {
+      try {
+        const result = await undoPost({
+          token,
+          postId: commandUndo.postId as Id<'posts'>,
+          priorStatus: commandUndo.priorStatus,
+          expectedStatus: commandUndo.expectedStatus,
+          expectedRevision: commandUndo.expectedRevision,
+        })
+        if (!command.isCurrent()) return
+        if (command.isLatest()) setUndo(null)
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (!command.isLatest()) return
+        setFeedback(
+          result.kind === 'updated'
+            ? 'Alteração desfeita.'
+            : result.kind === 'conflict'
+              ? 'Esta memória foi alterada em outra sessão. Mantivemos a versão mais recente.'
+              : 'Não foi possível desfazer esta alteração.',
+        )
+      } catch {
+        if (command.isCurrent() && command.isLatest()) {
+          setFeedback('Não foi possível desfazer esta alteração.')
+        }
+      }
+    })
   }
 
   const posts =
@@ -292,7 +301,7 @@ export function AdminModeration({
               <li
                 key={post.id}
                 className="overflow-hidden rounded-lg border border-line bg-card sm:grid sm:grid-cols-[minmax(220px,40%)_1fr]"
-                aria-busy={busyPost === post.id}
+                aria-busy={pendingPosts.has(post.id)}
               >
                 {post.imageUrl ? (
                   <div className="grid min-h-64 place-items-center bg-sand/45">
@@ -376,7 +385,7 @@ export function AdminModeration({
                       <Button
                         key={target}
                         variant={target === 'aprovado' ? 'adminPrimary' : 'adminDestructive'}
-                        disabled={busyPost === post.id}
+                        disabled={pendingPosts.has(post.id)}
                         onClick={() => void apply(post, target)}
                       >
                         {target === 'aprovado' ? 'Aprovar memória' : 'Ocultar memória'}

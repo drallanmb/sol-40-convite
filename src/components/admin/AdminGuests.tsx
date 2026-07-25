@@ -21,6 +21,7 @@ import {
   guestResultCount,
   type AdminPresence,
 } from '../../lib/adminSearch'
+import { usePendingOperations } from '../../lib/adminOperations'
 import { formatBrazilianPhoneInput } from '../../lib/phone'
 import Button from '../ui/Button'
 import Field from '../ui/Field'
@@ -190,7 +191,7 @@ export function AdminGuests({
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [drafts, setDrafts] = useState<Map<string, AdminGuestDraftState>>(new Map())
-  const [busyFamily, setBusyFamily] = useState<string | null>(null)
+  const pendingFamilies = usePendingOperations()
   const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [removal, setRemoval] = useState<Removal>(null)
@@ -230,13 +231,19 @@ export function AdminGuests({
 
   useEffect(() => {
     const clear = () => {
+      pendingFamilies.clear()
       setDrafts(new Map())
       setExpanded(new Set())
       setSearch('')
+      setCreateOpen(false)
+      setCreateError(null)
+      setRemoval(null)
+      setAddNames({})
+      setFeedback(null)
     }
     window.addEventListener('admin-sensitive-state-clear', clear)
     return () => window.removeEventListener('admin-sensitive-state-clear', clear)
-  }, [])
+  }, [pendingFamilies.clear])
 
   const visible = useMemo(
     () => filterFamilies(families, { query: search, presence }),
@@ -261,99 +268,112 @@ export function AdminGuests({
   async function saveFamily(family: AdminFamily) {
     const draft = drafts.get(family.id)
     if (!draft || draft.conflict) return
-    setBusyFamily(family.id)
     const expectedUpdatedAt = draft.expectedUpdatedAt
-    try {
-      const result = await updateFamily({
-        token,
-        familyId: family.id,
-        expectedUpdatedAt,
-        patch: {
-          ...(draft.dirtyFields.has('displayName') ? { displayName: draft.values.displayName } : {}),
-          ...(draft.dirtyFields.has('phone') ? { phone: draft.values.phone } : {}),
-          ...(draft.dirtyFields.has('contact') ? { contact: draft.values.contact || null } : {}),
-        },
-      })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'conflict') {
-        updateDraft(family.id, { type: 'server-reconciled', snapshot: result.family })
-      } else if (result.kind === 'saved') {
-        updateDraft(family.id, { type: 'save-succeeded', expectedUpdatedAt, snapshot: result.family })
-        setFeedback('Alterações salvas.')
-      } else {
-        updateDraft(family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível salvar esta família.' })
+    await pendingFamilies.run(family.id, async (command) => {
+      try {
+        const result = await updateFamily({
+          token,
+          familyId: family.id,
+          expectedUpdatedAt,
+          patch: {
+            ...(draft.dirtyFields.has('displayName') ? { displayName: draft.values.displayName } : {}),
+            ...(draft.dirtyFields.has('phone') ? { phone: draft.values.phone } : {}),
+            ...(draft.dirtyFields.has('contact') ? { contact: draft.values.contact || null } : {}),
+          },
+        })
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (result.kind === 'conflict') {
+          updateDraft(family.id, { type: 'server-reconciled', snapshot: result.family })
+        } else if (result.kind === 'saved') {
+          updateDraft(family.id, { type: 'save-succeeded', expectedUpdatedAt, snapshot: result.family })
+          if (command.isLatest()) setFeedback('Alterações salvas.')
+        } else {
+          updateDraft(family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível salvar esta família.' })
+        }
+      } catch {
+        if (command.isCurrent()) {
+          updateDraft(family.id, { type: 'save-failed', message: 'Não foi possível salvar esta família. Tente novamente.' })
+        }
       }
-    } catch {
-      updateDraft(family.id, { type: 'save-failed', message: 'Não foi possível salvar esta família. Tente novamente.' })
-    } finally {
-      setBusyFamily(null)
-    }
+    })
   }
 
   async function savePerson(family: AdminFamily, guestId: Id<'rsvpGuests'>) {
     const draft = drafts.get(family.id)
     const values = draft?.guestValues[guestId]
     if (!draft || !values || draft.conflict) return
-    setBusyFamily(family.id)
     const expectedUpdatedAt = draft.expectedUpdatedAt
-    try {
-      const result = await updateGuest({ token, familyId: family.id, guestId, expectedUpdatedAt, patch: values })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'conflict') updateDraft(family.id, { type: 'server-reconciled', snapshot: result.family })
-      else if (result.kind === 'saved') {
-        updateDraft(family.id, { type: 'save-succeeded', expectedUpdatedAt, snapshot: result.family })
-        setFeedback('Alterações salvas.')
-      } else updateDraft(family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível salvar esta pessoa.' })
-    } catch {
-      updateDraft(family.id, { type: 'save-failed', message: 'Não foi possível salvar esta pessoa. Tente novamente.' })
-    } finally {
-      setBusyFamily(null)
-    }
+    await pendingFamilies.run(family.id, async (command) => {
+      try {
+        const result = await updateGuest({ token, familyId: family.id, guestId, expectedUpdatedAt, patch: values })
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (result.kind === 'conflict') updateDraft(family.id, { type: 'server-reconciled', snapshot: result.family })
+        else if (result.kind === 'saved') {
+          updateDraft(family.id, { type: 'save-succeeded', expectedUpdatedAt, snapshot: result.family })
+          if (command.isLatest()) setFeedback('Alterações salvas.')
+        } else updateDraft(family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível salvar esta pessoa.' })
+      } catch {
+        if (command.isCurrent()) {
+          updateDraft(family.id, { type: 'save-failed', message: 'Não foi possível salvar esta pessoa. Tente novamente.' })
+        }
+      }
+    })
   }
 
   async function addPerson(family: AdminFamily) {
     const name = addNames[family.id]?.trim()
     const draft = drafts.get(family.id)
     if (!name || !draft) return
-    setBusyFamily(family.id)
-    try {
-      const result = await addGuest({ token, familyId: family.id, expectedUpdatedAt: draft.expectedUpdatedAt, name, attendance: 'pending' })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'saved') {
-        updateDraft(family.id, { type: 'save-succeeded', expectedUpdatedAt: draft.expectedUpdatedAt, snapshot: result.family })
-        setAddNames((current) => ({ ...current, [family.id]: '' }))
-        setFeedback('Pessoa adicionada.')
-      } else if (result.kind === 'conflict') updateDraft(family.id, { type: 'server-reconciled', snapshot: result.family })
-      else updateDraft(family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível adicionar a pessoa.' })
-    } catch {
-      updateDraft(family.id, { type: 'save-failed', message: 'Não foi possível adicionar a pessoa.' })
-    } finally {
-      setBusyFamily(null)
-    }
+    await pendingFamilies.run(family.id, async (command) => {
+      try {
+        const result = await addGuest({ token, familyId: family.id, expectedUpdatedAt: draft.expectedUpdatedAt, name, attendance: 'pending' })
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (result.kind === 'saved') {
+          updateDraft(family.id, { type: 'save-succeeded', expectedUpdatedAt: draft.expectedUpdatedAt, snapshot: result.family })
+          setAddNames((current) => ({ ...current, [family.id]: '' }))
+          if (command.isLatest()) setFeedback('Pessoa adicionada.')
+        } else if (result.kind === 'conflict') updateDraft(family.id, { type: 'server-reconciled', snapshot: result.family })
+        else updateDraft(family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível adicionar a pessoa.' })
+      } catch {
+        if (command.isCurrent()) {
+          updateDraft(family.id, { type: 'save-failed', message: 'Não foi possível adicionar a pessoa.' })
+        }
+      }
+    })
   }
 
   async function confirmRemoval() {
     if (!removal) return
     const draft = drafts.get(removal.family.id)
     if (!draft) return
-    setBusyFamily(removal.family.id)
-    try {
-      const result = removal.kind === 'guest'
-        ? await removeGuest({ token, familyId: removal.family.id, guestId: removal.guestId, expectedUpdatedAt: draft.expectedUpdatedAt })
-        : await removeFamily({ token, familyId: removal.family.id, expectedUpdatedAt: draft.expectedUpdatedAt })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'conflict') updateDraft(removal.family.id, { type: 'server-reconciled', snapshot: result.family })
-      else if (result.kind === 'saved') {
-        updateDraft(removal.family.id, { type: 'save-succeeded', expectedUpdatedAt: draft.expectedUpdatedAt, snapshot: result.family })
-        setFeedback('Pessoa removida.')
-      } else if (result.kind === 'removed') setFeedback('Família removida.')
-      else updateDraft(removal.family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível remover.' })
-    } catch {
-      updateDraft(removal.family.id, { type: 'save-failed', message: 'Não foi possível remover. Tente novamente.' })
-    } finally {
-      setBusyFamily(null)
-      setRemoval(null)
-    }
+    const commandRemoval = removal
+    await pendingFamilies.run(removal.family.id, async (command) => {
+      try {
+        const result = commandRemoval.kind === 'guest'
+          ? await removeGuest({ token, familyId: commandRemoval.family.id, guestId: commandRemoval.guestId, expectedUpdatedAt: draft.expectedUpdatedAt })
+          : await removeFamily({ token, familyId: commandRemoval.family.id, expectedUpdatedAt: draft.expectedUpdatedAt })
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (result.kind === 'conflict') updateDraft(commandRemoval.family.id, { type: 'server-reconciled', snapshot: result.family })
+        else if (result.kind === 'saved') {
+          updateDraft(commandRemoval.family.id, { type: 'save-succeeded', expectedUpdatedAt: draft.expectedUpdatedAt, snapshot: result.family })
+          if (command.isLatest()) setFeedback('Pessoa removida.')
+        } else if (result.kind === 'removed') {
+          if (command.isLatest()) setFeedback('Família removida.')
+        } else updateDraft(commandRemoval.family.id, { type: 'save-failed', message: result.kind === 'invalid' ? result.message : 'Não foi possível remover.' })
+      } catch {
+        if (command.isCurrent()) {
+          updateDraft(commandRemoval.family.id, { type: 'save-failed', message: 'Não foi possível remover. Tente novamente.' })
+        }
+      } finally {
+        if (command.isCurrent()) {
+          setRemoval((current) => current === commandRemoval ? null : current)
+        }
+      }
+    })
   }
 
   if (query.status === 'pending') {
@@ -392,7 +412,7 @@ export function AdminGuests({
           {visible.map((family) => {
             const open = expanded.has(family.id)
             const draft = drafts.get(family.id)
-            const busy = busyFamily === family.id
+            const busy = pendingFamilies.has(family.id)
             return (
               <li key={family.id} className="overflow-hidden rounded-lg border border-line bg-card">
                 <button type="button" aria-expanded={open} aria-controls={`family-${family.id}`} className="flex min-h-20 w-full items-center justify-between gap-4 p-4 text-left sm:p-5" onClick={() => setExpanded((current) => { const next = new Set(current); if (next.has(family.id)) next.delete(family.id); else next.add(family.id); return next })}>
@@ -431,8 +451,8 @@ export function AdminGuests({
           })}
         </ul>
       )}
-      <CreateFamilyDialog open={createOpen} busy={busyFamily === 'create'} error={createError} onCancel={() => setCreateOpen(false)} onCreate={async (values) => { setBusyFamily('create'); setCreateError(null); try { const result = await createFamily({ token, ...values }); if (result.kind === 'unauthorized') return onUnauthorized(); if (result.kind === 'saved') { setCreateOpen(false); setExpanded((current) => new Set(current).add(result.family.id)); setFeedback('Família criada.') } else setCreateError(result.message) } catch { setCreateError('Não foi possível criar a família. Tente novamente.') } finally { setBusyFamily(null) } }} />
-      <AdminConfirmDialog open={removal !== null} title={removal?.kind === 'guest' ? `Remover ${removal.name}?` : `Remover a família ${removal?.family.displayName ?? ''}?`} body={removal?.kind === 'guest' ? 'A pessoa será removida desta família. As outras pessoas e o convite continuam.' : 'Esta ação remove o convite e todas as pessoas e encerra os acessos públicos vinculados. Não é possível desfazer.'} confirmLabel={removal?.kind === 'guest' ? 'Remover pessoa' : 'Remover família'} acknowledgement={removal?.kind === 'family' ? 'Entendo que toda a família será removida' : undefined} busy={removal ? busyFamily === removal.family.id : false} onCancel={() => setRemoval(null)} onConfirm={() => void confirmRemoval()} />
+      <CreateFamilyDialog open={createOpen} busy={pendingFamilies.has('create')} error={createError} onCancel={() => setCreateOpen(false)} onCreate={async (values) => { await pendingFamilies.run('create', async (command) => { setCreateError(null); try { const result = await createFamily({ token, ...values }); if (!command.isCurrent()) return; if (result.kind === 'unauthorized') return onUnauthorized(); if (result.kind === 'saved') { setCreateOpen(false); setExpanded((current) => new Set(current).add(result.family.id)); if (command.isLatest()) setFeedback('Família criada.') } else setCreateError(result.message) } catch { if (command.isCurrent()) setCreateError('Não foi possível criar a família. Tente novamente.') } }) }} />
+      <AdminConfirmDialog open={removal !== null} title={removal?.kind === 'guest' ? `Remover ${removal.name}?` : `Remover a família ${removal?.family.displayName ?? ''}?`} body={removal?.kind === 'guest' ? 'A pessoa será removida desta família. As outras pessoas e o convite continuam.' : 'Esta ação remove o convite e todas as pessoas e encerra os acessos públicos vinculados. Não é possível desfazer.'} confirmLabel={removal?.kind === 'guest' ? 'Remover pessoa' : 'Remover família'} acknowledgement={removal?.kind === 'family' ? 'Entendo que toda a família será removida' : undefined} busy={removal ? pendingFamilies.has(removal.family.id) : false} onCancel={() => setRemoval(null)} onConfirm={() => void confirmRemoval()} />
       {feedback ? <Toast onDismiss={() => setFeedback(null)}>{feedback}</Toast> : null}
     </section>
   )

@@ -13,6 +13,7 @@ import {
   filterAdminWines,
   groupAdminWinesByBand,
 } from '../../lib/adminSearch'
+import { usePendingOperations } from '../../lib/adminOperations'
 import Button from '../ui/Button'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
@@ -150,8 +151,9 @@ export function AdminGifts({
   const makeAvailable = useMutation(api.adminWines.makeAvailable)
   const [search, setSearch] = useState('')
   const [marking, setMarking] = useState<AdminWine | null>(null)
+  const markingRef = useRef<AdminWine | null>(null)
   const [unmarking, setUnmarking] = useState<AdminWine | null>(null)
-  const [busyWine, setBusyWine] = useState<string | null>(null)
+  const pendingWines = usePendingOperations()
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [review, setReview] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -167,6 +169,10 @@ export function AdminGifts({
   }, [onUnauthorized, query])
 
   useEffect(() => {
+    markingRef.current = marking
+  }, [marking])
+
+  useEffect(() => {
     if (!marking) return
     const remote = wines.find((wine) => wine.id === marking.id)
     if (!remote || remote.updatedAt !== marking.updatedAt) setReview(true)
@@ -174,14 +180,17 @@ export function AdminGifts({
 
   useEffect(() => {
     const clear = () => {
+      pendingWines.clear()
       setSearch('')
       setMarking(null)
       setUnmarking(null)
+      setDialogError(null)
+      setReview(false)
       setFeedback(null)
     }
     window.addEventListener('admin-sensitive-state-clear', clear)
     return () => window.removeEventListener('admin-sensitive-state-clear', clear)
-  }, [])
+  }, [pendingWines.clear])
 
   const visible = useMemo(
     () => filterAdminWines(wines, { query: search, status }),
@@ -199,63 +208,96 @@ export function AdminGifts({
       setDialogError('Informe o nome de quem presenteou.')
       return
     }
-    setBusyWine(marking.id)
-    setDialogError(null)
-    try {
-      const result = await markGifted({
-        token,
-        wineId: marking.id,
-        expectedUpdatedAt: marking.updatedAt,
-        giftedBy: presenter,
-      })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'conflict') {
-        setReview(true)
-        setDialogError(
-          'Este vinho foi atualizado em outra sessão. Revise o estado atual antes de continuar.',
-        )
-      } else if (result.kind === 'updated') {
-        setFeedback(`${result.wine.name} marcado como presenteado.`)
-        setMarking(null)
-      } else {
-        setDialogError(
-          result.kind === 'invalid'
-            ? result.message
-            : 'Não foi possível confirmar este presente. Tente novamente.',
-        )
+    const commandWine = marking
+    await pendingWines.run(marking.id, async (command) => {
+      setDialogError(null)
+      try {
+        const result = await markGifted({
+          token,
+          wineId: commandWine.id,
+          expectedUpdatedAt: commandWine.updatedAt,
+          giftedBy: presenter,
+        })
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        const ownsDialog =
+          markingRef.current?.id === commandWine.id &&
+          markingRef.current.updatedAt === commandWine.updatedAt
+        if (result.kind === 'conflict') {
+          if (ownsDialog && command.isLatest()) {
+            setReview(true)
+            setDialogError(
+              'Este vinho foi atualizado em outra sessão. Revise o estado atual antes de continuar.',
+            )
+          }
+        } else if (result.kind === 'updated') {
+          if (command.isLatest()) {
+            setFeedback(`${result.wine.name} marcado como presenteado.`)
+          }
+          setMarking((current) =>
+            current?.id === commandWine.id &&
+            current.updatedAt === commandWine.updatedAt
+              ? null
+              : current,
+          )
+        } else if (ownsDialog && command.isLatest()) {
+          setDialogError(
+            result.kind === 'invalid'
+              ? result.message
+              : 'Não foi possível confirmar este presente. Tente novamente.',
+          )
+        }
+      } catch {
+        if (
+          command.isCurrent() &&
+          command.isLatest() &&
+          markingRef.current?.id === commandWine.id &&
+          markingRef.current.updatedAt === commandWine.updatedAt
+        ) {
+          setDialogError('Não foi possível confirmar este presente. Tente novamente.')
+        }
       }
-    } catch {
-      setDialogError('Não foi possível confirmar este presente. Tente novamente.')
-    } finally {
-      setBusyWine(null)
-    }
+    })
   }
 
   async function confirmUnmark() {
     if (!unmarking) return
-    setBusyWine(unmarking.id)
-    try {
-      const result = await makeAvailable({
-        token,
-        wineId: unmarking.id,
-        expectedUpdatedAt: unmarking.updatedAt,
-      })
-      if (result.kind === 'unauthorized') return onUnauthorized()
-      if (result.kind === 'updated') {
-        setFeedback(`${result.wine.name} voltou a ficar disponível.`)
-      } else if (result.kind === 'conflict') {
-        setFeedback(
-          'Este vinho foi alterado em outra sessão. Mantivemos a versão mais recente.',
-        )
-      } else {
-        setFeedback('Não foi possível tornar este vinho disponível.')
+    const commandWine = unmarking
+    await pendingWines.run(unmarking.id, async (command) => {
+      try {
+        const result = await makeAvailable({
+          token,
+          wineId: commandWine.id,
+          expectedUpdatedAt: commandWine.updatedAt,
+        })
+        if (!command.isCurrent()) return
+        if (result.kind === 'unauthorized') return onUnauthorized()
+        if (command.isLatest()) {
+          if (result.kind === 'updated') {
+            setFeedback(`${result.wine.name} voltou a ficar disponível.`)
+          } else if (result.kind === 'conflict') {
+            setFeedback(
+              'Este vinho foi alterado em outra sessão. Mantivemos a versão mais recente.',
+            )
+          } else {
+            setFeedback('Não foi possível tornar este vinho disponível.')
+          }
+        }
+      } catch {
+        if (command.isCurrent() && command.isLatest()) {
+          setFeedback('Não foi possível tornar este vinho disponível.')
+        }
+      } finally {
+        if (command.isCurrent()) {
+          setUnmarking((current) =>
+            current?.id === commandWine.id &&
+            current.updatedAt === commandWine.updatedAt
+              ? null
+              : current,
+          )
+        }
       }
-    } catch {
-      setFeedback('Não foi possível tornar este vinho disponível.')
-    } finally {
-      setBusyWine(null)
-      setUnmarking(null)
-    }
+    })
   }
 
   return (
@@ -372,7 +414,7 @@ export function AdminGifts({
                     </div>
                     <ul className="mt-3 grid gap-3">
                       {group.items.map((wine) => (
-                        <li key={wine.id} aria-busy={busyWine === wine.id} className="flex flex-col gap-4 rounded-lg border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <li key={wine.id} aria-busy={pendingWines.has(wine.id)} className="flex flex-col gap-4 rounded-lg border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <h3 className="break-words font-bold text-plum">{wine.name}</h3>
                             <p className="mt-1 text-sm text-ink/70">
@@ -387,7 +429,7 @@ export function AdminGifts({
                           </div>
                           <Button
                             variant={wine.status === 'available' ? 'adminPrimary' : 'adminSecondary'}
-                            disabled={busyWine === wine.id}
+                            disabled={pendingWines.has(wine.id)}
                             onClick={() => {
                               if (wine.status === 'available') {
                                 setDialogError(null)
@@ -413,7 +455,7 @@ export function AdminGifts({
 
       <MarkGiftDialog
         wine={marking}
-        busy={Boolean(marking && busyWine === marking.id)}
+        busy={Boolean(marking && pendingWines.has(marking.id))}
         error={dialogError}
         review={review}
         onCancel={() => {
@@ -429,7 +471,7 @@ export function AdminGifts({
         body="O nome de quem presenteou e a data da marcação serão removidos."
         confirmLabel="Tornar disponível"
         cancelLabel="Voltar aos presentes"
-        busy={Boolean(unmarking && busyWine === unmarking.id)}
+        busy={Boolean(unmarking && pendingWines.has(unmarking.id))}
         onCancel={() => setUnmarking(null)}
         onConfirm={() => void confirmUnmark()}
       />

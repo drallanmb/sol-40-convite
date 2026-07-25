@@ -26,38 +26,49 @@ export type PendingOperationResult<T> =
   | { started: false }
   | { started: true; value: T }
 
+export type PendingOperationScope = {
+  isCurrent: () => boolean
+  isLatest: () => boolean
+}
+
 export function usePendingOperations() {
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   )
-  const pendingRef = useRef<ReadonlySet<string>>(pendingIds)
+  const tokensRef = useRef(new Map<string, symbol>())
+  const latestTokenRef = useRef<symbol | null>(null)
 
   const run = useCallback(
     <T,>(
       id: string,
-      operation: () => Promise<T>,
+      operation: (scope: PendingOperationScope) => Promise<T>,
     ): Promise<PendingOperationResult<T>> => {
-      if (pendingRef.current.has(id)) {
+      if (tokensRef.current.has(id)) {
         return Promise.resolve({ started: false })
       }
 
-      const begun = pendingIdsReducer(pendingRef.current, {
-        type: 'begin',
-        id,
-      })
-      pendingRef.current = begun
-      setPendingIds(begun)
+      const token = Symbol(id)
+      tokensRef.current.set(id, token)
+      latestTokenRef.current = token
+      setPendingIds((current) =>
+        pendingIdsReducer(current, { type: 'begin', id }),
+      )
+      const scope: PendingOperationScope = {
+        isCurrent: () => tokensRef.current.get(id) === token,
+        isLatest: () => latestTokenRef.current === token,
+      }
 
       return (async () => {
         try {
-          return { started: true, value: await operation() } as const
+          return { started: true, value: await operation(scope) } as const
         } finally {
-          const settled = pendingIdsReducer(pendingRef.current, {
-            type: 'settle',
-            id,
-          })
-          pendingRef.current = settled
-          setPendingIds(settled)
+          if (tokensRef.current.get(id) === token) {
+            tokensRef.current.delete(id)
+            setPendingIds((current) =>
+              pendingIdsReducer(current, { type: 'settle', id }),
+            )
+          }
+          if (latestTokenRef.current === token) latestTokenRef.current = null
         }
       })()
     },
@@ -65,9 +76,9 @@ export function usePendingOperations() {
   )
 
   const clear = useCallback(() => {
-    const cleared = pendingIdsReducer(pendingRef.current, { type: 'clear' })
-    pendingRef.current = cleared
-    setPendingIds(cleared)
+    tokensRef.current.clear()
+    latestTokenRef.current = null
+    setPendingIds((current) => pendingIdsReducer(current, { type: 'clear' }))
   }, [])
 
   const has = useCallback((id: string) => pendingIds.has(id), [pendingIds])

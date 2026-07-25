@@ -274,7 +274,7 @@ describe('admin screen pending operations', () => {
     await act(async () => {
       window.dispatchEvent(new Event('admin-sensitive-state-clear'))
     })
-    expect(inputB.disabled).toBe(false)
+    expect(container!.querySelector('#family-family-b')).toBeNull()
 
     await act(async () => {
       operationB.resolve({
