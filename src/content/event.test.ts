@@ -3,7 +3,9 @@ import { buttonClassName } from '../components/ui/Button'
 import buttonSource from '../components/ui/Button.tsx?raw'
 import fieldSource from '../components/ui/Field.tsx?raw'
 import heroSource from '../components/invite/Hero.tsx?raw'
+import memoriesSectionSource from '../components/memories/MemoriesSection.tsx?raw'
 import shellSource from '../components/layout/Shell.tsx?raw'
+import homeSource from '../routes/Home.tsx?raw'
 import rsvpClockSource from '../lib/rsvpClock.ts?raw'
 import rsvpDraftSource from '../lib/rsvpDraft.ts?raw'
 import rsvpSessionSource from '../lib/rsvpSession.ts?raw'
@@ -17,8 +19,10 @@ import {
   GUIDE,
   HERO,
   HOTELS,
+  MEMORIES_COPY,
   NAV_LINKS,
   PROGRAMA,
+  SECTION_IDS,
   VENUE,
 } from './event'
 
@@ -152,7 +156,16 @@ describe('event content — NAV_LINKS', () => {
       ['Local', '#aracaju'],
       ['Programação', '#programacao'],
       ['Traje', '#traje'],
+      ['Memórias', '#memorias'],
     ])
+  })
+
+  it('derives the memory navigation target from the canonical section ID', () => {
+    expect(SECTION_IDS.memories).toBe('memorias')
+    expect(NAV_LINKS.at(-1)).toEqual({
+      label: 'Memórias',
+      href: `#${SECTION_IDS.memories}`,
+    })
   })
 
   it('uses absolute home targets in the reduced RSVP navigation', () => {
@@ -161,6 +174,33 @@ describe('event content — NAV_LINKS', () => {
       ['Programação', '/#programacao'],
       ['Local', '/#aracaju'],
     ])
+  })
+})
+
+describe('event content — memories integration', () => {
+  it('locks the approved-album copy without implying automatic publication', () => {
+    expect(MEMORIES_COPY.section).toEqual({
+      kicker: 'NOSSO ÁLBUM',
+      heading: 'Memórias para guardar este pôr do sol.',
+      intro:
+        'Relembre os carinhos que já passaram por aqui e deixe também o seu. Toda memória é vista com cuidado antes de fazer parte do álbum.',
+    })
+    expect(MEMORIES_COPY.album.emptyBody).toContain(
+      'depois da aprovação',
+    )
+    expect(MEMORIES_COPY.album.pause).toBe('Pausar memórias')
+    expect(MEMORIES_COPY.album.resume).toBe('Retomar memórias')
+  })
+
+  it('mounts one anchorable memory section immediately after dress code', () => {
+    expect(homeSource.match(/<MemoriesSection \/>/gu)).toHaveLength(1)
+    expect(homeSource.indexOf('<DressCodeSection />')).toBeLessThan(
+      homeSource.indexOf('<MemoriesSection />'),
+    )
+    expect(memoriesSectionSource).toContain('id={SECTION_IDS.memories}')
+    expect(memoriesSectionSource.indexOf('<ApprovedAlbum />')).toBeLessThan(
+      memoriesSectionSource.indexOf('<MemoryForm />'),
+    )
   })
 })
 
@@ -295,12 +335,13 @@ describe('RSVP primitive contracts', () => {
 
 describe('event content — legacy navigation shape removed', () => {
   it('does not regress to the three-link home navigation', () => {
-    expect(NAV_LINKS).toHaveLength(4)
+    expect(NAV_LINKS).toHaveLength(5)
     expect(NAV_LINKS.map((link) => link.href)).toEqual([
       '/confirmar',
       '#aracaju',
       '#programacao',
       '#traje',
+      '#memorias',
     ])
   })
 })

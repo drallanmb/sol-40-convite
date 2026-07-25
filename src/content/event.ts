@@ -33,6 +33,7 @@ export const SECTION_IDS = {
   local: 'aracaju',
   programa: 'programacao',
   traje: 'traje',
+  memories: 'memorias',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ export const NAV_LINKS: NavLink[] = [
   { label: 'Local', href: '#aracaju' },
   { label: 'Programação', href: '#programacao' },
   { label: 'Traje', href: '#traje' },
+  { label: 'Memórias', href: `#${SECTION_IDS.memories}` },
 ]
 
 /** Reduced navigation for `/confirmar`; home fragments stay absolute. */
@@ -182,6 +184,43 @@ export const RSVP_COPY = {
       'Você tem respostas que ainda não foram salvas. Quer usar outro telefone mesmo assim?',
     safeAction: 'Continuar editando',
     destructiveAction: 'Descartar e usar outro telefone',
+  },
+} as const
+
+// ---------------------------------------------------------------------------
+// Memories — public approved album and its home-section states
+// ---------------------------------------------------------------------------
+
+export const MEMORIES_COPY = {
+  section: {
+    kicker: 'NOSSO ÁLBUM',
+    heading: 'Memórias para guardar este pôr do sol.',
+    intro:
+      'Relembre os carinhos que já passaram por aqui e deixe também o seu. Toda memória é vista com cuidado antes de fazer parte do álbum.',
+  },
+  album: {
+    label: 'Memórias para a Sol',
+    loadingTitle: 'Abrindo o álbum…',
+    loadingBody: 'As lembranças aprovadas estão chegando.',
+    emptyTitle: 'O álbum está esperando a primeira lembrança.',
+    emptyBody:
+      'Envie uma foto, um recado ou os dois. A memória aparece aqui depois da aprovação.',
+    errorTitle: 'O álbum não abriu agora.',
+    errorBody:
+      'Você ainda pode enviar sua memória. Tente carregar as lembranças novamente quando quiser.',
+    retry: 'Tentar carregar o álbum',
+    pause: 'Pausar memórias',
+    resume: 'Retomar memórias',
+    reduced: 'Movimento reduzido',
+    reducedLabel:
+      'Movimento automático desativado pela preferência do sistema',
+    previous: 'Ver memória anterior',
+    next: 'Ver próxima memória',
+    slideLabel: 'Memória {current} de {total}',
+  },
+  card: {
+    imageAlt: 'Memória enviada para Sol',
+    imageOnly: 'Uma lembrança em imagem.',
   },
 } as const
 

@@ -1,5 +1,6 @@
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '../../../convex/_generated/api'
+import { MEMORIES_COPY } from '../../content/event'
 import Card from '../ui/Card'
 
 export type PublicMemory = FunctionReturnType<
@@ -19,7 +20,7 @@ export function MemoryCard({ memory }: MemoryCardProps) {
         <div className="grid h-[20rem] shrink-0 place-items-center bg-sand/55">
           <img
             src={memory.imageUrl}
-            alt="Memória enviada para Sol"
+            alt={MEMORIES_COPY.card.imageAlt}
             loading="lazy"
             decoding="async"
             className="h-full w-full object-contain"
@@ -42,7 +43,7 @@ export function MemoryCard({ memory }: MemoryCardProps) {
           </p>
         ) : (
           <p className="font-serif text-lead italic text-plum/70">
-            Uma lembrança em imagem.
+            {MEMORIES_COPY.card.imageOnly}
           </p>
         )}
 

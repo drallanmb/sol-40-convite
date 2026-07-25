@@ -6,6 +6,7 @@ import {
 } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { MEMORIES_COPY, SECTION_IDS } from '../../content/event'
 import {
   createStableVisitOrder,
   orderForVisit,
@@ -49,11 +50,11 @@ class AlbumErrorBoundary extends Component<
     if (this.state.failed) {
       return (
         <AlbumNotice
-          title="O álbum não abriu agora."
-          body="Você ainda pode enviar sua memória. Tente carregar as lembranças novamente quando quiser."
+          title={MEMORIES_COPY.album.errorTitle}
+          body={MEMORIES_COPY.album.errorBody}
           action={
             <Button variant="quiet" onClick={this.retry}>
-              Tentar carregar o álbum
+              {MEMORIES_COPY.album.retry}
             </Button>
           }
         />
@@ -97,8 +98,8 @@ function ApprovedAlbum() {
     return (
       <div role="status" aria-live="polite">
         <AlbumNotice
-          title="Abrindo o álbum…"
-          body="As lembranças aprovadas estão chegando."
+          title={MEMORIES_COPY.album.loadingTitle}
+          body={MEMORIES_COPY.album.loadingBody}
         />
       </div>
     )
@@ -107,8 +108,8 @@ function ApprovedAlbum() {
   if (approved.length === 0) {
     return (
       <AlbumNotice
-        title="O álbum está esperando a primeira lembrança."
-        body="Envie uma foto, um recado ou os dois. A memória aparece aqui depois da aprovação."
+        title={MEMORIES_COPY.album.emptyTitle}
+        body={MEMORIES_COPY.album.emptyBody}
       />
     )
   }
@@ -119,18 +120,21 @@ function ApprovedAlbum() {
 
 export function MemoriesSection() {
   return (
-    <section className="bg-peach/20 px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink">
+    <section
+      id={SECTION_IDS.memories}
+      tabIndex={-1}
+      className="scroll-mt-[120px] bg-peach/20 px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
+    >
       <div className="mx-auto grid max-w-[1320px] gap-[clamp(48px,7vw,96px)]">
         <div className="mx-auto max-w-[760px] text-center">
           <p className="text-caption font-bold uppercase tracking-label text-wine">
-            Nosso álbum
+            {MEMORIES_COPY.section.kicker}
           </p>
           <h2 className="mt-3 font-serif text-heading leading-[1.02] tracking-display text-plum">
-            Memórias para guardar este pôr do sol.
+            {MEMORIES_COPY.section.heading}
           </h2>
           <p className="mt-5 text-body text-ink/80">
-            Relembre os carinhos que já passaram por aqui e deixe também o
-            seu. Toda memória é vista com cuidado antes de entrar no álbum.
+            {MEMORIES_COPY.section.intro}
           </p>
         </div>
 

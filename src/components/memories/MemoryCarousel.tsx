@@ -6,6 +6,7 @@ import {
 } from 'react'
 import Autoplay from 'embla-carousel-autoplay'
 import useEmblaCarousel from 'embla-carousel-react'
+import { MEMORIES_COPY } from '../../content/event'
 import useReducedMotion from '../../hooks/useReducedMotion'
 import Button from '../ui/Button'
 import MemoryCard, { type PublicMemory } from './MemoryCard'
@@ -121,7 +122,7 @@ export function MemoryCarousel({ memories }: MemoryCarouselProps) {
     <div
       role="region"
       aria-roledescription="carrossel"
-      aria-label="Memórias para a Sol"
+      aria-label={MEMORIES_COPY.album.label}
       onFocusCapture={pauseRotation}
       onMouseEnter={pauseRotation}
       className="grid gap-5"
@@ -133,18 +134,18 @@ export function MemoryCarousel({ memories }: MemoryCarouselProps) {
           disabled={!canRotate || reducedMotion}
           aria-label={
             reducedMotion
-              ? 'Movimento automático desativado pela preferência do sistema'
+              ? MEMORIES_COPY.album.reducedLabel
               : rotationPaused
-                ? 'Retomar memórias'
-                : 'Pausar memórias'
+                ? MEMORIES_COPY.album.resume
+                : MEMORIES_COPY.album.pause
           }
           className="min-w-[12rem]"
         >
           {reducedMotion
-            ? 'Movimento reduzido'
+            ? MEMORIES_COPY.album.reduced
             : rotationPaused
-              ? 'Retomar memórias'
-              : 'Pausar memórias'}
+              ? MEMORIES_COPY.album.resume
+              : MEMORIES_COPY.album.pause}
         </Button>
 
         <div className="flex gap-2">
@@ -152,7 +153,7 @@ export function MemoryCarousel({ memories }: MemoryCarouselProps) {
             variant="quiet"
             onClick={scrollPrevious}
             disabled={!canMove || !canScrollPrevious}
-            aria-label="Ver memória anterior"
+            aria-label={MEMORIES_COPY.album.previous}
             className="size-11 p-0!"
           >
             <span aria-hidden="true">←</span>
@@ -161,7 +162,7 @@ export function MemoryCarousel({ memories }: MemoryCarouselProps) {
             variant="quiet"
             onClick={scrollNext}
             disabled={!canMove || !canScrollNext}
-            aria-label="Ver próxima memória"
+            aria-label={MEMORIES_COPY.album.next}
             className="size-11 p-0!"
           >
             <span aria-hidden="true">→</span>
@@ -176,7 +177,9 @@ export function MemoryCarousel({ memories }: MemoryCarouselProps) {
               key={memory.id}
               role="group"
               aria-roledescription="slide"
-              aria-label={`Memória ${index + 1} de ${memories.length}`}
+              aria-label={MEMORIES_COPY.album.slideLabel
+                .replace('{current}', String(index + 1))
+                .replace('{total}', String(memories.length))}
               className="min-w-0 flex-[0_0_100%] pl-5 sm:flex-[0_0_50%] lg:flex-[0_0_33.333333%]"
             >
               <MemoryCard memory={memory} />

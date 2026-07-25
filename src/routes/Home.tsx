@@ -5,14 +5,15 @@ import LocalSection from '../components/invite/LocalSection'
 import GuideSection from '../components/invite/GuideSection'
 import ProgramaSection from '../components/invite/ProgramaSection'
 import DressCodeSection from '../components/invite/DressCodeSection'
+import MemoriesSection from '../components/memories/MemoriesSection'
 import { NAV_LINKS, SECTION_IDS } from '../content/event'
 
 /**
  * Home — a página real do convite (INVITE-01 a INVITE-04). Composição pura:
  * cada seção lê seu próprio conteúdo de `src/content/event.ts` e não recebe
  * props. Ordem travada por D-05 — hero, countdown, local/Aracaju (mapa +
- * guia + hotéis, como um único bloco), programa, traje. O footer já faz
- * parte do `Shell` e nada aqui precisa repeti-lo.
+ * guia + hotéis, como um único bloco), programa, traje e memórias. O footer
+ * já faz parte do `Shell` e nada aqui precisa repeti-lo.
  */
 function Home() {
   return (
@@ -23,6 +24,7 @@ function Home() {
       <GuideSection />
       <ProgramaSection />
       <DressCodeSection />
+      <MemoriesSection />
     </Shell>
   )
 }
