@@ -1098,6 +1098,50 @@ describe('photo upload reservation and validation', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the immutable first claim when a lost response is retried after text edits', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const token = deviceKeyFor(71_000)
+    const reservation = await reserve(t, { token })
+    const storageId = await storeUpload(
+      t,
+      validJpegBytes(),
+      'image/jpeg',
+    )
+
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: reservation.reservationId,
+        token,
+        storageId,
+        author: 'Sol',
+        message: 'Memória A',
+      }),
+    ).resolves.toEqual({ kind: 'processing' })
+    await runImmediateScheduled(t)
+
+    await expect(
+      t.mutation(postApi.submitPhotoMemory, {
+        reservationId: reservation.reservationId,
+        token,
+        storageId,
+        author: 'Sol editada',
+        message: 'Memória B',
+      }),
+    ).resolves.toEqual({ kind: 'accepted' })
+
+    const posts = await t.run((ctx) => ctx.db.query('posts').collect())
+    expect(posts).toHaveLength(1)
+    expect(posts[0]).toMatchObject({
+      author: 'Sol',
+      message: 'Memória A',
+      storageId,
+      status: 'pendente',
+    })
+    vi.useRealTimers()
+  })
+
   it('does not reveal submission state to a different capability', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))

@@ -172,6 +172,24 @@ describe('memory submission preservation', () => {
     expect(result.submission.kind).toBe('failed')
   })
 
+  it.each(['network_error', 'upload_error'] as const)(
+    'invalidates failed short-lived upload transport for %s without clearing the processed draft',
+    (code) => {
+      const initial = { ...withDraft(), transport: reserved }
+      const result = memoryReducer(initial, {
+        type: 'transport_invalidated',
+        code,
+      })
+
+      expect(result.state.transport).toEqual({ kind: 'none' })
+      expect(result.state.draft).toEqual(initial.draft)
+      expect(result.state.draft.photo?.processed).toBe(
+        initial.draft.photo?.processed,
+      )
+      expect(result.effects).toEqual({})
+    },
+  )
+
   it('permits one fresh reservation after a token conflict and no third token', () => {
     const initial = { ...withDraft(), transport: reserved }
     const first = memoryReducer(initial, { type: 'token_conflict' }).state
@@ -250,6 +268,7 @@ describe('memory preview cleanup and accepted-only reset', () => {
       submission: { kind: 'success' },
       transport: { kind: 'none' },
       reservationConflictRetries: 0,
+      acceptedSnapshot: null,
     })
     expect(accepted.effects).toEqual({
       previewUrlToRevoke: 'blob:one',

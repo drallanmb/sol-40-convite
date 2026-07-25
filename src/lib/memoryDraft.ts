@@ -16,6 +16,13 @@ export type MemoryDraft = {
   photo: MemoryPhoto | null
 }
 
+export type MemorySubmissionSnapshot = {
+  author?: string
+  message?: string
+  photoIdentity: string
+  fingerprint: string
+}
+
 export type MemoryTransport =
   | { kind: 'none' }
   | {
@@ -29,6 +36,7 @@ export type MemoryTransport =
       reservationId: string
       capability: string
       storageId: string
+      snapshot?: MemorySubmissionSnapshot
     }
 
 export type MemoryErrorCode =
@@ -69,6 +77,7 @@ export type MemoryState = {
   submission: MemorySubmissionState
   transport: MemoryTransport
   reservationConflictRetries: 0 | 1
+  acceptedSnapshot: MemorySubmissionSnapshot | null
 }
 
 export type MemoryAction =
@@ -90,13 +99,17 @@ export type MemoryAction =
     }
   | { type: 'upload_completed'; storageId: string }
   | {
+      type: 'claim_started'
+      snapshot: MemorySubmissionSnapshot
+    }
+  | {
       type: 'submission_failed'
       code: MemoryErrorCode
       retryAfterSeconds?: number
     }
   | { type: 'transport_invalidated'; code: MemoryErrorCode }
   | { type: 'token_conflict' }
-  | { type: 'accepted' }
+  | { type: 'accepted'; snapshot?: MemorySubmissionSnapshot }
   | { type: 'send_another' }
 
 export type MemoryCleanupEffects = {
@@ -160,6 +173,35 @@ export function validateMemoryDraft(
   return { valid: true, ...base }
 }
 
+function normalizeSnapshotField(value: string) {
+  const normalized = value.replace(/\r\n?/gu, '\n').trim()
+  return normalized.length === 0 ? undefined : normalized
+}
+
+function lengthPrefixed(value: string | undefined) {
+  const normalized = value ?? ''
+  return `${normalized.length}:${normalized}`
+}
+
+export function createMemorySubmissionSnapshot(
+  draft: MemoryDraft,
+  photoIdentity: string,
+): MemorySubmissionSnapshot {
+  const author = normalizeSnapshotField(draft.author)
+  const message = normalizeSnapshotField(draft.message)
+  const fingerprint = [
+    lengthPrefixed(author),
+    lengthPrefixed(message),
+    lengthPrefixed(photoIdentity),
+  ].join('')
+  return {
+    ...(author === undefined ? {} : { author }),
+    ...(message === undefined ? {} : { message }),
+    photoIdentity,
+    fingerprint,
+  }
+}
+
 export function createMemoryState(author = ''): MemoryState {
   return {
     draft: {
@@ -170,6 +212,7 @@ export function createMemoryState(author = ''): MemoryState {
     submission: { kind: 'idle' },
     transport: { kind: 'none' },
     reservationConflictRetries: 0,
+    acceptedSnapshot: null,
   }
 }
 
@@ -292,6 +335,19 @@ export function memoryReducer(
         },
         effects: {},
       }
+    case 'claim_started':
+      if (state.transport.kind !== 'uploaded') return unchanged(state)
+      return {
+        state: {
+          ...state,
+          submission: { kind: 'claiming' },
+          transport: {
+            ...state.transport,
+            snapshot: state.transport.snapshot ?? action.snapshot,
+          },
+        },
+        effects: {},
+      }
     case 'submission_failed':
       return {
         state: {
@@ -341,6 +397,30 @@ export function memoryReducer(
         effects: {},
       }
     case 'accepted':
+      {
+        const snapshot =
+          action.snapshot ??
+          (state.transport.kind === 'uploaded'
+            ? state.transport.snapshot
+            : undefined)
+        if (
+          snapshot !== undefined &&
+          createMemorySubmissionSnapshot(
+            state.draft,
+            snapshot.photoIdentity,
+          ).fingerprint !== snapshot.fingerprint
+        ) {
+          return {
+            state: {
+              ...state,
+              submission: { kind: 'idle' },
+              transport: { kind: 'none' },
+              reservationConflictRetries: 0,
+              acceptedSnapshot: snapshot,
+            },
+            effects: {},
+          }
+        }
       return {
         state: {
           draft: {
@@ -351,6 +431,7 @@ export function memoryReducer(
           submission: { kind: 'success' },
           transport: { kind: 'none' },
           reservationConflictRetries: 0,
+          acceptedSnapshot: snapshot ?? null,
         },
         effects: {
           ...(state.draft.photo === null
@@ -358,11 +439,13 @@ export function memoryReducer(
             : { previewUrlToRevoke: state.draft.photo.previewUrl }),
         },
       }
+      }
     case 'send_another':
       return {
         state: {
           ...state,
           submission: { kind: 'idle' },
+          acceptedSnapshot: null,
         },
         effects: {},
       }

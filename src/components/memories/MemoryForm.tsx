@@ -14,6 +14,7 @@ import {
   MESSAGE_MAX_LENGTH,
   canBeginMemorySubmission,
   countMemoryCodePoints,
+  createMemorySubmissionSnapshot,
   createMemoryState,
   memoryReducer,
   remainingMessageCharacters,
@@ -23,6 +24,10 @@ import {
   type MemoryErrorCode,
   type MemoryState,
 } from '../../lib/memoryDraft'
+import {
+  runFreshMemoryUploadAttempt,
+  type FreshMemoryReservation,
+} from '../../lib/memoryUploadAttempt'
 import {
   createReservationCapability,
   loadOrCreateMemoryDeviceKey,
@@ -156,7 +161,13 @@ export function MemoryForm() {
     }
     switch (backendStatus.kind) {
       case 'accepted':
-        transition({ type: 'accepted' })
+        transition({
+          type: 'accepted',
+          snapshot:
+            stateRef.current.transport.kind === 'uploaded'
+              ? stateRef.current.transport.snapshot
+              : undefined,
+        })
         return
       case 'rejected':
         transition({
@@ -225,11 +236,7 @@ export function MemoryForm() {
     }
   }
 
-  async function ensureReservation() {
-    if (stateRef.current.transport.kind !== 'none') {
-      return true
-    }
-
+  async function requestFreshReservation(): Promise<FreshMemoryReservation | null> {
     const attempts =
       stateRef.current.reservationConflictRetries === 0 ? 2 : 1
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -240,26 +247,24 @@ export function MemoryForm() {
       })
       switch (result.kind) {
         case 'reserved':
-          transition({
-            type: 'reservation_created',
+          return {
             reservationId: result.reservationId,
             capability,
             uploadUrl: result.uploadUrl,
-          })
-          return true
+          }
         case 'token_conflict':
           transition({ type: 'token_conflict' })
           if (attempt + 1 < attempts) continue
-          return false
+          return null
         case 'rate_limited':
           fail('rate_limited', result.retryAfterSeconds)
-          return false
+          return null
         case 'invalid_request':
           fail('network_error')
-          return false
+          return null
       }
     }
-    return false
+    return null
   }
 
   async function submitPhoto() {
@@ -278,23 +283,41 @@ export function MemoryForm() {
       transition({ type: 'photo_processed', blob: processed })
     }
 
-    if (!(await ensureReservation())) return
-
-    if (stateRef.current.transport.kind === 'reserved') {
-      transition({ type: 'upload_progress', percent: 0 })
-      const uploaded = await uploadBlobWithProgress({
-        uploadUrl: stateRef.current.transport.uploadUrl,
+    if (stateRef.current.transport.kind !== 'uploaded') {
+      const uploadAttempt = await runFreshMemoryUploadAttempt({
         blob: processed,
+        requestReservation: requestFreshReservation,
+        onReservation: (reservation) => {
+          transition({
+            type: 'reservation_created',
+            ...reservation,
+          })
+          transition({ type: 'upload_progress', percent: 0 })
+        },
         onProgress: (percent) =>
           transition({ type: 'upload_progress', percent }),
+        upload: uploadBlobWithProgress,
       })
-      if (uploaded.kind === 'error') {
-        fail(
-          uploaded.code === 'network_error' ? 'network_error' : 'upload_error',
-        )
+      if (uploadAttempt.kind === 'reservation_failed') {
+        if (stateRef.current.submission.kind !== 'failed') {
+          fail('network_error')
+        }
         return
       }
-      transition({ type: 'upload_completed', storageId: uploaded.storageId })
+      if (uploadAttempt.kind === 'upload_failed') {
+        transition({
+          type: 'transport_invalidated',
+          code:
+            uploadAttempt.code === 'network_error'
+              ? 'network_error'
+              : 'upload_error',
+        })
+        return
+      }
+      transition({
+        type: 'upload_completed',
+        storageId: uploadAttempt.storageId,
+      })
     }
 
     const transport = stateRef.current.transport
@@ -303,24 +326,27 @@ export function MemoryForm() {
       return
     }
 
-    transition({ type: 'submission_stage', stage: 'claiming' })
     const draft = stateRef.current.draft
+    const snapshot =
+      transport.snapshot ??
+      createMemorySubmissionSnapshot(draft, transport.storageId)
+    transition({ type: 'claim_started', snapshot })
     const result = await submitPhotoMemory({
       reservationId:
         transport.reservationId as Id<'postUploadReservations'>,
       token: transport.capability,
       storageId: transport.storageId as Id<'_storage'>,
-      ...(normalizedOptional(draft.author) === undefined
+      ...(snapshot.author === undefined
         ? {}
-        : { author: normalizedOptional(draft.author) }),
-      ...(normalizedOptional(draft.message) === undefined
+        : { author: snapshot.author }),
+      ...(snapshot.message === undefined
         ? {}
-        : { message: normalizedOptional(draft.message) }),
+        : { message: snapshot.message }),
     })
 
     switch (result.kind) {
       case 'accepted':
-        transition({ type: 'accepted' })
+        transition({ type: 'accepted', snapshot })
         return
       case 'processing':
         transition({ type: 'submission_stage', stage: 'validating' })
@@ -385,7 +411,14 @@ export function MemoryForm() {
       if (stateRef.current.draft.photo) await submitPhoto()
       else await submitText()
     } catch {
-      fail('network_error')
+      if (stateRef.current.transport.kind === 'reserved') {
+        transition({
+          type: 'transport_invalidated',
+          code: 'network_error',
+        })
+      } else {
+        fail('network_error')
+      }
     } finally {
       busyRef.current = false
     }
@@ -417,6 +450,22 @@ export function MemoryForm() {
         onSubmit={handleSubmit}
         className="grid gap-7"
       >
+        {state.acceptedSnapshot ? (
+          <div
+            role="status"
+            className="grid gap-2 border-l-4 border-sea bg-sea/5 p-4 text-small text-plum"
+          >
+            <p className="font-bold">A memória anterior foi recebida.</p>
+            <p>
+              De{' '}
+              {state.acceptedSnapshot.author ?? 'alguém que te ama'}
+              {state.acceptedSnapshot.message
+                ? `: “${state.acceptedSnapshot.message}”`
+                : '. A foto aguarda aprovação.'}
+            </p>
+            <p>Suas alterações mais recentes continuam abaixo para um novo envio.</p>
+          </div>
+        ) : null}
         <div className="grid gap-3">
           <p className="text-small font-bold uppercase tracking-label text-plum/75">
             Deixe seu carinho
