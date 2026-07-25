@@ -1041,6 +1041,14 @@ describe('expired RSVP session sweep', () => {
         { cursor: 'opaque', cutoff: cutoff + 1 } as never,
       ),
     ).rejects.toThrow()
+    for (const malformedCutoff of [-1, 1.5, Number.NaN]) {
+      await expect(
+        t.mutation(
+          sweepApi.continueExpiredRsvpSessionSweep as never,
+          { cursor: 'opaque', cutoff: malformedCutoff } as never,
+        ),
+      ).rejects.toThrow()
+    }
     await expect(
       t.mutation(
         sweepApi.continueExpiredRsvpSessionSweep as never,

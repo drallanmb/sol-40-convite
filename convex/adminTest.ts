@@ -6,8 +6,16 @@ import {
   hashAdminToken,
   requireAdminSession,
 } from './adminSecurity'
-import { insertInvitation } from './rsvpInternal'
-import { createRsvpSession } from './rsvpSecurity'
+import {
+  expireRsvpSessionRecord,
+  insertInvitation,
+  startExpiredRsvpSessionSweepHandler,
+} from './rsvpInternal'
+import {
+  createRsvpSession,
+  encodeOpaqueToken,
+  resolveActiveRsvpSession,
+} from './rsvpSecurity'
 import { applyModerationTransition } from './adminPosts'
 import { WINE_CATALOG } from './wineCatalog'
 import {
@@ -48,6 +56,95 @@ export const smokeSessionLifecycle = internalMutation({
       expiryResult: expired.kind,
       repeatedExpiryResult: repeated.kind,
       revokedAfterExpiry: after.kind === 'unauthorized',
+    }
+  },
+})
+
+/**
+ * Internal-only and self-cleaning. Exercises the deployed public-session
+ * expiry and historical sweep seams without returning any capability data.
+ */
+export const smokeRsvpSessionLifecycle = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const suffix = String(Date.now()).slice(-8)
+    let familyId: Id<'rsvps'> | null = null
+    const createdSessionIds: Id<'rsvpSessions'>[] = []
+
+    try {
+      const inserted = await insertInvitation(ctx, {
+        phone: `799${suffix}`,
+        displayName: `Smoke RSVP lifecycle ${suffix}`,
+        guests: [],
+      })
+      familyId = inserted.rsvpId
+      const now = Date.now()
+      const expiredBytes = new Uint8Array(32)
+      const activeBytes = new Uint8Array(32)
+      crypto.getRandomValues(expiredBytes)
+      crypto.getRandomValues(activeBytes)
+      const expiredToken = encodeOpaqueToken(expiredBytes)
+      const activeToken = encodeOpaqueToken(activeBytes)
+      const expired = await createRsvpSession(ctx, {
+        rsvpId: inserted.rsvpId,
+        token: expiredToken,
+        now,
+        expiresAt: now - 1,
+      })
+      const active = await createRsvpSession(ctx, {
+        rsvpId: inserted.rsvpId,
+        token: activeToken,
+        now,
+        expiresAt: now + 60_000,
+      })
+      if (expired.kind !== 'created' || active.kind !== 'created') {
+        throw new Error('Smoke RSVP sessions were not created.')
+      }
+      const sessions = await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', inserted.rsvpId))
+        .collect()
+      createdSessionIds.push(...sessions.map((session) => session._id))
+      const expiredRow = sessions.find(
+        (session) => session.tokenHash === expired.tokenHash,
+      )
+      if (!expiredRow) throw new Error('Smoke expired RSVP session is missing.')
+
+      const firstExpiry = await expireRsvpSessionRecord(ctx, {
+        sessionId: expiredRow._id,
+        expectedExpiresAt: expiredRow.expiresAt,
+      })
+      const repeatedExpiry = await expireRsvpSessionRecord(ctx, {
+        sessionId: expiredRow._id,
+        expectedExpiresAt: expiredRow.expiresAt,
+      })
+      const firstSweep = await startExpiredRsvpSessionSweepHandler(ctx)
+      const repeatedSweep = await startExpiredRsvpSessionSweepHandler(ctx)
+      const activeAuthorization = await resolveActiveRsvpSession(
+        ctx,
+        activeToken,
+        now,
+      )
+
+      return {
+        expiryDeleted: firstExpiry.kind === 'expired',
+        expiryRetryIgnored: repeatedExpiry.kind === 'ignored',
+        sweepIdempotent:
+          firstSweep.deleted === 0 &&
+          repeatedSweep.deleted === 0 &&
+          firstSweep.done &&
+          repeatedSweep.done,
+        activeControlAuthorized: activeAuthorization !== null,
+      }
+    } finally {
+      for (const sessionId of createdSessionIds) {
+        const session = await ctx.db.get(sessionId)
+        if (session) await ctx.db.delete(sessionId)
+      }
+      if (familyId) {
+        const family = await ctx.db.get(familyId)
+        if (family) await ctx.db.delete(familyId)
+      }
     }
   },
 })

@@ -37,6 +37,17 @@ const migrateLegacyTerminalReservations = (internal as unknown as {
   }
 }).postInternal.migrateLegacyTerminalReservations
 
+const startExpiredRsvpSessionSweep = (internal as unknown as {
+  rsvpInternal: {
+    startExpiredRsvpSessionSweep: FunctionReference<
+      'mutation',
+      'internal',
+      Record<string, never>,
+      unknown
+    >
+  }
+}).rsvpInternal.startExpiredRsvpSessionSweep
+
 const crons = cronJobs()
 
 crons.daily(
@@ -57,6 +68,13 @@ crons.daily(
   'daily terminal reservation retirement',
   { hourUTC: 3, minuteUTC: 30 },
   retireTerminalReservations,
+  {},
+)
+
+crons.daily(
+  'daily expired RSVP session sweep',
+  { hourUTC: 3, minuteUTC: 35 },
+  startExpiredRsvpSessionSweep,
   {},
 )
 

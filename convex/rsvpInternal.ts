@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import type { FunctionReference } from 'convex/server'
 import { normalizePhone, type NormalizedPhone } from '../src/lib/phone'
 import { api, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
@@ -24,6 +25,19 @@ import {
   hashOpaqueToken,
   validateOpaqueToken,
 } from './rsvpSecurity'
+
+export const RSVP_SESSION_SWEEP_PAGE_SIZE = 50
+
+const continueExpiredRsvpSessionSweepRef = (internal as unknown as {
+  rsvpInternal: {
+    continueExpiredRsvpSessionSweep: FunctionReference<
+      'mutation',
+      'internal',
+      { cursor: string; cutoff: number },
+      unknown
+    >
+  }
+}).rsvpInternal.continueExpiredRsvpSessionSweep
 
 export async function expireRsvpSessionRecord(
   ctx: Pick<MutationCtx, 'db'>,
@@ -54,6 +68,131 @@ export const expireRsvpSession = internalMutation({
     v.object({ kind: v.literal('ignored') }),
   ),
   handler: expireRsvpSessionRecord,
+})
+
+function assertSweepCutoff(cutoff: number, now: number) {
+  if (
+    !Number.isFinite(cutoff) ||
+    !Number.isInteger(cutoff) ||
+    cutoff < 0 ||
+    cutoff > now
+  ) {
+    throw new Error('Invalid RSVP session sweep cutoff')
+  }
+}
+
+function assertSweepCursor(cursor: string) {
+  if (
+    cursor.length === 0 ||
+    cursor.length > 16_384 ||
+    cursor.trim() !== cursor ||
+    /[\u0000-\u001f\u007f]/.test(cursor)
+  ) {
+    throw new Error('Invalid RSVP session sweep cursor')
+  }
+}
+
+async function sweepExpiredRsvpSessionPage(
+  ctx: MutationCtx,
+  {
+    cursor,
+    cutoff,
+  }: {
+    cursor: string | null
+    cutoff: number
+  },
+) {
+  const firstCandidate = await ctx.db
+    .query('rsvpSessions')
+    .withIndex('by_expires_at', (index) => index.lte('expiresAt', cutoff))
+    .order('asc')
+    .first()
+  if (!firstCandidate) {
+    return {
+      scanned: 0,
+      deleted: 0,
+      done: true,
+    } as const
+  }
+
+  const page = await ctx.db
+    .query('rsvpSessions')
+    .withIndex('by_expires_at', (index) => index.lte('expiresAt', cutoff))
+    .order('asc')
+    .paginate({
+      cursor,
+      numItems: RSVP_SESSION_SWEEP_PAGE_SIZE,
+    })
+
+  let deleted = 0
+  for (const candidate of page.page) {
+    const current = await ctx.db.get(candidate._id)
+    if (current && current.expiresAt <= cutoff) {
+      await ctx.db.delete(current._id)
+      deleted += 1
+    }
+  }
+
+  if (!page.isDone) {
+    await ctx.scheduler.runAfter(
+      0,
+      continueExpiredRsvpSessionSweepRef,
+      {
+        cursor: page.continueCursor,
+        cutoff,
+      },
+    )
+  }
+
+  return {
+    scanned: page.page.length,
+    deleted,
+    done: page.isDone,
+    ...(page.isDone ? {} : { nextCursor: page.continueCursor }),
+  }
+}
+
+export async function startExpiredRsvpSessionSweepHandler(ctx: MutationCtx) {
+  const cutoff = Date.now()
+  assertSweepCutoff(cutoff, cutoff)
+  return sweepExpiredRsvpSessionPage(ctx, { cursor: null, cutoff })
+}
+
+const sweepResultValidator = v.object({
+  scanned: v.number(),
+  deleted: v.number(),
+  done: v.boolean(),
+  nextCursor: v.optional(v.string()),
+})
+
+export const startExpiredRsvpSessionSweep = internalMutation({
+  args: {},
+  returns: sweepResultValidator,
+  handler: startExpiredRsvpSessionSweepHandler,
+})
+
+export async function continueExpiredRsvpSessionSweepHandler(
+  ctx: MutationCtx,
+  {
+    cursor,
+    cutoff,
+  }: {
+    cursor: string
+    cutoff: number
+  },
+) {
+  assertSweepCursor(cursor)
+  assertSweepCutoff(cutoff, Date.now())
+  return sweepExpiredRsvpSessionPage(ctx, { cursor, cutoff })
+}
+
+export const continueExpiredRsvpSessionSweep = internalMutation({
+  args: {
+    cursor: v.string(),
+    cutoff: v.number(),
+  },
+  returns: sweepResultValidator,
+  handler: continueExpiredRsvpSessionSweepHandler,
 })
 
 declare const process: {
