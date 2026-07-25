@@ -10,8 +10,16 @@ import {
   requireAdminSession,
   validateAdminToken,
 } from './adminSecurity'
-import { insertInvitation } from './rsvpInternal'
-import { createRsvpSession } from './rsvpSecurity'
+import {
+  insertInvitation,
+  purgeRsvpSessionsBatchHandler,
+  type RsvpSessionPurgeCommand,
+} from './rsvpInternal'
+import {
+  createRsvpSession,
+  encodeOpaqueToken,
+  hashOpaqueToken,
+} from './rsvpSecurity'
 import schema from './schema'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
@@ -557,6 +565,57 @@ async function seedAdminFamily(
       guests,
     }),
   )
+}
+
+function deterministicRsvpToken(index: number) {
+  const bytes = new Uint8Array(32)
+  bytes[0] = Math.floor(index / 256)
+  bytes[1] = index % 256
+  bytes[31] = 91
+  return encodeOpaqueToken(bytes)
+}
+
+async function insertHistoricalRsvpSessions(
+  t: ReturnType<typeof makeAdminTest>,
+  rsvpId: Awaited<ReturnType<typeof seedAdminFamily>>['rsvpId'],
+  count: number,
+  generation: number,
+  tokenOffset = 0,
+) {
+  const tokens = Array.from({ length: count }, (_, index) =>
+    deterministicRsvpToken(tokenOffset + index),
+  )
+  await t.run(async (ctx) => {
+    for (const [index, token] of tokens.entries()) {
+      await ctx.db.insert('rsvpSessions', {
+        rsvpId,
+        tokenHash: await hashOpaqueToken(token),
+        generation,
+        expiresAt: Date.now() + 60_000 + index,
+        createdAt: Date.now() - 60_000,
+      })
+    }
+  })
+  return tokens
+}
+
+async function drainRsvpSessionPurge(
+  t: ReturnType<typeof makeAdminTest>,
+  rsvpId: Awaited<ReturnType<typeof seedAdminFamily>>['rsvpId'],
+  command: RsvpSessionPurgeCommand,
+) {
+  let cursor: string | null = null
+  let done = false
+  let deleted = 0
+  while (!done) {
+    const result = await t.mutation((ctx) =>
+      purgeRsvpSessionsBatchHandler(ctx, { rsvpId, cursor, command }),
+    )
+    deleted += result.deleted
+    done = result.done
+    cursor = result.nextCursor ?? null
+  }
+  return deleted
 }
 
 describe('admin family authorization matrix', () => {
@@ -1194,6 +1253,183 @@ describe('admin family and guest operations', () => {
 
     expect(result.kind).toBe('saved')
     expect(await t.query(api.rsvps.getCurrent, { token: publicToken })).not.toBeNull()
+  })
+
+  it('revokes 160 historical sessions immediately and purges only older generations', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const seeded = await seedAdminFamily(t, '(79) 99999-8501')
+    const oldTokens = await insertHistoricalRsvpSessions(t, seeded.rsvpId, 160, 0)
+    const before = await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    if (before.kind !== 'ready') throw new Error('missing family')
+
+    const changed = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: seeded.rsvpId,
+      expectedUpdatedAt: before.families[0].updatedAt,
+      patch: { phone: '(79) 99999-8502' },
+    })
+
+    expect(changed.kind).toBe('saved')
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rsvpSessions')
+          .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+          .collect(),
+      ),
+    ).toHaveLength(160)
+    for (const token of oldTokens) {
+      expect(await t.query(api.rsvps.getCurrent, { token })).toBeNull()
+    }
+    expect(
+      await t.run(async (ctx) => (await ctx.db.get(seeded.rsvpId))?.generation),
+    ).toBe(1)
+
+    expect(
+      await drainRsvpSessionPurge(t, seeded.rsvpId, {
+        kind: 'olderThanGeneration',
+        commandGeneration: 1,
+      }),
+    ).toBe(160)
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rsvpSessions')
+          .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+          .collect(),
+      ),
+    ).toEqual([])
+  })
+
+  it('preserves generation 2 when delayed phone purges arrive in either order', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const seeded = await seedAdminFamily(t, '(79) 99999-8601')
+    await insertHistoricalRsvpSessions(t, seeded.rsvpId, 80, 0)
+    const listed = await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    if (listed.kind !== 'ready') throw new Error('missing family')
+
+    const first = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: seeded.rsvpId,
+      expectedUpdatedAt: listed.families[0].updatedAt,
+      patch: { phone: '(79) 99999-8602' },
+    })
+    if (first.kind !== 'saved') throw new Error('first phone change failed')
+    await insertHistoricalRsvpSessions(t, seeded.rsvpId, 80, 1, 256)
+    const second = await t.mutation(api.adminRsvps.updateFamily, {
+      token: TOKEN_A,
+      familyId: seeded.rsvpId,
+      expectedUpdatedAt: first.family.updatedAt,
+      patch: { phone: '(79) 99999-8603' },
+    })
+    if (second.kind !== 'saved') throw new Error('second phone change failed')
+    const currentToken = deterministicRsvpToken(512)
+    await t.mutation((ctx) =>
+      createRsvpSession(ctx, { rsvpId: seeded.rsvpId, token: currentToken }),
+    )
+
+    await drainRsvpSessionPurge(t, seeded.rsvpId, {
+      kind: 'olderThanGeneration',
+      commandGeneration: 1,
+    })
+    let generations = await t.run(async (ctx) =>
+      (
+        await ctx.db
+          .query('rsvpSessions')
+          .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+          .collect()
+      ).map((row) => row.generation ?? 0),
+    )
+    expect(generations).toEqual([...Array(80).fill(1), 2])
+    expect(await t.query(api.rsvps.getCurrent, { token: currentToken })).not.toBeNull()
+
+    const generationTwoCommand = {
+      kind: 'olderThanGeneration',
+      commandGeneration: 2,
+    } as const
+    await drainRsvpSessionPurge(t, seeded.rsvpId, generationTwoCommand)
+    await drainRsvpSessionPurge(t, seeded.rsvpId, {
+      kind: 'olderThanGeneration',
+      commandGeneration: 1,
+    })
+    await drainRsvpSessionPurge(t, seeded.rsvpId, generationTwoCommand)
+    generations = await t.run(async (ctx) =>
+      (
+        await ctx.db
+          .query('rsvpSessions')
+          .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+          .collect()
+      ).map((row) => row.generation ?? 0),
+    )
+    expect(generations).toEqual([2])
+    expect(await t.query(api.rsvps.getCurrent, { token: currentToken })).not.toBeNull()
+  })
+
+  it('removes a family with 160 linked sessions before deleteAll cleanup', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const seeded = await seedAdminFamily(t, '(79) 99999-8701')
+    const oldTokens = await insertHistoricalRsvpSessions(t, seeded.rsvpId, 160, 0)
+    const listed = await t.query(api.adminRsvps.listFamilies, { token: TOKEN_A })
+    if (listed.kind !== 'ready') throw new Error('missing family')
+
+    await expect(
+      t.mutation(api.adminRsvps.removeFamily, {
+        token: TOKEN_A,
+        familyId: seeded.rsvpId,
+        expectedUpdatedAt: listed.families[0].updatedAt,
+      }),
+    ).resolves.toEqual({ kind: 'removed' })
+    expect(await t.run((ctx) => ctx.db.get(seeded.rsvpId))).toBeNull()
+    for (const token of oldTokens) {
+      expect(await t.query(api.rsvps.getCurrent, { token })).toBeNull()
+    }
+    expect(
+      await drainRsvpSessionPurge(t, seeded.rsvpId, { kind: 'deleteAll' }),
+    ).toBe(160)
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rsvpSessions')
+          .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+          .collect(),
+      ),
+    ).toEqual([])
+  })
+
+  it('rejects malformed or mixed purge commands before deleting sessions', async () => {
+    const t = makeAdminTest()
+    const seeded = await seedAdminFamily(t, '(79) 99999-8801')
+    await insertHistoricalRsvpSessions(t, seeded.rsvpId, 1, 0)
+
+    for (const command of [
+      {},
+      { kind: 'olderThanGeneration' },
+      { kind: 'olderThanGeneration', commandGeneration: -1 },
+      { kind: 'olderThanGeneration', commandGeneration: 1.5 },
+      { kind: 'deleteAll', commandGeneration: 1 },
+      { kind: 'unknown' },
+    ]) {
+      await expect(
+        t.mutation((ctx) =>
+          purgeRsvpSessionsBatchHandler(ctx, {
+            rsvpId: seeded.rsvpId,
+            cursor: null,
+            command,
+          }),
+        ),
+      ).rejects.toThrow(/purge command/i)
+    }
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rsvpSessions')
+          .withIndex('by_rsvp', (index) => index.eq('rsvpId', seeded.rsvpId))
+          .collect(),
+      ),
+    ).toHaveLength(1)
   })
 
   it('rejects a stale admin write after a public save and preserves the public response', async () => {
