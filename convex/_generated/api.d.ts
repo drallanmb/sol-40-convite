@@ -8,12 +8,17 @@
  * @module
  */
 
+import type * as postModel from "../postModel.js";
+import type * as postRateLimits from "../postRateLimits.js";
+import type * as postSecurity from "../postSecurity.js";
+import type * as postTest from "../postTest.js";
 import type * as rsvpInternal from "../rsvpInternal.js";
 import type * as rsvpModel from "../rsvpModel.js";
 import type * as rsvpRateLimits from "../rsvpRateLimits.js";
 import type * as rsvpSecurity from "../rsvpSecurity.js";
 import type * as rsvpTest from "../rsvpTest.js";
 import type * as rsvps from "../rsvps.js";
+import type * as uploadValidation from "../uploadValidation.js";
 
 import type {
   ApiFromModules,
@@ -22,12 +27,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  postModel: typeof postModel;
+  postRateLimits: typeof postRateLimits;
+  postSecurity: typeof postSecurity;
+  postTest: typeof postTest;
   rsvpInternal: typeof rsvpInternal;
   rsvpModel: typeof rsvpModel;
   rsvpRateLimits: typeof rsvpRateLimits;
   rsvpSecurity: typeof rsvpSecurity;
   rsvpTest: typeof rsvpTest;
   rsvps: typeof rsvps;
+  uploadValidation: typeof uploadValidation;
 }>;
 
 /**

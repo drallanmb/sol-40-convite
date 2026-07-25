@@ -1,5 +1,10 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+import {
+  mediaTypeValidator,
+  postStatusValidator,
+  uploadStateValidator,
+} from './postModel'
 import { attendanceValidator } from './rsvpModel'
 
 export default defineSchema({
@@ -29,5 +34,38 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index('by_token_hash', ['tokenHash'])
+    .index('by_expires_at', ['expiresAt']),
+
+  posts: defineTable({
+    author: v.optional(v.string()),
+    message: v.optional(v.string()),
+    storageId: v.optional(v.id('_storage')),
+    mediaType: v.optional(mediaTypeValidator),
+    mediaSize: v.optional(v.number()),
+    status: postStatusValidator,
+    source: v.literal('convidado'),
+    uploadReservationId: v.optional(v.id('postUploadReservations')),
+    createdAt: v.number(),
+    moderatedAt: v.optional(v.number()),
+    approvedAt: v.optional(v.number()),
+  })
+    .index('by_status', ['status'])
+    .index('by_storage_id', ['storageId'])
+    .index('by_upload_reservation', ['uploadReservationId']),
+
+  postUploadReservations: defineTable({
+    tokenHash: v.string(),
+    deviceKeyHash: v.string(),
+    state: uploadStateValidator,
+    storageId: v.optional(v.id('_storage')),
+    author: v.optional(v.string()),
+    message: v.optional(v.string()),
+    postId: v.optional(v.id('posts')),
+    errorCode: v.optional(v.string()),
+    expiresAt: v.number(),
+    validationRequestedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index('by_storage_id', ['storageId'])
     .index('by_expires_at', ['expiresAt']),
 })

@@ -193,3 +193,149 @@ describe('post rate policy', () => {
     expect(toPostRetryAfterSeconds(1_001)).toBe(2)
   })
 })
+
+describe('post and upload reservation schema', () => {
+  it('accepts message, photo, and combined memories with every ownership index available', async () => {
+    const t = makePostTest()
+
+    const result = await t.run(async (ctx) => {
+      const storageId = await ctx.storage.store(
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: 'image/jpeg',
+        }),
+      )
+      const reservationId = await ctx.db.insert('postUploadReservations', {
+        tokenHash: 'capability-hash',
+        deviceKeyHash: 'device-key-hash',
+        state: 'processing',
+        storageId,
+        author: 'Pessoa com foto',
+        message: 'Uma lembrança',
+        expiresAt: 86_400_000,
+        validationRequestedAt: 1_500,
+        createdAt: 1_000,
+      })
+      const messageId = await ctx.db.insert('posts', {
+        message: 'Recado sem foto',
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: 2_000,
+      })
+      const photoId = await ctx.db.insert('posts', {
+        author: 'Pessoa com foto',
+        storageId,
+        mediaType: 'image/jpeg',
+        mediaSize: 4,
+        status: 'pendente',
+        source: 'convidado',
+        uploadReservationId: reservationId,
+        createdAt: 3_000,
+      })
+      const bothId = await ctx.db.insert('posts', {
+        author: 'Pessoa completa',
+        message: 'Foto e recado',
+        storageId,
+        mediaType: 'image/jpeg',
+        mediaSize: 4,
+        status: 'aprovado',
+        source: 'convidado',
+        uploadReservationId: reservationId,
+        createdAt: 4_000,
+        moderatedAt: 4_500,
+        approvedAt: 4_500,
+      })
+      await ctx.db.patch(reservationId, {
+        state: 'accepted',
+        postId: photoId,
+      })
+
+      const pending = await ctx.db
+        .query('posts')
+        .withIndex('by_status', (query) => query.eq('status', 'pendente'))
+        .collect()
+      const byStorage = await ctx.db
+        .query('posts')
+        .withIndex('by_storage_id', (query) => query.eq('storageId', storageId))
+        .collect()
+      const byReservation = await ctx.db
+        .query('posts')
+        .withIndex('by_upload_reservation', (query) =>
+          query.eq('uploadReservationId', reservationId),
+        )
+        .collect()
+      const reservationByStorage = await ctx.db
+        .query('postUploadReservations')
+        .withIndex('by_storage_id', (query) => query.eq('storageId', storageId))
+        .collect()
+      const reservationByExpiry = await ctx.db
+        .query('postUploadReservations')
+        .withIndex('by_expires_at', (query) => query.eq('expiresAt', 86_400_000))
+        .collect()
+
+      return {
+        ids: [messageId, photoId, bothId],
+        pending: pending.map((post) => post._id),
+        byStorage: byStorage.map((post) => post._id),
+        byReservation: byReservation.map((post) => post._id),
+        reservationByStorage: reservationByStorage.map((reservation) => reservation._id),
+        reservationByExpiry: reservationByExpiry.map((reservation) => reservation._id),
+      }
+    })
+
+    expect(result.ids).toHaveLength(3)
+    expect(result.pending).toEqual(expect.arrayContaining(result.ids.slice(0, 2)))
+    expect(result.byStorage).toEqual(expect.arrayContaining(result.ids.slice(1)))
+    expect(result.byReservation).toEqual(expect.arrayContaining(result.ids.slice(1)))
+    expect(result.reservationByStorage).toHaveLength(1)
+    expect(result.reservationByExpiry).toHaveLength(1)
+  })
+
+  it.each([
+    ['status', { message: 'Memória', status: 'publicado', source: 'convidado', createdAt: 1 }],
+    ['source', { message: 'Memória', status: 'pendente', source: 'instagram', createdAt: 1 }],
+    [
+      'media type',
+      {
+        message: 'Memória',
+        mediaType: 'image/gif',
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: 1,
+      },
+    ],
+  ])('rejects an invalid %s literal', async (_label, document) => {
+    const t = makePostTest()
+
+    await expect(
+      t.run(async (ctx) => {
+        await ctx.db.insert('posts', document as never)
+      }),
+    ).rejects.toThrow()
+  })
+
+  it('rejects invalid reservation state and malformed required ownership fields', async () => {
+    const t = makePostTest()
+
+    await expect(
+      t.run(async (ctx) => {
+        await ctx.db.insert('postUploadReservations', {
+          tokenHash: 'capability-hash',
+          deviceKeyHash: 'device-key-hash',
+          state: 'uploaded',
+          expiresAt: 1,
+          createdAt: 1,
+        } as never)
+      }),
+    ).rejects.toThrow()
+
+    await expect(
+      t.run(async (ctx) => {
+        await ctx.db.insert('postUploadReservations', {
+          state: 'awaiting_upload',
+          expiresAt: 1,
+          createdAt: 1,
+        } as never)
+      }),
+    ).rejects.toThrow()
+  })
+})
