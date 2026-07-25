@@ -1502,12 +1502,15 @@ describe('admin family and guest operations', () => {
   it('runs the bounded family cascade smoke and leaves no fixture rows', async () => {
     const t = makeAdminTest()
     await expect(
-      t.mutation(internal.adminTest.smokeFamilyCascade, {}),
+      t.action(internal.adminTest.smokeFamilyCascade, {}),
     ).resolves.toEqual({
       createdFamily: true,
-      indexedGuestCount: 1,
-      indexedSessionCount: 1,
-      cascadeRemovedEverything: true,
+      logicalPhoneRevocationImmediate: true,
+      staleGenerationPurged: true,
+      purgeRetryIdempotent: true,
+      familyAbsenceRevocationImmediate: true,
+      orphanSessionsPurged: true,
+      fixturesRemoved: true,
     })
     expect(
       (await t.run((ctx) => ctx.db.query('rsvps').collect())).filter((row) =>
