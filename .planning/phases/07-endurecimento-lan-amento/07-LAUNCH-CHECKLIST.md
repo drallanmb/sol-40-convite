@@ -11,11 +11,11 @@ CSV real, conteúdo de backup ou foto privada.
 |---|---|
 | Commit candidato | `3d7aa1c` |
 | Deployment Vercel Preview | `dpl_ESX56bbFXwVLAF6KonicutRm3rzB` |
-| Deployment Vercel Production | `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` — saudável no Gate C |
+| Deployment Vercel Production | `dpl_EqoaJyVxbBrcmWHmHegcYRAGFqDS` — release pretendido após drill; no-op compatível do commit saudável |
 | Deployment Convex Preview | `wooden-hound-372` |
 | Deployment Convex Production | `necessary-coyote-763` |
-| URL `.vercel.app` saudável | Preview `sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app`; Production `sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` |
-| Alvo saudável para rollback | Frontend `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` no commit `3d7aa1c`; backup `20260725T122803Z` |
+| URL `.vercel.app` saudável | Preview `sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app`; Production atual `sol-40-convite-8hddb4smi-allans-projects-78f12069.vercel.app` |
+| Alvo saudável para rollback | Frontend atual `dpl_EqoaJyVxbBrcmWHmHegcYRAGFqDS` e anterior `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`, ambos no commit `3d7aa1c`; Convex `necessary-coyote-763`; backup `20260725T122803Z` |
 | Domínio público | `https://www.sol40.com.br` — publicado; não equivale a convite divulgado |
 | Link enviado aos convidados | pending — proibido antes do Gate E |
 
@@ -35,7 +35,7 @@ CSV real, conteúdo de backup ou foto privada.
 | A | Repositório: unitários, build, browser/axe, privacidade e `git diff --check` | passou | 2026-07-25 09:17 -03:00 | checkout limpo do commit `3d7aa1c`: 525/525 unitários + 40/40 browser; build e `git diff --check` verdes · repository/emulated | Codex | Codex |
 | B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | passou | 2026-07-25 09:39 -03:00 | Vercel `dpl_ESX56bbFXwVLAF6KonicutRm3rzB`; Convex `wooden-hound-372`; 40/40 browser · live/emulated | Codex + dono | Codex; autorização prévia do dono |
 | C | Production `.vercel.app`: commit esperado, Convex production, login e logs | passou | 2026-07-25 09:54 -03:00 | Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763`; 40/40 browser + login/logout real + logs sanitizados · live/emulated | Codex + dono | Codex; autorização explícita do dono para uso único do segredo no Chaveiro |
-| D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | parcial — imediato passou | 2026-07-25 10:04 -03:00 | Vercel `Valid Configuration`; TLS autorizado nos dois hosts; `www` 200; apex 308; 40/40 browser · live/emulated | Codex + dono | pós-propagação e drill pendentes |
+| D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | passou | 2026-07-25 10:14 -03:00 | dois resolvedores; TLS autorizado; `www` 200; apex 308; rollback/restore Vercel; 40/40 browser + 528/528 unitários · live/emulated/repository | Codex + dono | Codex; drill restaurado ao release pretendido |
 | E | Backup validado, lista real importada/revisada, amostragem RSVP e autorização para divulgar | pending | pending | pending · live/manual | Donos | pending |
 
 ## Critérios por gate
@@ -129,7 +129,7 @@ válida; RSVP e memória/upload foram auditados pelos contratos recuperáveis
 - [x] `https://sol40.com.br/<path>?<query>` retorna 301/308 e preserva
   caminho/query ao redirecionar para `www`.
 - [x] Canonical, `og:url` e `og:image` usam somente `www`.
-- [ ] Smoke imediato e smoke pós-propagação estão registrados.
+- [x] Smoke imediato e smoke pós-propagação estão registrados.
 - [x] Domínio pode ficar público mesmo com LAUNCH-01 físico pendente.
 
 ### Tracer DNS/Vercel do Gate D imediato
@@ -157,9 +157,35 @@ válida; RSVP e memória/upload foram auditados pelos contratos recuperáveis
   somente para `www` e 40/40 casos live/emulados passaram, incluindo
   privacidade administrativa pré-auth.
 
+### Pós-propagação e drill do Gate D
+
+- Em `2026-07-25 10:13 -03:00`, os resolvedores `1.1.1.1` e `8.8.8.8`
+  retornaram exatamente os nameservers esperados e o CNAME de `www` capturado
+  da Vercel. O apex achatado respondeu A não vazio; TLS foi autorizado nos
+  dois hosts; `/presentes?origem=rollback` fez um único 308 para `www`,
+  preservou caminho/query e terminou em 200.
+- Como não havia um segundo frontend Production compatível, a Vercel criou
+  antes do drill um redeploy no-op do release saudável:
+  `dpl_EqoaJyVxbBrcmWHmHegcYRAGFqDS`, mesmo commit `3d7aa1c` e mesmo Convex
+  `necessary-coyote-763`. O candidato passou quatro rotas, inspeção do bundle
+  e 40/40 casos live/emulados antes de receber os domínios.
+- O Instant Rollback moveu os domínios somente para o release anterior
+  `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; as rotas públicas/admin responderam 200.
+  `Undo Rollback` promoveu novamente
+  `dpl_EqoaJyVxbBrcmWHmHegcYRAGFqDS`, restaurou a atribuição automática e o
+  painel confirmou esse deployment como Production.
+- Após a restauração, home, RSVP em leitura, 37 links `wa.me` com texto
+  preenchido, limite do formulário de memória, privacidade pré-auth e
+  login/logout real passaram sem escrita. A execução final fechou com 40/40
+  browser, 528/528 unitários, build e `git diff --check`.
+- O drill de alias não alterou o deployment Convex, functions/schema, env,
+  scheduled work, storage ou linhas. A disponibilidade do commit saudável,
+  do nome `ADMIN_PASSWORD` em Production e do backup com checksum foi
+  revalidada separadamente; nenhum restore de dados foi executado.
+
 ### Gate E — divulgação
 
-- [ ] Backup/export de produção foi concluído, baixado fora do repositório e
+- [x] Backup/export de produção foi concluído, baixado fora do repositório e
   revalidado por timestamp/checksum.
 - [ ] Lista real foi importada depois do backup.
 - [ ] Linhas ignoradas e conflitos foram revisados/corrigidos.
@@ -177,4 +203,5 @@ assinado.
 - LAUNCH-01 permanece pendente até evidência física independente.
 - LAUNCH-02 combina automação com os backstops humanos ainda pendentes.
 - LAUNCH-03 exige domínio/senha/lista real, não apenas o importador pronto.
-- LAUNCH-04 exige deploy e smoke ao vivo, não apenas build local.
+- LAUNCH-04 passou com domínio, smoke ao vivo, segundo resolvedor e drill
+  composto; isso não autoriza a divulgação enquanto o Gate E estiver pending.

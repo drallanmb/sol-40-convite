@@ -274,6 +274,14 @@ async function verifyHttp(probePath) {
 async function main() {
   const apexTarget = requireEnv('VERCEL_APEX_TARGET')
   const wwwTarget = requireEnv('VERCEL_WWW_TARGET')
+  const dnsResolver = process.env.DNS_RESOLVER?.trim()
+  if (dnsResolver) {
+    assert(
+      isIP(dnsResolver) !== 0,
+      `DNS_RESOLVER must be an IPv4 or IPv6 address: ${dnsResolver}`,
+    )
+    dns.setServers([dnsResolver])
+  }
   const probePath = normalizeProbePath(
     process.env.RELEASE_PROBE_PATH?.trim() || '/confirmar?origem=smoke',
   )
@@ -291,6 +299,7 @@ async function main() {
         ok: true,
         checkedAt: new Date().toISOString(),
         probePath,
+        dnsResolver: dnsResolver || 'system',
         dns: dnsResult,
         tls: tlsResult,
         http: httpResult,

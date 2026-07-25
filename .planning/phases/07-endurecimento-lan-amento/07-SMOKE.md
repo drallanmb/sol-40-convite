@@ -12,7 +12,7 @@ screenshots administrativos são proibidos.
 | Preview | `https://sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app` | commit `3d7aa1c`; Vercel `dpl_ESX56bbFXwVLAF6KonicutRm3rzB`; Convex `wooden-hound-372` | 2026-07-25 09:39 | live + emulated | Codex | passou |
 | Production `.vercel.app` | `https://sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` | commit `3d7aa1c`; Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` | 2026-07-25 09:54 | live + emulated | Codex | passou |
 | Domínio imediato | `https://www.sol40.com.br` | commit `3d7aa1c`; Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` | 2026-07-25 10:04 | live + emulated | Codex | passou |
-| Domínio pós-propagação | `https://www.sol40.com.br` | pending | pending | live + emulated | pending | pending |
+| Domínio pós-propagação | `https://www.sol40.com.br` | commit `3d7aa1c`; Vercel `dpl_EqoaJyVxbBrcmWHmHegcYRAGFqDS`; Convex `necessary-coyote-763` | 2026-07-25 10:14 | live + emulated + repository | Codex | passou |
 
 ## Casos por execução
 
@@ -88,14 +88,36 @@ C fez somente leituras públicas, autenticação e revogação da própria sess�
 | Logs | passou | Vercel marcou ambos hosts `Valid Configuration`; nenhuma falha P0/P1 ocorreu durante 40/40 | nenhuma | revisar novamente após drill |
 | Rate limits | passou sem stress | nenhum limite foi saturado ou alterado; feedback recuperável continua coberto por testes | nenhuma | não aplicável |
 
+## Execução domínio pós-propagação — Gate D
+
+| Caso | Resultado | Evidência sanitizada | Severidade | Correção/reteste |
+|---|---|---|---|---|
+| Home + canonical | passou | `www` respondeu 200; metadados canônicos continuaram exclusivamente em `www`; suíte final 40/40 verde | nenhuma | não aplicável |
+| Deep routes | passou | `/`, `/confirmar`, `/presentes`, `/admin` e `/admin/convidados` responderam 200; refresh/axe/reflow passaram | nenhuma | não aplicável |
+| RSVP | passou sem escrita | gate de telefone abriu; por ausência de registro autorizado, foi usado o fallback somente leitura e nenhum telefone/família foi submetido | nenhuma | não aplicável |
+| Catálogo + `wa.me` | passou sem compra | 37 handoffs `https://wa.me` estavam disponíveis com texto preenchido; nenhum link foi acionado e nenhuma compra foi concluída | nenhuma | não aplicável |
+| Memória pública | passou sem upload | formulário e limite de seleção de foto carregaram; nenhum arquivo foi selecionado, reservado ou enviado | nenhuma | não aplicável |
+| Admin pré-auth | passou | 40/40 confirmou somente login no DOM e nenhuma navegação/query/DTO protegido antes da sessão | nenhuma | não aplicável |
+| Admin login | passou | login levou ao shell autenticado e logout voltou ao gate; segredo consumido de forma efêmera, sem ler convidados nem persistir valor, trace ou screenshot | nenhuma | não aplicável |
+| TLS/redirect | passou | `1.1.1.1` e `8.8.8.8` confirmaram NS/CNAME; TLS autorizado; apex 308 preservou `/presentes?origem=rollback` em um salto e terminou 200 | nenhuma | não aplicável |
+| Convex linkage | passou | release atual e anterior usam o commit `3d7aa1c` e o mesmo backend Production `necessary-coyote-763`; bundle sem Preview | nenhuma | não aplicável |
+| Logs/rollback | passou | no-op compatível criado, Instant Rollback para `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY` e promoção final de `dpl_EqoaJyVxbBrcmWHmHegcYRAGFqDS`; auto-assign restaurado | nenhuma | não aplicável |
+| Rate limits | passou sem stress | apenas uma autenticação válida nesta execução; 528/528 contratos unitários verdes, sem saturar ou alterar limites live | nenhuma | não aplicável |
+
+O drill moveu somente os aliases Vercel entre dois frontends compatíveis. O
+Convex `necessary-coyote-763`, suas envs e os dados/storage não foram
+revertidos. O commit saudável e `ADMIN_PASSWORD` names-only foram
+revalidados; o ZIP `20260725T122803Z` continuou disponível com tamanho
+`3897` e SHA-256 esperado, sem abrir conteúdo e sem executar restore.
+
 ## Resultado agregado
 
 | Alvo | Estado | P0/P1 abertos | Pode avançar? | Motivo/ação |
 |---|---|---|---|---|
 | Preview | passou | 0 | sim | Gate B verde; avançar para senha segura e Gate C |
 | Production `.vercel.app` | passou | 0 | sim | Gate C verde; pode avançar ao domínio sem autorizar divulgação |
-| Domínio imediato | passou | 0 | sim | DNS/TLS/redirect/rotas/metadata/privacy verdes; repetir pós-propagação |
-| Domínio pós-propagação | pending | pending | não | repetir em outro resolvedor/rede |
+| Domínio imediato | passou | 0 | sim | DNS/TLS/redirect/rotas/metadata/privacy verdes |
+| Domínio pós-propagação | passou | 0 | sim | dois resolvedores, jornadas em leitura, login/logout e rollback/restore verdes; divulgação continua bloqueada pelo Gate E |
 
 ## Regras de evidência
 
