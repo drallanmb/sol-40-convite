@@ -4,9 +4,36 @@ import {
   MODERATION_UNDO_MS,
   moderationTargets,
   moderationUndoReducer,
+  pendingIdsReducer,
   parseGiftTab,
   parseModerationTab,
 } from './adminOperations'
+
+describe('admin pending operations', () => {
+  it('tracks independent ids and settles only the requested operation', () => {
+    const withA = pendingIdsReducer(new Set(), { type: 'begin', id: 'a' })
+    const withAAndB = pendingIdsReducer(withA, { type: 'begin', id: 'b' })
+    const withB = pendingIdsReducer(withAAndB, { type: 'settle', id: 'a' })
+
+    expect([...withA]).toEqual(['a'])
+    expect([...withAAndB]).toEqual(['a', 'b'])
+    expect([...withB]).toEqual(['b'])
+  })
+
+  it('is immutable and idempotent for duplicate begin and unknown settlement', () => {
+    const pending = new Set(['b'])
+
+    expect(pendingIdsReducer(pending, { type: 'begin', id: 'b' })).toBe(pending)
+    expect(pendingIdsReducer(pending, { type: 'settle', id: 'a' })).toBe(pending)
+    expect([...pending]).toEqual(['b'])
+  })
+
+  it('clears every protected pending id on authorization loss', () => {
+    expect(
+      pendingIdsReducer(new Set(['a', 'b']), { type: 'clear' }),
+    ).toEqual(new Set())
+  })
+})
 
 describe('admin moderation operations', () => {
   it('canonicalizes URL tabs and exposes only D-20 actions', () => {

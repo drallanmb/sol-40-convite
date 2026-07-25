@@ -33,6 +33,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "convex-test": "0.0.54",
     "fflate": "0.8.2",
+    "jsdom": "29.1.1",
     "typescript": "6.0.3",
     "vite": "^8.1.1",
     "vitest": "4.1.10"
