@@ -1,5 +1,7 @@
 import { v } from 'convex/values'
+import type { FunctionReference } from 'convex/server'
 import { normalizePhone } from '../src/lib/phone'
+import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
 import { requireAdminSession } from './adminSecurity'
@@ -16,8 +18,27 @@ import {
   RSVP_DISPLAY_NAME_MAX_LENGTH,
   RSVP_GUEST_NAME_MAX_LENGTH,
 } from './rsvpModel'
+import {
+  normalizeRsvpGeneration,
+} from './rsvpSecurity'
 
-const MAX_CASCADE_SESSIONS = 128
+type SessionPurgeCommand =
+  | { kind: 'olderThanGeneration'; commandGeneration: number }
+  | { kind: 'deleteAll' }
+
+const purgeRsvpSessionsBatchRef = (internal as unknown as {
+  rsvpInternal: {
+    purgeRsvpSessionsBatch: FunctionReference<
+      'mutation',
+      'internal',
+      {
+        rsvpId: Id<'rsvps'>
+        command: SessionPurgeCommand
+      },
+      unknown
+    >
+  }
+}).rsvpInternal.purgeRsvpSessionsBatch
 
 const guestValidator = v.object({
   id: v.id('rsvpGuests'),
@@ -224,23 +245,28 @@ export const updateFamily = mutation({
       if (existing && existing._id !== expected.family._id) {
         return { kind: 'invalid', field: 'phone', message: 'Este telefone já pertence a outra família.' } as const
       }
-      const sessions = await ctx.db
-        .query('rsvpSessions')
-        .withIndex('by_rsvp', (index) => index.eq('rsvpId', expected.family._id))
-        .take(MAX_CASCADE_SESSIONS + 1)
-      if (sessions.length > MAX_CASCADE_SESSIONS) {
-        return { kind: 'invalid', message: 'Há acessos demais para concluir com segurança.' } as const
-      }
-      for (const session of sessions) await ctx.db.delete(session._id)
     }
 
     const nextUpdatedAt = nextRsvpUpdatedAt(expected.family.updatedAt, Date.now())
+    const commandGeneration = phoneChanged
+      ? normalizeRsvpGeneration(expected.family.generation) + 1
+      : undefined
     await ctx.db.patch(expected.family._id, {
       ...(clean.displayName === undefined ? {} : { displayName: clean.displayName }),
       ...(clean.phone === undefined ? {} : { phone: clean.phone }),
       ...(clean.contact === undefined ? {} : { contact: clean.contact ?? undefined }),
+      ...(commandGeneration === undefined ? {} : { generation: commandGeneration }),
       updatedAt: nextUpdatedAt,
     })
+    if (commandGeneration !== undefined) {
+      await ctx.scheduler.runAfter(0, purgeRsvpSessionsBatchRef, {
+        rsvpId: expected.family._id,
+        command: {
+          kind: 'olderThanGeneration',
+          commandGeneration,
+        },
+      })
+    }
     const family = await ctx.db.get(expected.family._id)
     if (!family) throw new Error('Família desapareceu durante a atualização.')
     return { kind: 'saved', family: await projectFamily(ctx, family) } as const
@@ -368,16 +394,15 @@ export const removeFamily = mutation({
       .query('rsvpGuests')
       .withIndex('by_rsvp', (index) => index.eq('rsvpId', expected.family._id))
       .take(MAX_RSVP_GUESTS + 1)
-    const sessions = await ctx.db
-      .query('rsvpSessions')
-      .withIndex('by_rsvp', (index) => index.eq('rsvpId', expected.family._id))
-      .take(MAX_CASCADE_SESSIONS + 1)
-    if (guests.length > MAX_RSVP_GUESTS || sessions.length > MAX_CASCADE_SESSIONS) {
+    if (guests.length > MAX_RSVP_GUESTS) {
       return { kind: 'invalid', message: 'A família excede o limite seguro de remoção.' } as const
     }
     for (const guest of guests) await ctx.db.delete(guest._id)
-    for (const session of sessions) await ctx.db.delete(session._id)
     await ctx.db.delete(expected.family._id)
+    await ctx.scheduler.runAfter(0, purgeRsvpSessionsBatchRef, {
+      rsvpId: expected.family._id,
+      command: { kind: 'deleteAll' },
+    })
     return { kind: 'removed' } as const
   },
 })

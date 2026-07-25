@@ -23,10 +23,21 @@ import {
   createRsvpSession,
   encodeOpaqueToken,
   hashOpaqueToken,
+  normalizeRsvpGeneration,
   validateOpaqueToken,
 } from './rsvpSecurity'
 
 export const RSVP_SESSION_SWEEP_PAGE_SIZE = 50
+export const RSVP_SESSION_PURGE_PAGE_SIZE = 50
+
+export type RsvpSessionPurgeCommand =
+  | {
+      kind: 'olderThanGeneration'
+      commandGeneration: number
+    }
+  | {
+      kind: 'deleteAll'
+    }
 
 const continueExpiredRsvpSessionSweepRef = (internal as unknown as {
   rsvpInternal: {
@@ -38,6 +49,21 @@ const continueExpiredRsvpSessionSweepRef = (internal as unknown as {
     >
   }
 }).rsvpInternal.continueExpiredRsvpSessionSweep
+
+const purgeRsvpSessionsBatchRef = (internal as unknown as {
+  rsvpInternal: {
+    purgeRsvpSessionsBatch: FunctionReference<
+      'mutation',
+      'internal',
+      {
+        rsvpId: Id<'rsvps'>
+        cursor?: string
+        command: RsvpSessionPurgeCommand
+      },
+      unknown
+    >
+  }
+}).rsvpInternal.purgeRsvpSessionsBatch
 
 export async function expireRsvpSessionRecord(
   ctx: Pick<MutationCtx, 'db'>,
@@ -91,6 +117,129 @@ function assertSweepCursor(cursor: string) {
     throw new Error('Invalid RSVP session sweep cursor')
   }
 }
+
+function assertRsvpSessionPurgeCommand(
+  command: unknown,
+): asserts command is RsvpSessionPurgeCommand {
+  if (!command || typeof command !== 'object' || Array.isArray(command)) {
+    throw new Error('Invalid RSVP session purge command')
+  }
+
+  const record = command as Record<string, unknown>
+  if (record.kind === 'deleteAll') {
+    if (Object.keys(record).length !== 1) {
+      throw new Error('Invalid RSVP session purge command')
+    }
+    return
+  }
+
+  if (
+    record.kind !== 'olderThanGeneration' ||
+    Object.keys(record).length !== 2 ||
+    !Object.prototype.hasOwnProperty.call(record, 'commandGeneration') ||
+    typeof record.commandGeneration !== 'number' ||
+    !Number.isFinite(record.commandGeneration) ||
+    !Number.isInteger(record.commandGeneration) ||
+    record.commandGeneration < 0
+  ) {
+    throw new Error('Invalid RSVP session purge command')
+  }
+}
+
+export async function purgeRsvpSessionsBatchHandler(
+  ctx: MutationCtx,
+  {
+    rsvpId,
+    cursor,
+    command,
+  }: {
+    rsvpId: Id<'rsvps'>
+    cursor: string | null
+    command: unknown
+  },
+) {
+  assertRsvpSessionPurgeCommand(command)
+  if (cursor !== null) assertSweepCursor(cursor)
+
+  const firstCandidate = await ctx.db
+    .query('rsvpSessions')
+    .withIndex('by_rsvp', (index) => index.eq('rsvpId', rsvpId))
+    .order('asc')
+    .first()
+  if (!firstCandidate) {
+    return {
+      scanned: 0,
+      deleted: 0,
+      done: true,
+    } as const
+  }
+
+  const page = await ctx.db
+    .query('rsvpSessions')
+    .withIndex('by_rsvp', (index) => index.eq('rsvpId', rsvpId))
+    .order('asc')
+    .paginate({
+      cursor,
+      numItems: RSVP_SESSION_PURGE_PAGE_SIZE,
+    })
+
+  let deleted = 0
+  for (const candidate of page.page) {
+    const current = await ctx.db.get(candidate._id)
+    if (!current || current.rsvpId !== rsvpId) continue
+    if (
+      command.kind === 'deleteAll' ||
+      normalizeRsvpGeneration(current.generation) < command.commandGeneration
+    ) {
+      await ctx.db.delete(current._id)
+      deleted += 1
+    }
+  }
+
+  if (!page.isDone) {
+    await ctx.scheduler.runAfter(0, purgeRsvpSessionsBatchRef, {
+      rsvpId,
+      cursor: page.continueCursor,
+      command,
+    })
+  }
+
+  return {
+    scanned: page.page.length,
+    deleted,
+    done: page.isDone,
+    ...(page.isDone ? {} : { nextCursor: page.continueCursor }),
+  }
+}
+
+const rsvpSessionPurgeCommandValidator = v.union(
+  v.object({
+    kind: v.literal('olderThanGeneration'),
+    commandGeneration: v.number(),
+  }),
+  v.object({
+    kind: v.literal('deleteAll'),
+  }),
+)
+
+export const purgeRsvpSessionsBatch = internalMutation({
+  args: {
+    rsvpId: v.id('rsvps'),
+    cursor: v.optional(v.string()),
+    command: rsvpSessionPurgeCommandValidator,
+  },
+  returns: v.object({
+    scanned: v.number(),
+    deleted: v.number(),
+    done: v.boolean(),
+    nextCursor: v.optional(v.string()),
+  }),
+  handler: (ctx, args) =>
+    purgeRsvpSessionsBatchHandler(ctx, {
+      ...args,
+      cursor: args.cursor ?? null,
+    }),
+})
 
 async function sweepExpiredRsvpSessionPage(
   ctx: MutationCtx,

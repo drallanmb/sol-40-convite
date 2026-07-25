@@ -1177,6 +1177,8 @@ describe('admin family and guest operations', () => {
   })
 
   it('keeps public refs stable, revokes only on logical phone change and cascades sessions', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(20_000)
     const t = makeAdminTest()
     await insertActiveAdminSession(t, TOKEN_A)
     const seeded = await seedAdminFamily(t, '(79) 99999-8301')
@@ -1217,6 +1219,7 @@ describe('admin family and guest operations', () => {
         expectedUpdatedAt: changed.family.updatedAt,
       }),
     ).resolves.toEqual({ kind: 'removed' })
+    await drainRsvpSessionPurge(t, changed.family.id, { kind: 'deleteAll' })
     const remaining = await t.run(async (ctx) => ({
       family: await ctx.db.get(changed.family.id),
       guests: await ctx.db
@@ -1232,6 +1235,8 @@ describe('admin family and guest operations', () => {
   })
 
   it('does not revoke a legacy-phone session when only its equivalent formatting changes', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(25_000)
     const t = makeAdminTest()
     await insertActiveAdminSession(t, TOKEN_A)
     const familyId = await t.run((ctx) =>
@@ -1243,6 +1248,10 @@ describe('admin family and guest operations', () => {
     )
     const publicToken = `${'E'.repeat(42)}U`
     await t.mutation((ctx) => createRsvpSession(ctx, { rsvpId: familyId, token: publicToken }))
+    const before = await t.run(async (ctx) => ({
+      family: await ctx.db.get(familyId),
+      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+    }))
 
     const result = await t.mutation(api.adminRsvps.updateFamily, {
       token: TOKEN_A,
@@ -1253,9 +1262,17 @@ describe('admin family and guest operations', () => {
 
     expect(result.kind).toBe('saved')
     expect(await t.query(api.rsvps.getCurrent, { token: publicToken })).not.toBeNull()
+    const after = await t.run(async (ctx) => ({
+      family: await ctx.db.get(familyId),
+      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+    }))
+    expect(after.family?.generation ?? 0).toBe(before.family?.generation ?? 0)
+    expect(after.scheduled).toHaveLength(before.scheduled.length)
   })
 
   it('revokes 160 historical sessions immediately and purges only older generations', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(30_000)
     const t = makeAdminTest()
     await insertActiveAdminSession(t, TOKEN_A)
     const seeded = await seedAdminFamily(t, '(79) 99999-8501')
@@ -1285,6 +1302,18 @@ describe('admin family and guest operations', () => {
     expect(
       await t.run(async (ctx) => (await ctx.db.get(seeded.rsvpId))?.generation),
     ).toBe(1)
+    const purgeJob = await t.run((ctx) =>
+      ctx.db.system.query('_scheduled_functions').order('desc').first(),
+    )
+    expect(purgeJob?.args).toEqual([
+      {
+        rsvpId: seeded.rsvpId,
+        command: {
+          kind: 'olderThanGeneration',
+          commandGeneration: 1,
+        },
+      },
+    ])
 
     expect(
       await drainRsvpSessionPurge(t, seeded.rsvpId, {
@@ -1303,6 +1332,8 @@ describe('admin family and guest operations', () => {
   })
 
   it('preserves generation 2 when delayed phone purges arrive in either order', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(40_000)
     const t = makeAdminTest()
     await insertActiveAdminSession(t, TOKEN_A)
     const seeded = await seedAdminFamily(t, '(79) 99999-8601')
@@ -1368,6 +1399,8 @@ describe('admin family and guest operations', () => {
   })
 
   it('removes a family with 160 linked sessions before deleteAll cleanup', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(50_000)
     const t = makeAdminTest()
     await insertActiveAdminSession(t, TOKEN_A)
     const seeded = await seedAdminFamily(t, '(79) 99999-8701')
