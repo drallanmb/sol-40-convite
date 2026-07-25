@@ -40,11 +40,11 @@
 
 ### Mural de Memórias
 
-- [ ] **WALL-01**: Schema Convex `posts` (foto ou recado; status `pendente`/`aprovado`/`oculto`; desenhado pensando no telão v2)
-- [ ] **WALL-02**: Upload de foto (Convex 3 passos) com validação server-side de tipo/tamanho (`getMetadata`) e downscale no cliente
-- [ ] **WALL-03**: Convidado envia recado de texto
-- [ ] **WALL-04**: Galeria/álbum público exibe SOMENTE posts aprovados
-- [ ] **WALL-05**: Rate-limit no upload público
+- [x] **WALL-01**: Schema Convex `posts` (foto ou recado; status `pendente`/`aprovado`/`oculto`; desenhado pensando no telão v2)
+- [x] **WALL-02**: Upload de foto (Convex 3 passos) com validação server-side de tipo/tamanho (`getMetadata`) e downscale no cliente
+- [x] **WALL-03**: Convidado envia recado de texto
+- [x] **WALL-04**: Galeria/álbum público exibe SOMENTE posts aprovados
+- [x] **WALL-05**: Rate-limit no upload público
 
 ### Dashboard Interno (/admin)
 
@@ -110,11 +110,11 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | GIFT-02 | Phase 4 | Pending |
 | GIFT-03 | Phase 4 | Pending |
 | GIFT-04 | Phase 4 | Pending |
-| WALL-01 | Phase 5 | Pending |
-| WALL-02 | Phase 5 | Pending |
-| WALL-03 | Phase 5 | Pending |
-| WALL-04 | Phase 5 | Pending |
-| WALL-05 | Phase 5 | Pending |
+| WALL-01 | Phase 5 | Complete |
+| WALL-02 | Phase 5 | Complete |
+| WALL-03 | Phase 5 | Complete |
+| WALL-04 | Phase 5 | Complete |
+| WALL-05 | Phase 5 | Complete |
 | ADMIN-01 | Phase 6 | Pending |
 | ADMIN-02 | Phase 6 | Pending |
 | ADMIN-03 | Phase 6 | Pending |
