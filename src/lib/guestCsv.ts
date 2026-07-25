@@ -79,6 +79,10 @@ function familyIdentity(value: string) {
   return normalizedText(value).normalize('NFKC').toLocaleLowerCase('pt-BR')
 }
 
+function guestIdentity(value: string) {
+  return normalizedText(value).normalize('NFKC').toLocaleLowerCase('pt-BR')
+}
+
 function headerIssue(detail: string): ParsedGuestCsv {
   return {
     kind: 'invalid',
@@ -180,6 +184,7 @@ export function buildGuestImportPreview(parsed: ParsedGuestCsv): GuestImportPrev
 
   const ignored: GuestImportIssue[] = []
   const groups = new Map<string, ValidFamilyGroup>()
+  const guestKeys = new Map<string, Set<string>>()
 
   for (const row of parsed.rows) {
     const displayName = normalizedText(row.familia)
@@ -213,6 +218,16 @@ export function buildGuestImportPreview(parsed: ParsedGuestCsv): GuestImportPrev
     const key = `${normalizedPhone.normalizedKey}\u0000${familyIdentity(displayName)}`
     const existing = groups.get(key)
     if (existing) {
+      const groupGuestKeys = guestKeys.get(key)
+      const normalizedGuestName = guestIdentity(guestName)
+      if (groupGuestKeys?.has(normalizedGuestName)) {
+        ignored.push({
+          row: row.sourceRow,
+          code: 'duplicate_guest',
+          detail: 'Esta pessoa já apareceu nesta família; a primeira linha foi mantida.',
+        })
+        continue
+      }
       if (existing.guests.length >= MAX_RSVP_GUESTS) {
         ignored.push({
           row: row.sourceRow,
@@ -221,6 +236,7 @@ export function buildGuestImportPreview(parsed: ParsedGuestCsv): GuestImportPrev
         })
         continue
       }
+      groupGuestKeys?.add(normalizedGuestName)
       existing.sourceRows.push(row.sourceRow)
       existing.guests.push({ sourceRow: row.sourceRow, name: guestName })
     } else {
@@ -231,10 +247,33 @@ export function buildGuestImportPreview(parsed: ParsedGuestCsv): GuestImportPrev
         normalizedKey: normalizedPhone.normalizedKey,
         guests: [{ sourceRow: row.sourceRow, name: guestName }],
       })
+      guestKeys.set(key, new Set([guestIdentity(guestName)]))
     }
   }
 
-  const validGroups = [...groups.values()]
+  const familyNamesByPhone = new Map<string, Set<string>>()
+  for (const group of groups.values()) {
+    const familyNames =
+      familyNamesByPhone.get(group.normalizedKey) ?? new Set<string>()
+    familyNames.add(familyIdentity(group.displayName))
+    familyNamesByPhone.set(group.normalizedKey, familyNames)
+  }
+
+  const validGroups: ValidFamilyGroup[] = []
+  for (const group of groups.values()) {
+    if ((familyNamesByPhone.get(group.normalizedKey)?.size ?? 0) > 1) {
+      for (const row of group.sourceRows) {
+        ignored.push({
+          row,
+          code: 'phone_family_conflict',
+          detail: 'O mesmo telefone foi associado a nomes de família diferentes.',
+        })
+      }
+      continue
+    }
+    validGroups.push(group)
+  }
+  ignored.sort((left, right) => left.row - right.row)
   const people = validGroups.reduce((total, group) => total + group.guests.length, 0)
   return {
     groups: validGroups,
@@ -259,6 +298,11 @@ export function chunkGuestImportGroups(groups: ValidFamilyGroup[]) {
   let people = 0
 
   for (const group of groups) {
+    if (group.guests.length > GUEST_IMPORT_MAX_PEOPLE) {
+      throw new Error(
+        `Uma família não pode exceder ${GUEST_IMPORT_MAX_PEOPLE} pessoas por lote.`,
+      )
+    }
     if (
       current.length > 0 &&
       (current.length >= GUEST_IMPORT_MAX_FAMILIES ||

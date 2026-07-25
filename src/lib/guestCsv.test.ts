@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_RSVP_GUESTS,
+  RSVP_DISPLAY_NAME_MAX_LENGTH,
+  RSVP_GUEST_NAME_MAX_LENGTH,
+} from '../../convex/rsvpModel'
+import {
   GUEST_CSV_MAX_BYTES,
   GUEST_CSV_MAX_ROWS,
   buildGuestImportPreview,
@@ -229,6 +234,41 @@ describe('csv preview normalization and partial issues', () => {
       [3, 'invalid_phone'],
       [4, 'invalid_guest'],
     ])
+  })
+
+  it('enforces shared family, guest and per-invitation limits', async () => {
+    const overFamily = 'F'.repeat(RSVP_DISPLAY_NAME_MAX_LENGTH + 1)
+    const overGuest = 'P'.repeat(RSVP_GUEST_NAME_MAX_LENGTH + 1)
+    const rows = [
+      `${overFamily},(79) 99999-4213,Pessoa`,
+      `Família Longa,(79) 99999-4214,${overGuest}`,
+      ...Array.from(
+        { length: MAX_RSVP_GUESTS + 1 },
+        (_, index) =>
+          `Família Limite,(79) 99999-4215,Pessoa Limite ${index + 1}`,
+      ),
+    ]
+    const result = await preview(
+      ['familia,telefone,convidado', ...rows].join('\n'),
+    )
+
+    expect(result.groups).toEqual([
+      expect.objectContaining({
+        displayName: 'Família Limite',
+        guests: expect.any(Array),
+      }),
+    ])
+    expect(result.groups[0].guests).toHaveLength(MAX_RSVP_GUESTS)
+    expect(result.ignored).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ row: 2, code: 'invalid_family' }),
+        expect.objectContaining({ row: 3, code: 'invalid_guest' }),
+        expect.objectContaining({
+          row: MAX_RSVP_GUESTS + 4,
+          code: 'invalid_guest',
+        }),
+      ]),
+    )
   })
 })
 

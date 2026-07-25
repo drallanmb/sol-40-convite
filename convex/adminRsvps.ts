@@ -92,6 +92,7 @@ const importIgnoredCodeValidator = v.union(
   v.literal('invalid_family'),
   v.literal('invalid_phone'),
   v.literal('invalid_guest'),
+  v.literal('phone_family_conflict'),
   v.literal('existing_phone'),
 )
 
@@ -138,6 +139,12 @@ function isPositiveInteger(value: number) {
 
 function collapseWhitespace(value: string) {
   return value.trim().replace(/\s+/gu, ' ')
+}
+
+function importIdentity(value: string) {
+  return collapseWhitespace(value)
+    .normalize('NFKC')
+    .toLocaleLowerCase('pt-BR')
 }
 
 type ReadCtx = Pick<QueryCtx, 'db'>
@@ -301,8 +308,16 @@ export const importFamilies = mutation({
         | 'invalid_family'
         | 'invalid_phone'
         | 'invalid_guest'
+        | 'phone_family_conflict'
         | 'existing_phone'
       message: string
+    }> = []
+
+    const validGroups: Array<{
+      sourceRows: number[]
+      displayName: string
+      normalizedPhone: Exclude<ReturnType<typeof normalizePhone>, { kind: 'invalid' }>
+      guests: Array<{ sourceRow: number; name: string }>
     }> = []
 
     for (const group of args.groups) {
@@ -336,9 +351,11 @@ export const importFamilies = mutation({
         sourceRow: guest.sourceRow,
         name: collapseWhitespace(guest.name),
       }))
+      const guestIdentities = guests.map((guest) => importIdentity(guest.name))
       if (
         guests.length === 0 ||
         guests.length > MAX_RSVP_GUESTS ||
+        new Set(guestIdentities).size !== guestIdentities.length ||
         guests.some(
           (guest) =>
             !isPositiveInteger(guest.sourceRow) ||
@@ -351,6 +368,41 @@ export const importFamilies = mutation({
           sourceRows,
           code: 'invalid_guest',
           message: 'Uma ou mais pessoas têm dados inválidos.',
+        })
+        continue
+      }
+
+      validGroups.push({
+        sourceRows,
+        displayName,
+        normalizedPhone,
+        guests,
+      })
+    }
+
+    const familyNamesByPhone = new Map<string, Set<string>>()
+    for (const group of validGroups) {
+      const familyNames =
+        familyNamesByPhone.get(group.normalizedPhone.normalizedKey) ??
+        new Set<string>()
+      familyNames.add(importIdentity(group.displayName))
+      familyNamesByPhone.set(group.normalizedPhone.normalizedKey, familyNames)
+    }
+
+    for (const group of validGroups) {
+      const {
+        sourceRows,
+        displayName,
+        normalizedPhone,
+        guests,
+      } = group
+      if (
+        (familyNamesByPhone.get(normalizedPhone.normalizedKey)?.size ?? 0) > 1
+      ) {
+        ignored.push({
+          sourceRows,
+          code: 'phone_family_conflict',
+          message: 'O mesmo telefone foi associado a famílias diferentes.',
         })
         continue
       }
