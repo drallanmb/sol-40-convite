@@ -52,15 +52,26 @@ Importante:
 
 ### 4. Provisionar o `ADMIN_PASSWORD` no backend Convex
 
-A senha única do dashboard dos donos (`/admin`) é consumida só na Phase 6 (login), mas deve existir no ambiente do Convex desde já:
+A senha única do dashboard dos donos (`/admin`) deve existir no deployment
+Convex de produção. Confirme primeiro somente os nomes já configurados:
 
 ```bash
-npx convex env set ADMIN_PASSWORD '<senha-forte>'
+npx convex env list --names-only --prod
+npx convex env set --prod ADMIN_PASSWORD
 ```
 
-- Rode isso apontando para o deployment de **produção** (é o env padrão do `npx convex env set` quando não há flag de deployment diferente — confirme com `npx convex env list` antes de aplicar em produção).
+- O segundo comando, sem valor na linha de comando, lê a senha
+  interativamente/stdin. Não passe o segredo como argumento, não o grave no
+  histórico do shell e não copie seu valor para logs ou evidências.
 - `ADMIN_PASSWORD` fica **só no ambiente do backend Convex** — nunca em `.env.local`, nunca em `.env.example` com valor real, nunca referenciado em código dentro de `src/`.
-- Se quiser um `ADMIN_PASSWORD` de teste isolado no ambiente de **preview**, rode o mesmo comando apontando para o deployment de preview correspondente.
+- Para um preview, use explicitamente
+  `npx convex env set --deployment <deployment-preview> ADMIN_PASSWORD`; não
+  reutilize a senha de produção.
+- Esta versão do app Convex (`defineApp()` em `convex/convex.config.ts`) não
+  oferece uma declaração geral de variável obrigatória para todas as
+  functions. Não invente uma API de configuração: a ausência da senha falha
+  fechada em `adminAuth`, e o gate de produção exige a verificação
+  `--names-only --prod` mais o smoke real de login.
 
 ### 5. Preview por branch/PR — isolado da produção
 
@@ -83,7 +94,20 @@ Depois do primeiro deploy de produção bem-sucedido:
 | Variável | Onde vive | Nunca deve estar em |
 |---|---|---|
 | `VITE_CONVEX_URL` | Injetada automaticamente pelo `npx convex deploy --cmd` durante o build (produção e preview); localmente, em `.env.local` (via `npx convex dev`) | Não é segredo — pode aparecer no bundle do cliente, é a URL pública do backend reativo |
-| `CONVEX_DEPLOY_KEY` | Vercel → Environment Variables, escopos Production e Preview separados | `.env.example` (valor real), `.env.local`, qualquer arquivo versionado, qualquer código em `src/` |
-| `ADMIN_PASSWORD` | Somente no ambiente do Convex, via `npx convex env set` | `.env.example` (valor real), `.env.local`, `vercel.json`, qualquer código em `src/` |
+| `CONVEX_DEPLOY_KEY` | Vercel → Environment Variables, chaves distintas nos escopos Production e Preview correspondentes | `.env.example` (valor real), `.env.local`, qualquer arquivo versionado, qualquer código em `src/` |
+| `ADMIN_PASSWORD` | Somente no deployment Convex correspondente; produção via `npx convex env set --prod ADMIN_PASSWORD` | Vercel, `.env.example` (valor real), `.env.local`, `vercel.json`, argumentos de shell, qualquer código em `src/` |
+
+## Verificação segura de produção
+
+Antes do smoke de login, verifique presença sem imprimir valores:
+
+```bash
+npx convex env list --names-only --prod
+```
+
+O resultado precisa conter `ADMIN_PASSWORD`. A chave
+`CONVEX_DEPLOY_KEY` é verificada no escopo **Production** da Vercel; a
+Preview Deploy Key fica apenas no escopo **Preview**. Nunca troque as chaves
+entre esses escopos e nunca use uma chave de preview para publicar produção.
 
 Ver `.env.example` para a documentação inline de cada variável com placeholders.
