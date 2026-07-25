@@ -4,6 +4,7 @@ import {
   adminDeadlineAction,
   adminStorageEventAction,
   generateAdminCapability,
+  takeAdminAccessTokenFromUrl,
   readAdminSession,
   reduceAdminSession,
   storeAdminSession,
@@ -120,6 +121,37 @@ describe('admin capability persistence', () => {
 
     expect(readAdminSession(storage)).toBeNull()
     expect(storeAdminSession(storage, { token: TOKEN_A })).toBe(false)
+  })
+})
+
+describe('admin activation and reset URL privacy', () => {
+  it('takes a capability once and removes the complete query string', () => {
+    const replaced: string[] = []
+    const token = takeAdminAccessTokenFromUrl(
+      `https://www.sol40.com.br/admin/ativar?token=${TOKEN_A}&utm_source=private#form`,
+      (safeUrl) => replaced.push(safeUrl),
+    )
+
+    expect(token).toBe(TOKEN_A)
+    expect(replaced).toEqual(['/admin/ativar#form'])
+  })
+
+  it('rejects malformed capabilities without writing any browser storage', () => {
+    const storage = new MemoryStorage()
+    storage.setItem('unrelated', 'preserve')
+    const replaced: string[] = []
+
+    expect(
+      takeAdminAccessTokenFromUrl(
+        'https://www.sol40.com.br/admin/redefinir?token=short',
+        (safeUrl) => replaced.push(safeUrl),
+      ),
+    ).toBeNull()
+    expect(replaced).toEqual(['/admin/redefinir'])
+    expect([...storage.values.entries()]).toEqual([['unrelated', 'preserve']])
+    expect(
+      [...storage.values.values()].join('|'),
+    ).not.toContain(TOKEN_A)
   })
 })
 
