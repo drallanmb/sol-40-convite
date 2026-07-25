@@ -112,7 +112,7 @@ Plans:
   2. Clicar em "Presentear pelo WhatsApp" abre o `wa.me` com número e mensagem pré-preenchida corretos
   3. Vinho marcado como presenteado no dashboard mostra "já escolhido" e não é oferecido de novo
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -126,7 +126,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 04-04-PLAN.md
+- [x] 04-04-PLAN.md
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -200,7 +200,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 8/8 | Complete    | 2026-07-24 |
 | 3. RSVP | 5/5 | Complete    | 2026-07-24 |
-| 4. Carta de Vinhos | 3/5 | In Progress|  |
+| 4. Carta de Vinhos | 4/5 | In Progress|  |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
 | 6. Dashboard Interno (/admin) | 0/2 | Not started | - |
 | 7. Endurecimento & Lançamento | 0/2 | Not started | - |
