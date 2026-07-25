@@ -112,12 +112,25 @@ Plans:
   2. Clicar em "Presentear pelo WhatsApp" abre o `wa.me` com número e mensagem pré-preenchida corretos
   3. Vinho marcado como presenteado no dashboard mostra "já escolhido" e não é oferecido de novo
 
-**Plans**: TBD
+**Plans**: 0/5 plans executed
 
 Plans:
+**Wave 1**
 
-- [ ] 04-01: Schema `wines` + seed do catálogo de 37 vinhos
-- [ ] 04-02: Catálogo público + botão wa.me + estado "já escolhido"
+- [ ] 04-01-PLAN.md
+- [ ] 04-02-PLAN.md
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-03-PLAN.md
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-04-PLAN.md
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 04-05-PLAN.md
 
 ### Phase 5: Mural de Memórias + Moderação
 
@@ -187,7 +200,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 8/8 | Complete    | 2026-07-24 |
 | 3. RSVP | 5/5 | Complete    | 2026-07-24 |
-| 4. Carta de Vinhos | 0/2 | Not started | - |
+| 4. Carta de Vinhos | 0/5 | Planned    |  |
 | 5. Mural de Memórias + Moderação | 0/2 | Not started | - |
 | 6. Dashboard Interno (/admin) | 0/2 | Not started | - |
 | 7. Endurecimento & Lançamento | 0/2 | Not started | - |

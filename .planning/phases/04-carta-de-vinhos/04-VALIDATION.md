@@ -2,7 +2,7 @@
 phase: 04
 slug: carta-de-vinhos
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-24
 ---
@@ -38,30 +38,34 @@ created: 2026-07-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 04-01-01 | 01 | 1 | GIFT-01 | T-04-01 | Public DTO omits gift identity and admin fields | schema/unit | `npx vitest run convex/wines.test.ts -t "schema"` | ❌ W0 | ⬜ pending |
-| 04-01-02 | 01 | 1 | GIFT-02 | T-04-02 | Catalog has 37 unique codes/images and exact 13/10/14 bands | unit | `npx vitest run convex/wines.test.ts -t "catalog"` | ❌ W0 | ⬜ pending |
-| 04-01-03 | 01 | 1 | GIFT-01/02/04 | T-04-03 | Reconciliation is idempotent and preserves gifted state | integration | `npx vitest run convex/wines.test.ts -t "reconciliation"` | ❌ W0 | ⬜ pending |
-| 04-01-04 | 01 | 1 | GIFT-03/04 | T-04-04 | Queries use stable category/price/code order and omit private fields | integration | `npx vitest run convex/wines.test.ts -t "public queries"` | ❌ W0 | ⬜ pending |
-| 04-02-01 | 02 | 2 | GIFT-03 | T-04-05 | WhatsApp number and decoded message match approved contract exactly | unit/security | `npx vitest run src/lib/wineWhatsApp.test.ts` | ❌ W0 | ⬜ pending |
-| 04-02-02 | 02 | 2 | GIFT-03 | T-04-06 | Product fragments are safe, stable and resolve after async query load | unit/browser | `npx vitest run src/lib/wineDeepLink.test.ts` | ❌ W0 | ⬜ pending |
-| 04-02-03 | 02 | 2 | GIFT-03/04 | T-04-07 | Available cards have one safe anchor; gifted cards have none | browser | Browser DOM inspection at 375/768/1280 | N/A | ⬜ pending |
-| 04-03-01 | 03 | 3 | GIFT-03/04 | T-04-08 | Home shows fixed trio and successful RSVP exposes persistent CTA | browser/system | Save outcome and deep-link browser matrix | N/A | ⬜ pending |
-| 04-03-02 | 03 | 3 | GIFT-04 | T-04-09 | Home and catalog react to backend status change without reload | real Convex/browser | Two-view live update smoke | N/A | ⬜ pending |
-| 04-03-03 | 03 | 3 | GIFT-03 | T-04-10 | All 37 files pass mapping, alpha, dimensions and manifest audit | asset/system | `npm run audit:wine-assets` | ❌ W0 | ⬜ pending |
-| 04-03-04 | 03 | 3 | All | T-04-11 | Full regression and live Convex type/function smoke pass | system | `npm test && npm run build && npx convex dev --once && git diff --check` | ✅ | ⬜ pending |
+| 04-01-01 | 01 | 0 | GIFT-01/02 | T-04-01/03 | Schema/catalog têm 37 códigos únicos, 13/10/14 e tipos fechados | schema/unit | `npx vitest run convex/wines.test.ts -t "schema\|catalog"` | ❌ W0 | ⬜ pending |
+| 04-01-02 | 01 | 0 | GIFT-01/02/04 | T-04-02/04/05 | Ensure é idempotente; seam internal retorna snapshot e restaura available/gifted sem API pública | integration/security | `npx vitest run convex/wines.test.ts -t "reconciliation\|smoke seam\|internal only"` | ❌ W0 | ⬜ pending |
+| 04-01-03 | 01 | 0 | GIFT-03/04 | T-04-01/04 | Queries são ordenadas/reativas, DTO omite privados e writers ficam em internal | integration/privacy | `npx vitest run convex/wines.test.ts -t "public queries\|featured"` | ❌ W0 | ⬜ pending |
+| 04-02-01 | 02 | 1 | GIFT-03 | T-04-06/07 | Número/copy/encoding e fragmentos hostis seguem contratos exatos | unit/security | `npx vitest run src/lib/wineWhatsApp.test.ts src/lib/wineDeepLink.test.ts` | ❌ W1 | ⬜ pending |
+| 04-02-02 | 02 | 1 | GIFT-02 | T-04-08/09 | Preflight prova bijeção 37/37 e strict rejeita pending/asset inválido | asset/unit | `npm run audit:wine-assets -- --preflight` | ❌ W1 | ⬜ pending |
+| 04-03-01 | 03 | 2 | GIFT-03 | T-04-10/12 | `/presentes`, tokens, copy e atalhos compilam sem perder rotas/CSS live | build/content | `npm run build && npx vitest run src/content/event.test.ts` | ✅ base | ⬜ pending |
+| 04-03-02 | 03 | 2 | GIFT-03/04 | T-04-10/11/13/14 | Available tem anchor seguro; gifted não tem anchor; mídia falha sem esconder conteúdo | browser + pure tests | `npx vitest run src/lib/wineWhatsApp.test.ts src/lib/wineDeepLink.test.ts && npm run build` | ❌ W1 | ⬜ pending |
+| 04-03-03 | 03 | 2 | GIFT-03/04 | T-04-12/14 | Catálogo/estados/deep-link compilam; matriz manual cobre DOM responsivo | system/browser | `npm test && npm run build && git diff --check` | ✅ base | ⬜ pending |
+| 04-04-01 | 04 | 3 | GIFT-03 | T-04-18 | Nav/copy combinadas preservam Fase 5 | content/regression | `npx vitest run src/content/event.test.ts && npm run build` | ✅ base | ⬜ pending |
+| 04-04-02 | 04 | 3 | GIFT-03/04 | T-04-16/17/18 | Preview fixa trio/order e usa um Link sem nested action | system/browser | `npm test && npm run build && git diff --check` | ✅ base | ⬜ pending |
+| 04-04-03 | 04 | 3 | GIFT-03 | T-04-15 | CTA depende exclusivamente de `result.kind === "saved"` | system/browser | `npm test && npm run build && git diff --check` | ✅ base | ⬜ pending |
+| 04-05-01 | 05 | 4 | GIFT-02 | T-04-19/20 | Fonte/permissão dos 37 itens é confirmada antes da normalização | blocking human-action | `npm run audit:wine-assets -- --preflight` | ❌ W1 | ⬜ pending |
+| 04-05-02 | 05 | 4 | All | T-04-21/22/23 | Audit estrito, seed duplo, snapshot→gifted→restore e full regression passam | asset/system/live | `npm run audit:wine-assets && npm test && npm run build && npx convex dev --once && git diff --check` | ❌ W1 | ⬜ pending |
+| 04-05-03 | 05 | 4 | GIFT-02/03/04 | T-04-19/20/23 | Dono aprova direitos/identidade/crop dos arquivos finais 37/37 | `gate="blocking-human"` | `npm run audit:wine-assets && npm test && npm run build && git diff --check` | N/A | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
 
-## Wave 0 Requirements
+## Planned Contract Files by Wave
 
-- [ ] `convex/wines.test.ts` — schema, canonical catalog, reconciliation and public-query tests.
-- [ ] `src/lib/wineWhatsApp.test.ts` — exact Unicode copy, number, price and one-time encoding.
-- [ ] `src/lib/wineDeepLink.test.ts` — safe DOM ID and hash parsing.
-- [ ] `scripts/audit-wine-assets.mjs` — deterministic existence/mapping/alpha/dimension/manifest audit.
-- [ ] `public/wines/manifest.json` — approved source and transformation metadata without private correspondence.
-- [ ] Add `audit:wine-assets` to `package.json` when the audit script is introduced.
+- [ ] **Wave 0 / Plan 01:** `convex/wines.test.ts` — schema, catálogo, reconciliação, seam internal snapshot/restore, ausência em API pública e queries.
+- [ ] **Wave 1 / Plan 02:** `src/lib/wineWhatsApp.test.ts` — copy Unicode, número, preço e encoding único.
+- [ ] **Wave 1 / Plan 02:** `src/lib/wineDeepLink.test.ts` — DOM ID/hash seguro.
+- [ ] **Wave 1 / Plan 02:** `scripts/audit-wine-assets.mjs` + `public/wines/manifest.json` + `audit:wine-assets` — preflight e strict.
+- [ ] **Wave 4 / Plan 05:** 37 assets finais e manifest approved; checkpoint final `gate="blocking-human"`.
+
+`wave_0_complete` permanece `false` até `convex/wines.test.ts` existir e passar. `nyquist_compliant` está `true` porque cada uma das 14 tasks atuais possui comando automatizado ou checkpoint explícito, sem três tasks consecutivas sem amostra.
 
 ---
 
@@ -80,11 +84,11 @@ created: 2026-07-24
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies.
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify.
-- [ ] Wave 0 covers all MISSING references.
-- [ ] No watch-mode flags.
-- [ ] Feedback latency < 30s.
-- [ ] `nyquist_compliant: true` set in frontmatter after `/gsd-validate-phase`.
+- [x] As 14 tasks dos cinco planos têm `<automated>` verify; checkpoints também têm gate/evidência humana explícitos.
+- [x] Sampling continuity: não há 3 tasks consecutivas sem comando automatizado.
+- [x] IDs/waves correspondem aos planos 04-01…04-05 atuais.
+- [x] Nenhum watch-mode flag foi planejado.
+- [x] Feedback automatizado focado permanece abaixo de 30s; full suite/live smoke fica no fechamento.
+- [x] `nyquist_compliant: true` após auditoria de correspondência; `wave_0_complete: false` até execução.
 
-**Approval:** pending
+**Approval:** validation map aligned; execution pending
