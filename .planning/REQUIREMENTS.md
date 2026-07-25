@@ -33,10 +33,10 @@
 
 ### Presentes (Carta de Vinhos)
 
-- [ ] **GIFT-01**: Schema Convex `wines` (catálogo + status `presenteado` + quem escolheu)
-- [ ] **GIFT-02**: Seed do catálogo de ~37 vinhos (reaproveitado do projeto antigo)
-- [ ] **GIFT-03**: Catálogo público; cada card com botão "Presentear pelo WhatsApp" (`wa.me` com número + mensagem pré-preenchida encodada)
-- [ ] **GIFT-04**: Card mostra "já escolhido" quando o dono marca presenteado (evita duplicação)
+- [x] **GIFT-01**: Schema Convex `wines` (catálogo + status `presenteado` + quem escolheu)
+- [x] **GIFT-02**: Seed do catálogo de ~37 vinhos (reaproveitado do projeto antigo)
+- [x] **GIFT-03**: Catálogo público; cada card com botão "Presentear pelo WhatsApp" (`wa.me` com número + mensagem pré-preenchida encodada)
+- [x] **GIFT-04**: Card mostra "já escolhido" quando o dono marca presenteado (evita duplicação)
 
 ### Mural de Memórias
 
@@ -106,10 +106,10 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | RSVP-03 | Phase 3 | Complete |
 | RSVP-04 | Phase 3 | Complete |
 | RSVP-05 | Phase 3 | Complete |
-| GIFT-01 | Phase 4 | Pending |
-| GIFT-02 | Phase 4 | Pending |
-| GIFT-03 | Phase 4 | Pending |
-| GIFT-04 | Phase 4 | Pending |
+| GIFT-01 | Phase 4 | Complete |
+| GIFT-02 | Phase 4 | Complete |
+| GIFT-03 | Phase 4 | Complete |
+| GIFT-04 | Phase 4 | Complete |
 | WALL-01 | Phase 5 | Complete |
 | WALL-02 | Phase 5 | Complete |
 | WALL-03 | Phase 5 | Complete |

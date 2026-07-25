@@ -2,43 +2,43 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4
-current_phase_name: Carta de Vinhos
-status: executing
-stopped_at: "Checkpoint 04-05: awaiting licensed 37/37 wine image package"
-last_updated: "2026-07-25T01:20:00.996Z"
+current_phase: 05
+current_phase_name: Mural de Memórias + Moderação
+status: planning
+stopped_at: "Phase 4 complete and verified; Phase 5 remains the active parallel closeout"
+last_updated: "2026-07-25T02:29:48.588Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 3 complete, transitioned to Phase 4
+last_activity_desc: Phase 4 complete, transitioned to Phase 05
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 25
-  completed_plans: 24
+  completed_phases: 5
+  total_plans: 26
+  completed_plans: 26
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-24)
+See: .planning/PROJECT.md (updated 2026-07-25)
 
 **Core value:** Convidados confirmam presença e escolhem presente sem atrito; donos veem tudo ao vivo, sem trabalho manual.
-**Current focus:** Phase 4 — Carta de Vinhos
+**Current focus:** Phase 5 — Mural de Memórias + Moderação
 
 ## Current Position
 
-Phase: 4 — Carta de Vinhos
+Phase: 05 — Mural de Memórias + Moderação
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-24 — Phase 3 complete, transitioned to Phase 4
+Status: Ready to plan
+Last activity: 2026-07-24 — Phase 4 complete, transitioned to Phase 05
 
-Progress: [██████████] 96%
+Progress: [████████████████████] 26/26 plans (100%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 21
 - Average duration: —
 - Total execution time: —
 
@@ -49,6 +49,7 @@ Progress: [██████████] 96%
 | 1 | 3 | - | - |
 | 02 | 8 | - | - |
 | 3 | 5 | - | - |
+| 4 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -119,6 +120,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 03]: A restauração de /confirmar usa consulta Convex capturável e nunca exibe dados familiares obsoletos. — Distingue falha de rede de sessão expirada e mantém dados escopados fora do DOM até uma leitura válida.
 - [Phase 03]: Troca de telefone com rascunho sujo falha fechada até o diálogo final de 03-05. — Evita perda silenciosa de respostas; troca limpa já remove capability e DOM escopado.
 - [Phase 03]: Troca de telefone suja usa dialog nativo com foco inicial seguro; descarte só ocorre por ação destrutiva explícita. — Evita perda silenciosa, preserva Escape/retorno de foco e mantém a troca limpa imediata.
+- [Phase 04]: Presentes usam 37 registros canônicos em três faixas, com o WhatsApp da Vanessa como handoff externo e sem reserva/checkout.
+- [Phase 04]: Uma silhueta vetorial neutra compartilhada e duas cores auditáveis por vinho substituem fotos licenciadas; proveniência permanece privada.
+- [Phase 04]: Gift state é reativo e separado da reconciliação comercial; `gifted` mantém o card e remove a ação.
 
 ### Pending Todos
 
@@ -139,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T01:20:00.990Z
-Stopped at: Checkpoint 04-05: awaiting licensed 37/37 wine image package
-Resume file: .planning/phases/04-carta-de-vinhos/04-05-PLAN.md
+Last session: 2026-07-25T02:30:00Z
+Stopped at: Phase 4 complete and verified; Phase 5 remains the active parallel closeout
+Resume file: None

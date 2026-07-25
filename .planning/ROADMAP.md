@@ -9,7 +9,7 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
 - [x] **Phase 1: Fundação, Design System & Deploy** - Scaffold Convex + Vite/React/TS/Tailwind, pipeline Vercel e identidade visual portada (completed 2026-07-23)
 - [x] **Phase 2: Convite Público** - Página do evento: hero, countdown, programa, dress code, local/Aracaju (completed 2026-07-24)
 - [x] **Phase 3: RSVP** - Confirmação de presença pública por telefone, com edição (completed 2026-07-24)
-- [ ] **Phase 4: Carta de Vinhos** - Catálogo de presentes que redireciona para o WhatsApp
+- [x] **Phase 4: Carta de Vinhos** - Catálogo de presentes que redireciona para o WhatsApp (completed 2026-07-24)
 - [x] **Phase 5: Mural de Memórias + Moderação** - Envio de fotos/recados com fila de moderação (completed 2026-07-24)
 - [ ] **Phase 6: Dashboard Interno (/admin)** - Painel dos donos: confirmações ao vivo, convidados, moderação, presentes
 - [ ] **Phase 7: Endurecimento & Lançamento** - Rate-limit, testes em dispositivo real, checklist dos donos, deploy de produção
@@ -130,7 +130,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 04-05-PLAN.md
+- [x] 04-05-PLAN.md
 
 ### Phase 5: Mural de Memórias + Moderação
 
@@ -206,7 +206,7 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 1. Fundação, Design System & Deploy | 3/3 | Complete    | 2026-07-23 |
 | 2. Convite Público | 8/8 | Complete    | 2026-07-24 |
 | 3. RSVP | 5/5 | Complete    | 2026-07-24 |
-| 4. Carta de Vinhos | 4/5 | In Progress|  |
+| 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
 | 6. Dashboard Interno (/admin) | 0/2 | Not started | - |
 | 7. Endurecimento & Lançamento | 0/2 | Not started | - |

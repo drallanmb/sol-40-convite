@@ -12,8 +12,9 @@ Os convidados confirmam presença e escolhem presente **sem atrito**, e os donos
 
 ## Current State
 
-Fases 1–3 concluídas. O convite público e o RSVP por telefone estão
-implementados e verificados; o foco atual é a Fase 4 — Carta de Vinhos.
+Fases 1–4 concluídas e verificadas. O convite público, o RSVP por telefone e a
+carta de 37 vinhos estão implementados; o mural da Fase 5 foi desenvolvido em
+paralelo e segue para seu fechamento antes do dashboard.
 
 ## Requirements
 
@@ -21,12 +22,12 @@ implementados e verificados; o foco atual é a Fase 4 — Carta de Vinhos.
 
 - [x] **Convite público** com identidade "hora dourada / pôr do sol" — validado na Fase 2
 - [x] **RSVP público por telefone** (sem login) — confirmação por pessoa, edição posterior, contato opcional e rate limit validados na Fase 3
+- [x] **Carta de vinhos** — 37 sugestões em três faixas, estados reativos e handoff para o WhatsApp da Vanessa validados na Fase 4
 
 ### Active
 
 <!-- Escopo v1. Hipóteses até serem entregues e validadas. -->
 
-- [ ] **Carta de vinhos** — catálogo de vinhos; cada card com botão "Presentear pelo WhatsApp" (`wa.me` com mensagem pronta); status "já presenteado" controlado no dashboard para evitar repetição
 - [ ] **Mural de memórias** — convidados enviam fotos + recados; **moderação** dos donos antes de publicar; galeria/álbum público
 - [ ] **Dashboard interno** (senha única dos donos) — visão geral com contagem de confirmações ao vivo, lista de convidados/RSVP, fila de moderação do mural, controle de presentes
 - [ ] **Stack**: Convex (banco reativo + file storage p/ fotos + auth), frontend React + Tailwind + TypeScript, deploy na Vercel
@@ -66,11 +67,12 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 |----------|-----------|---------|
 | Stack Convex + React/Tailwind + Vercel | Dono quer Convex; substitui infra custom (D1/R2/sessões/rate-limit) por primitivas reativas | — Pending |
 | RSVP público sem login | Festa de uma noite não justifica contas individuais; capability efêmera escopa uma família | ✓ Good — validado na Fase 3 |
-| Presente = redirect WhatsApp (sem checkout) | Venda é externa, pelo vendedor "Mistral" | — Pending |
+| Presente = redirect WhatsApp (sem checkout) | Venda é externa, pelo vendedor "Mistral" | ✓ Good — validado na Fase 4 |
 | Mural com moderação antes de publicar | Evitar conteúdo indevido no álbum/telão público | — Pending |
 | Dashboard com senha única dos donos | 2 donos; contas nomeadas já foram descartadas no projeto antigo | ✓ Good (herdado) |
 | Telão + Instagram → v2 | Reduz escopo v1 e evita custo externo (Apify) | — Pending |
-| Marcar "presenteado" manual (sem reserva 48h) | Simplicidade; a compra acontece fora do site | — Pending |
+| Marcar "presenteado" manual (sem reserva 48h) | Simplicidade; a compra acontece fora do site | ✓ Modelo reativo validado na Fase 4; controle do dono segue para a Fase 6 |
+| Carta usa uma garrafa vetorial neutra e duas cores por vinho | Evita dependência de 37 fotos licenciadas sem perder diferenciação visual | ✓ Good — 37 paletas com proveniência privada e zero mídia remota |
 
 ## Evolution
 
@@ -90,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-24 after Phase 3 completion*
+*Last updated: 2026-07-25 after Phase 4 completion*
