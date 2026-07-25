@@ -3,6 +3,7 @@ import {
   AUTHOR_MAX_LENGTH,
   MESSAGE_MAX_LENGTH,
   canBeginMemorySubmission,
+  createMemorySubmissionSnapshot,
   countMemoryCodePoints,
   createMemoryState,
   memoryReducer,
@@ -268,5 +269,87 @@ describe('memory preview cleanup and accepted-only reset', () => {
       photo: null,
     })
     expect(next.submission).toEqual({ kind: 'idle' })
+  })
+
+  it('keeps delimiter-bearing normalized fields collision-free in snapshot fingerprints', () => {
+    const first = createMemorySubmissionSnapshot(
+      {
+        author: 'a|b',
+        message: 'c',
+        photo: processedPhoto(),
+      },
+      'storage-1',
+    )
+    const second = createMemorySubmissionSnapshot(
+      {
+        author: 'a',
+        message: 'b|c',
+        photo: processedPhoto(),
+      },
+      'storage-1',
+    )
+
+    expect(first.fingerprint).not.toBe(second.fingerprint)
+    expect(first).toMatchObject({ author: 'a|b', message: 'c' })
+  })
+
+  it('reports accepted claim A separately and preserves edited draft B with its preview', () => {
+    const initial = { ...withDraft({ message: 'Memória A' }), transport: uploaded }
+    const snapshotA = createMemorySubmissionSnapshot(
+      initial.draft,
+      'storage-1',
+    )
+    const claiming = memoryReducer(initial, {
+      type: 'claim_started',
+      snapshot: snapshotA,
+    }).state
+    const edited = memoryReducer(claiming, {
+      type: 'message_changed',
+      value: 'Memória B',
+    }).state
+    const ambiguous = memoryReducer(edited, {
+      type: 'submission_failed',
+      code: 'network_error',
+    }).state
+    const accepted = memoryReducer(ambiguous, {
+      type: 'accepted',
+      snapshot: snapshotA,
+    })
+
+    expect(accepted.state.draft).toEqual({
+      ...initial.draft,
+      message: 'Memória B',
+    })
+    expect(accepted.state.transport).toEqual({ kind: 'none' })
+    expect(accepted.state.submission).toEqual({ kind: 'idle' })
+    expect(accepted.state.acceptedSnapshot).toEqual(snapshotA)
+    expect(accepted.effects).toEqual({})
+    expect(canBeginMemorySubmission(accepted.state, false)).toBe(true)
+  })
+
+  it('clears the matching draft only when accepted snapshot still matches', () => {
+    const initial = { ...withDraft({ message: 'Memória A' }), transport: uploaded }
+    const snapshot = createMemorySubmissionSnapshot(
+      initial.draft,
+      'storage-1',
+    )
+    const claimed = memoryReducer(initial, {
+      type: 'claim_started',
+      snapshot,
+    }).state
+    const accepted = memoryReducer(claimed, {
+      type: 'accepted',
+      snapshot,
+    })
+
+    expect(accepted.state.draft).toEqual({
+      author: 'Sol',
+      message: '',
+      photo: null,
+    })
+    expect(accepted.state.submission).toEqual({ kind: 'success' })
+    expect(accepted.effects).toEqual({
+      previewUrlToRevoke: 'blob:one',
+    })
   })
 })
