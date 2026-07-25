@@ -3,7 +3,10 @@ import {
   ADMIN_COPY,
   ADMIN_NAV_ITEMS,
   ADMIN_ROUTES,
+  allowedNavItems,
+  canonicalDestination,
   canonicalAdminDestination,
+  defaultDestination,
   formatAdminCount,
   overviewEmptyState,
   moderationStatusFromSearch,
@@ -12,17 +15,70 @@ import {
 } from './admin'
 
 describe('admin canonical route contract', () => {
-  it('defines exactly four destinations in the approved order', () => {
-    expect(ADMIN_NAV_ITEMS.map(({ shortLabel, route, badge }) => ({
+  it('defines operational and owner destinations with explicit roles', () => {
+    expect(ADMIN_NAV_ITEMS.map(({ shortLabel, route, badge, roles }) => ({
       shortLabel,
       route,
       badge,
+      roles,
     }))).toEqual([
-      { shortLabel: 'Visão', route: '/admin/visao', badge: null },
-      { shortLabel: 'Convidados', route: '/admin/convidados', badge: 'guests' },
-      { shortLabel: 'Moderação', route: '/admin/moderacao', badge: 'memories' },
-      { shortLabel: 'Presentes', route: '/admin/presentes', badge: null },
+      {
+        shortLabel: 'Visão',
+        route: '/admin/visao',
+        badge: null,
+        roles: ['owner', 'manager'],
+      },
+      {
+        shortLabel: 'Convidados',
+        route: '/admin/convidados',
+        badge: 'guests',
+        roles: ['owner', 'manager'],
+      },
+      {
+        shortLabel: 'Moderação',
+        route: '/admin/moderacao',
+        badge: 'memories',
+        roles: ['owner', 'manager'],
+      },
+      {
+        shortLabel: 'Presentes',
+        route: '/admin/presentes',
+        badge: null,
+        roles: ['owner', 'manager', 'seller'],
+      },
+      {
+        shortLabel: 'Gestores',
+        route: '/admin/gestores',
+        badge: null,
+        roles: ['owner'],
+      },
     ])
+  })
+
+  it.each([
+    ['owner', ['/admin/visao', '/admin/convidados', '/admin/moderacao', '/admin/presentes', '/admin/gestores']],
+    ['manager', ['/admin/visao', '/admin/convidados', '/admin/moderacao', '/admin/presentes']],
+    ['seller', ['/admin/presentes']],
+  ] as const)('filters navigation for %s', (role, expected) => {
+    expect(allowedNavItems(role).map((item) => item.route)).toEqual(expected)
+  })
+
+  it('uses role-specific defaults and redirects forbidden deep links safely', () => {
+    expect(defaultDestination('owner')).toBe('/admin/visao')
+    expect(defaultDestination('manager')).toBe('/admin/visao')
+    expect(defaultDestination('seller')).toBe('/admin/presentes')
+    expect(
+      canonicalDestination('seller', '/admin/convidados', '?presenca=yes'),
+    ).toBe('/admin/presentes')
+    expect(
+      canonicalDestination('seller', '/admin/presentes', '?status=gifted'),
+    ).toBe('/admin/presentes?status=gifted')
+    expect(
+      canonicalDestination('manager', '/admin/gestores', ''),
+    ).toBe('/admin/visao')
+    expect(
+      canonicalDestination('owner', '/admin/minha-conta', ''),
+    ).toBe('/admin/minha-conta')
   })
 
   it('keeps canonical filtered deep links stable', () => {
@@ -32,6 +88,7 @@ describe('admin canonical route contract', () => {
       guestsPending: '/admin/convidados?presenca=pending',
       moderationPending: '/admin/moderacao?status=pendente',
       giftsGifted: '/admin/presentes?status=gifted',
+      managers: '/admin/gestores',
     })
   })
 
