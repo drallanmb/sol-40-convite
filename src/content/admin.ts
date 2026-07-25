@@ -4,6 +4,7 @@ export const ADMIN_ROUTES = {
   guests: '/admin/convidados',
   moderation: '/admin/moderacao',
   gifts: '/admin/presentes',
+  managers: '/admin/gestores',
   myAccount: '/admin/minha-conta',
   guestsPending: '/admin/convidados?presenca=pending',
   moderationPending: '/admin/moderacao?status=pendente',
@@ -11,7 +12,13 @@ export const ADMIN_ROUTES = {
 } as const
 
 export type AdminBadgeKind = 'guests' | 'memories'
-export type AdminIconName = 'overview' | 'guests' | 'moderation' | 'gifts'
+export type AdminRole = 'owner' | 'manager' | 'seller'
+export type AdminIconName =
+  | 'overview'
+  | 'guests'
+  | 'moderation'
+  | 'gifts'
+  | 'managers'
 
 export type AdminNavItem = {
   label: string
@@ -19,6 +26,7 @@ export type AdminNavItem = {
   route: string
   icon: AdminIconName
   badge: AdminBadgeKind | null
+  roles: readonly AdminRole[]
 }
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
@@ -28,6 +36,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     route: ADMIN_ROUTES.overview,
     icon: 'overview',
     badge: null,
+    roles: ['owner', 'manager'],
   },
   {
     label: 'Convidados',
@@ -35,6 +44,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     route: ADMIN_ROUTES.guests,
     icon: 'guests',
     badge: 'guests',
+    roles: ['owner', 'manager'],
   },
   {
     label: 'Moderação',
@@ -42,6 +52,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     route: ADMIN_ROUTES.moderation,
     icon: 'moderation',
     badge: 'memories',
+    roles: ['owner', 'manager'],
   },
   {
     label: 'Presentes',
@@ -49,8 +60,25 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     route: ADMIN_ROUTES.gifts,
     icon: 'gifts',
     badge: null,
+    roles: ['owner', 'manager', 'seller'],
+  },
+  {
+    label: 'Gestores',
+    shortLabel: 'Gestores',
+    route: ADMIN_ROUTES.managers,
+    icon: 'managers',
+    badge: null,
+    roles: ['owner'],
   },
 ]
+
+export function allowedNavItems(role: AdminRole) {
+  return ADMIN_NAV_ITEMS.filter((item) => item.roles.includes(role))
+}
+
+export function defaultDestination(role: AdminRole) {
+  return role === 'seller' ? ADMIN_ROUTES.gifts : ADMIN_ROUTES.overview
+}
 
 export const ADMIN_COPY = {
   login: {
@@ -148,8 +176,22 @@ export function canonicalAdminDestination(pathname: string, search = '') {
     return `${pathname}${filter ? `?status=${filter}` : ''}`
   }
   if (pathname === ADMIN_ROUTES.overview) return pathname
+  if (pathname === ADMIN_ROUTES.managers) return pathname
   if (pathname === ADMIN_ROUTES.myAccount) return pathname
   return ADMIN_ROUTES.overview
+}
+
+export function canonicalDestination(
+  role: AdminRole,
+  pathname: string,
+  search = '',
+) {
+  if (pathname === ADMIN_ROUTES.myAccount) return pathname
+  const canonical = canonicalAdminDestination(pathname, search)
+  const canonicalPath = canonical.split('?')[0]
+  return allowedNavItems(role).some((item) => item.route === canonicalPath)
+    ? canonical
+    : defaultDestination(role)
 }
 
 export function formatAdminCount(

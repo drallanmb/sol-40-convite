@@ -14,9 +14,10 @@ import {
 } from 'react-router'
 import {
   ADMIN_COPY,
-  ADMIN_NAV_ITEMS,
   ADMIN_ROUTES,
-  canonicalAdminDestination,
+  allowedNavItems,
+  canonicalDestination,
+  defaultDestination,
   type AdminBadgeKind,
   type AdminIconName,
 } from '../../content/admin'
@@ -26,6 +27,7 @@ import AdminGuests from './AdminGuests'
 import AdminGifts from './AdminGifts'
 import AdminModeration from './AdminModeration'
 import AdminMyAccount from './AdminMyAccount'
+import AdminManagers from './AdminManagers'
 import type { AdminPrincipalView } from '../../lib/adminSession'
 
 type AdminShellProps = {
@@ -61,6 +63,13 @@ function AdminIcon({ name }: { name: AdminIconName }) {
       <>
         <path d="M4 10h16v11H4zM3 6h18v4H3zM12 6v15" />
         <path d="M12 6H8.5A2.5 2.5 0 1 1 11 3.5zM12 6h3.5A2.5 2.5 0 1 0 13 3.5z" />
+      </>
+    ),
+    managers: (
+      <>
+        <circle cx="8" cy="8" r="3" />
+        <circle cx="17" cy="9" r="2.5" />
+        <path d="M3 20v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2M14 15h3a4 4 0 0 1 4 4v1" />
       </>
     ),
   }
@@ -117,7 +126,7 @@ export function AdminShell({
   const connection = useConvexConnectionState()
   const overviewQuery = useQuery_experimental({
     query: api.adminOverview.get,
-    args: { token },
+    args: principal.role === 'seller' ? 'skip' : { token },
   })
   const unauthorized =
     overviewQuery.status === 'success' &&
@@ -128,9 +137,10 @@ export function AdminShell({
       ? overviewQuery.data
       : null
   const liveBadges = overviewData?.badges ?? badges
+  const permittedItems = allowedNavItems(principal.role)
   const activeItem =
-    ADMIN_NAV_ITEMS.find((item) => item.route === location.pathname) ??
-    ADMIN_NAV_ITEMS[0]
+    permittedItems.find((item) => item.route === location.pathname) ??
+    permittedItems[0]
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
@@ -163,7 +173,9 @@ export function AdminShell({
   }
 
   const navLinks = (compact: boolean) =>
-    ADMIN_NAV_ITEMS.map((item) => {
+    permittedItems
+      .filter((item) => !compact || item.route !== ADMIN_ROUTES.managers)
+      .map((item) => {
       const active = item.route === location.pathname
       const badge = item.badge ? liveBadges[item.badge] : undefined
       return (
@@ -202,10 +214,12 @@ export function AdminShell({
       )
     })
 
-  const currentDestination = canonicalAdminDestination(
+  const currentDestination = canonicalDestination(
+    principal.role,
     location.pathname,
     location.search,
   )
+  const roleDefault = defaultDestination(principal.role)
 
   return (
     <div className="admin-dashboard min-h-screen bg-cream text-ink lg:pl-[248px]">
@@ -293,6 +307,14 @@ export function AdminShell({
                   Minha conta
                 </Link>
               ) : null}
+              {principal.role === 'owner' ? (
+                <Link
+                  to={ADMIN_ROUTES.managers}
+                  className="mb-2 flex min-h-11 items-center rounded-lg px-3 text-sm font-bold text-plum hover:bg-cream"
+                >
+                  Gestores
+                </Link>
+              ) : null}
               <Button
                 variant="adminSecondary"
                 className="w-full"
@@ -312,11 +334,14 @@ export function AdminShell({
         className="admin-main mx-auto min-h-screen max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-12 xl:px-12"
       >
         <Routes>
-          <Route index element={<Navigate to={ADMIN_ROUTES.overview} replace />} />
+          <Route index element={<Navigate to={roleDefault} replace />} />
           <Route
             path="visao"
             element={
-              <AdminOverview
+              principal.role === 'seller' ? (
+                <Navigate to={roleDefault} replace />
+              ) : (
+                <AdminOverview
                 {...(overviewQuery.status === 'pending'
                   ? { state: 'loading' as const }
                   : overviewQuery.status === 'error'
@@ -331,20 +356,43 @@ export function AdminShell({
                           connection.hasEverConnected &&
                           !connection.isWebSocketConnected,
                       })}
-              />
+                />
+              )
             }
           />
           <Route
             path="convidados"
-            element={<AdminGuests token={token} onUnauthorized={onUnauthorized} />}
+            element={
+              principal.role === 'seller' ? (
+                <Navigate to={roleDefault} replace />
+              ) : (
+                <AdminGuests token={token} onUnauthorized={onUnauthorized} />
+              )
+            }
           />
           <Route
             path="moderacao"
-            element={<AdminModeration token={token} onUnauthorized={onUnauthorized} />}
+            element={
+              principal.role === 'seller' ? (
+                <Navigate to={roleDefault} replace />
+              ) : (
+                <AdminModeration token={token} onUnauthorized={onUnauthorized} />
+              )
+            }
           />
           <Route
             path="presentes"
             element={<AdminGifts token={token} onUnauthorized={onUnauthorized} />}
+          />
+          <Route
+            path="gestores"
+            element={
+              principal.role === 'owner' ? (
+                <AdminManagers token={token} onUnauthorized={onUnauthorized} />
+              ) : (
+                <Navigate to={roleDefault} replace />
+              )
+            }
           />
           <Route
             path="minha-conta"
@@ -358,7 +406,7 @@ export function AdminShell({
           />
           <Route
             path="*"
-            element={<Navigate to={ADMIN_ROUTES.overview} replace />}
+            element={<Navigate to={roleDefault} replace />}
           />
         </Routes>
       </main>
