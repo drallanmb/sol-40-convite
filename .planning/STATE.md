@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: Dashboard Interno (/admin
 status: executing
-stopped_at: Phase 06 gap-closure plans ready
-last_updated: "2026-07-25T05:18:00.000Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-07-25T05:37:57.794Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 06 gap-closure planning completed
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 33
-  completed_plans: 30
+  completed_plans: 31
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-25)
 ## Current Position
 
 Phase: 06 (Dashboard Interno (/admin)) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute gap-closure plans
 Last activity: 2026-07-25 — Phase 06 gap-closure planning completed
 
-Progress: [██████████████████░░] 30/33 plans ([█████████░] 91%; phase verification pending)
+Progress: [██████████████████░░] 31/33 plans ([█████████░] 94%; phase verification pending)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [██████████████████░░] 30/33 p
 | Phase 04 P04 | 5 min | 3 tasks | 5 files |
 | Phase 06 P01 | 5 min | 3 tasks | 11 files |
 | Phase 06 P02 | 12 min | 3 tasks | 15 files |
+| Phase 06 P05 | 6min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 06]: Consultas protegidas do admin só montam abaixo do gate de sessão; adminOverview retorna unauthorized sem DTO. — Mantém o invariante de nenhuma consulta de domínio pré-auth e desmonta dados no mesmo render da perda de autorização.
 - [Phase 06]: familyCount vem diretamente de rsvps e permanece independente da soma de presenças. — Distingue zero famílias de uma família válida com zero pessoas e impede copy operacional falsa.
 - [Phase 06]: O foco admin mantém coral e usa anel externo plum nas superfícies claras. — Preserva a identidade existente e garante uma borda perceptível acima de 3:1.
+- [Phase ?]: Invitation and session generation omissions map to zero for additive legacy compatibility; invalid internal generations fail closed.
+- [Phase ?]: Only the no-argument start mutation establishes the RSVP sweep cutoff; continuations require the paired opaque cursor and unchanged validated cutoff.
+- [Phase ?]: Per-session scheduled expiry is primary cleanup; the daily bounded sweep recovers historical or stranded RSVP session rows.
 
 ### Pending Todos
 
@@ -151,6 +155,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T04:14:47.242Z
-Stopped at: Phase 06 gap-closure plans ready
+Last session: 2026-07-25T05:37:57.786Z
+Stopped at: Completed 06-05-PLAN.md
 Resume file: None

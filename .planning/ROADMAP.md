@@ -170,7 +170,7 @@ Plans:
   4. O dono aprova/oculta posts do mural na fila de moderação
   5. O dono marca vinhos como presenteados
 
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 
@@ -178,7 +178,7 @@ Plans:
 - [x] 06-02-PLAN.md
 - [x] 06-03-PLAN.md
 - [x] 06-04-PLAN.md
-- [ ] 06-05-PLAN.md
+- [x] 06-05-PLAN.md
 - [ ] 06-06-PLAN.md
 - [ ] 06-07-PLAN.md
 
@@ -238,5 +238,5 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 3. RSVP | 5/5 | Complete    | 2026-07-24 |
 | 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
-| 6. Dashboard Interno (/admin) | 2/4 | In Progress|  |
+| 6. Dashboard Interno (/admin) | 5/7 | In Progress|  |
 | 7. Endurecimento & Lançamento | 0/2 | Not started | - |

@@ -51,7 +51,7 @@
 - [x] **ADMIN-01**: Auth do dono — senha compartilhada verificada no servidor, emitindo sessão
 - [x] **ADMIN-02**: Shell `/admin` (sidebar no desktop, barra inferior no mobile)
 - [x] **ADMIN-03**: Visão geral — contagem de confirmações ao vivo (queries reativas Convex)
-- [ ] **ADMIN-04**: Convidados — listar / buscar / editar / remover RSVP
+- [x] **ADMIN-04**: Convidados — listar / buscar / editar / remover RSVP
 - [ ] **ADMIN-05**: Moderação — fila do mural (aprovar / ocultar)
 - [ ] **ADMIN-06**: Presentes — marcar vinho como presenteado
 
@@ -118,7 +118,7 @@ Explicitamente excluído. Documentado para evitar scope creep.
 | ADMIN-01 | Phase 6 | Complete |
 | ADMIN-02 | Phase 6 | Complete |
 | ADMIN-03 | Phase 6 | Complete |
-| ADMIN-04 | Phase 6 | Pending |
+| ADMIN-04 | Phase 6 | Complete |
 | ADMIN-05 | Phase 6 | Pending |
 | ADMIN-06 | Phase 6 | Pending |
 | LAUNCH-01 | Phase 7 | Pending |
