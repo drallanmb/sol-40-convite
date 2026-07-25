@@ -106,6 +106,15 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    'value',
+  )?.set
+  setter?.call(textarea, value)
+  textarea.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 function buttonWithText(scope: ParentNode, text: string) {
   const button = [...scope.querySelectorAll('button')].find(
     (candidate) => candidate.textContent?.trim() === text,
@@ -412,22 +421,33 @@ describe('admin screen pending operations', () => {
     )
     const rows = container!.querySelectorAll<HTMLLIElement>('ul.mt-3 > li')
     await act(async () => {
-      buttonWithText(rows[0], 'Marcar como presenteado').click()
+      buttonWithText(rows[0], 'Confirmar compra').click()
     })
     let presenter = container!.querySelector<HTMLInputElement>('#gift-presenter')!
     await act(async () => setInputValue(presenter, 'Pessoa A'))
+    let note = container!.querySelector<HTMLTextAreaElement>('#gift-note')!
+    await act(async () => setTextareaValue(note, 'Pago no balcão'))
     await act(async () => {
-      buttonWithText(container!, 'Confirmar presente').click()
-      buttonWithText(rows[1], 'Marcar como presenteado').click()
+      buttonWithText(container!, 'Confirmar compra').click()
+      buttonWithText(rows[1], 'Confirmar compra').click()
     })
     presenter = container!.querySelector<HTMLInputElement>('#gift-presenter')!
     await act(async () => setInputValue(presenter, 'Pessoa B'))
-    const submitB = buttonWithText(container!, 'Confirmar presente')
+    note = container!.querySelector<HTMLTextAreaElement>('#gift-note')!
+    await act(async () => setTextareaValue(note, 'Pagamento por link'))
+    const submitB = buttonWithText(container!, 'Confirmar compra')
     await act(async () => {
       submitB.click()
       submitB.click()
     })
     expect(markGifted).toHaveBeenCalledTimes(2)
+    expect(markGifted).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        giftedBy: 'Pessoa A',
+        giftNote: 'Pago no balcão',
+      }),
+    )
     expect(rows[0].getAttribute('aria-busy')).toBe('true')
     expect(rows[1].getAttribute('aria-busy')).toBe('true')
 
@@ -454,6 +474,96 @@ describe('admin screen pending operations', () => {
         wine: { ...wineB, status: 'gifted', giftedBy: 'Pessoa B' },
       })
       await operationB.promise
+    })
+  })
+
+  it('keeps gift correction data after conflict and reopens only through explicit undo', async () => {
+    const wine = {
+      id: 'wine-confirmed',
+      productCode: 'C',
+      name: 'Vinho Confirmado',
+      producer: 'Produtor',
+      priceCents: 15000,
+      category: 'ate-200',
+      status: 'gifted',
+      giftedBy: 'Nome original',
+      giftNote: 'Nota original',
+      giftedAt: 10_000,
+      updatedAt: 3,
+    }
+    const editGift = vi.fn(async () => ({
+      kind: 'conflict',
+      wine: { ...wine, giftedBy: 'Outra pessoa', updatedAt: 4 },
+    }))
+    const makeAvailable = vi.fn(async () => ({
+      kind: 'updated',
+      wine: {
+        ...wine,
+        status: 'available',
+        giftedBy: undefined,
+        giftNote: undefined,
+        giftedAt: undefined,
+        updatedAt: 5,
+      },
+    }))
+    convexMocks.query = () => ({
+      status: 'success',
+      data: { kind: 'ready', wines: [wine] },
+    })
+    convexMocks.mutation = (reference) => {
+      const name = functionName(reference)
+      if (name === 'adminWines:editGift') return editGift
+      if (name === 'adminWines:makeAvailable') return makeAvailable
+      return vi.fn(async () => ({ kind: 'invalid' }))
+    }
+
+    await renderScreen(
+      createElement(AdminGifts, {
+        token: 'test-token',
+        onUnauthorized: vi.fn(),
+      }),
+      '/admin/presentes?status=gifted',
+    )
+
+    expect(container!.textContent).toContain('Compra confirmada')
+    const row = container!.querySelector<HTMLLIElement>('ul.mt-3 > li')!
+    await act(async () => buttonWithText(row, 'Editar compra').click())
+    const presenter =
+      container!.querySelector<HTMLInputElement>('#gift-presenter')!
+    const note = container!.querySelector<HTMLTextAreaElement>('#gift-note')!
+    expect(presenter.value).toBe('Nome original')
+    expect(note.value).toBe('Nota original')
+    await act(async () => {
+      setInputValue(presenter, 'Nome corrigido')
+      setTextareaValue(note, 'Nota corrigida')
+      buttonWithText(container!, 'Salvar correção').click()
+    })
+
+    expect(editGift).toHaveBeenCalledWith({
+      token: 'test-token',
+      wineId: 'wine-confirmed',
+      expectedUpdatedAt: 3,
+      giftedBy: 'Nome corrigido',
+      giftNote: 'Nota corrigida',
+    })
+    expect(presenter.value).toBe('Nome corrigido')
+    expect(note.value).toBe('Nota corrigida')
+    expect(container!.textContent).toContain(
+      'Este vinho foi atualizado em outra sessão',
+    )
+
+    await act(async () =>
+      buttonWithText(container!, 'Voltar aos presentes').click(),
+    )
+    await act(async () => buttonWithText(row, 'Desfazer compra').click())
+    expect(container!.textContent).toContain(
+      'voltar a ficar disponível no catálogo',
+    )
+    await act(async () => buttonWithText(container!, 'Tornar disponível').click())
+    expect(makeAvailable).toHaveBeenCalledWith({
+      token: 'test-token',
+      wineId: 'wine-confirmed',
+      expectedUpdatedAt: 3,
     })
   })
 })
