@@ -22,6 +22,11 @@ import type * as rsvpSecurity from "../rsvpSecurity.js";
 import type * as rsvpTest from "../rsvpTest.js";
 import type * as rsvps from "../rsvps.js";
 import type * as uploadValidation from "../uploadValidation.js";
+import type * as wineCatalog from "../wineCatalog.js";
+import type * as wineInternal from "../wineInternal.js";
+import type * as wineModel from "../wineModel.js";
+import type * as wineTest from "../wineTest.js";
+import type * as wines from "../wines.js";
 
 import type {
   ApiFromModules,
@@ -44,6 +49,11 @@ declare const fullApi: ApiFromModules<{
   rsvpTest: typeof rsvpTest;
   rsvps: typeof rsvps;
   uploadValidation: typeof uploadValidation;
+  wineCatalog: typeof wineCatalog;
+  wineInternal: typeof wineInternal;
+  wineModel: typeof wineModel;
+  wineTest: typeof wineTest;
+  wines: typeof wines;
 }>;
 
 /**

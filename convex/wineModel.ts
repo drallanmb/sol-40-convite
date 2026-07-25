@@ -29,6 +29,18 @@ export const wineGiftStateValidator = v.union(
   }),
 )
 
+export const publicWineValidator = v.object({
+  productCode: v.string(),
+  name: v.string(),
+  producer: v.string(),
+  description: v.string(),
+  tone: wineToneValidator,
+  priceCents: v.number(),
+  category: wineCategoryValidator,
+  imageUrl: v.string(),
+  status: wineStatusValidator,
+})
+
 export type WineCategory = 'ate-200' | '200-350' | '350-500'
 export type WineTone = 'rubi' | 'dourado' | 'rose' | 'verde'
 export type WineStatus = 'available' | 'gifted'

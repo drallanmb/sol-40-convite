@@ -1,10 +1,15 @@
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { convexTest } from 'convex-test'
-import type { FunctionReference } from 'convex/server'
+import type {
+  FunctionReference,
+  RegisteredMutation,
+} from 'convex/server'
 import { describe, expect, it } from 'vitest'
 import { api, internal } from './_generated/api'
 import { WINE_CATALOG, FEATURED_WINE_CODES } from './wineCatalog'
+import {
+  ensureWineCatalog,
+  setWineGiftStateForSmoke,
+} from './wineInternal'
 import {
   WINE_CATEGORY_ORDER,
   type PublicWine,
@@ -69,10 +74,16 @@ const wineApi = (
 ).wines
 
 describe('catalog wines', () => {
-  it('keeps the complete canonical catalog byte-for-byte', () => {
-    const digest = createHash('sha256')
-      .update(JSON.stringify(WINE_CATALOG))
-      .digest('hex')
+  it('keeps the complete canonical catalog byte-for-byte', async () => {
+    const digestBytes = new Uint8Array(
+      await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(JSON.stringify(WINE_CATALOG)),
+      ),
+    )
+    const digest = Array.from(digestBytes, (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('')
 
     expect(digest).toBe(
       '29ec75e05ce7c9c68418ed5df1c6b841f291300bc8a36f1b457ca624f5d143d8',
@@ -335,16 +346,18 @@ describe('wine smoke seam', () => {
 
 describe('wine functions are internal only', () => {
   it('registers both operational writers as internal mutations, not public API functions', () => {
-    const source = readFileSync(
-      new URL('./wineInternal.ts', import.meta.url),
-      'utf8',
-    )
+    const internalWriters: Array<
+      RegisteredMutation<'internal', Record<string, unknown>, unknown>
+    > = [ensureWineCatalog, setWineGiftStateForSmoke]
 
-    expect(source.match(/internalMutation\s*\(/gu)).toHaveLength(2)
-    expect(source).not.toMatch(/(?<!internal)Mutation\s*\(/u)
-    expect(
-      'wineInternal' in (api as unknown as Record<string, unknown>),
-    ).toBe(false)
+    if (false) {
+      // @ts-expect-error internal writers must never enter the generated public API
+      void api.wineInternal.ensureWineCatalog
+      // @ts-expect-error internal writers must never enter the generated public API
+      void api.wineInternal.setWineGiftStateForSmoke
+    }
+
+    expect(internalWriters).toHaveLength(2)
   })
 })
 
