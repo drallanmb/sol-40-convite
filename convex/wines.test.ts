@@ -491,7 +491,7 @@ describe('wine public queries', () => {
       'tone',
     ])
     expect(JSON.stringify(result)).not.toMatch(
-      /"_id"|"giftedBy"|"giftedAt"|"updatedAt"|"imageUrl"|"paletteReferenceUrl"|"paletteReferencedAt"/u,
+      /"_id"|"giftedBy"|"giftNote"|"giftedAt"|"updatedAt"|"imageUrl"|"paletteReferenceUrl"|"paletteReferencedAt"/u,
     )
   })
 
@@ -503,6 +503,7 @@ describe('wine public queries', () => {
       state: {
         status: 'gifted',
         giftedBy: 'Privado',
+        giftNote: 'Nota ainda mais privada',
         giftedAt: 40_000,
       },
     })
@@ -517,6 +518,8 @@ describe('wine public queries', () => {
       'gifted',
       'available',
     ])
-    expect(JSON.stringify(result)).not.toContain('Privado')
+    expect(JSON.stringify(result)).not.toMatch(
+      /Privado|Nota ainda mais privada|giftedBy|giftNote|giftedAt|actor/iu,
+    )
   })
 })

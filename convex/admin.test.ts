@@ -2602,6 +2602,89 @@ describe('admin wine gift authorization, atomic revisions and public catalog', (
     })
   })
 
+  it('edits a confirmed gift without reopening and reopens by clearing all private fields', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(25_000)
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'seller')
+    const wineId = await insertOverviewWine(t, 'admin-edit-gift', 'gifted')
+    const original = await t.run((ctx) => ctx.db.get(wineId))
+    if (!original) throw new Error('missing wine')
+    const originalGiftedAt = original.giftedAt
+
+    const edited = await t.mutation(adminWines.editGift, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: original.updatedAt,
+      giftedBy: '  Nome corrigido  ',
+      giftNote: '  Observação corrigida  ',
+    })
+
+    expect(edited).toMatchObject({
+      kind: 'updated',
+      wine: {
+        status: 'gifted',
+        giftedBy: 'Nome corrigido',
+        giftNote: 'Observação corrigida',
+        giftedAt: originalGiftedAt,
+      },
+    })
+    const afterEdit = await t.run((ctx) => ctx.db.get(wineId))
+    expect(afterEdit?.giftedAt).toBe(originalGiftedAt)
+    expect(afterEdit?.status).toBe('gifted')
+
+    const staleEdit = await t.mutation(adminWines.editGift, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: original.updatedAt,
+      giftedBy: 'Não sobrescrever',
+      giftNote: 'Não auditar',
+    })
+    expect(staleEdit).toMatchObject({
+      kind: 'conflict',
+      wine: { giftedBy: 'Nome corrigido' },
+    })
+
+    if (edited.kind !== 'updated') throw new Error('edit failed')
+    const reopened = await t.mutation(adminWines.makeAvailable, {
+      token: TOKEN_A,
+      wineId,
+      expectedUpdatedAt: edited.wine.updatedAt,
+    })
+    expect(reopened).toMatchObject({
+      kind: 'updated',
+      wine: { status: 'available' },
+    })
+    if (reopened.kind !== 'updated') throw new Error('reopen failed')
+    expect(reopened.wine).not.toHaveProperty('giftedBy')
+    expect(reopened.wine).not.toHaveProperty('giftNote')
+    expect(reopened.wine).not.toHaveProperty('giftedAt')
+
+    const stored = await t.run((ctx) => ctx.db.get(wineId))
+    expect(stored).not.toHaveProperty('giftedBy')
+    expect(stored).not.toHaveProperty('giftNote')
+    expect(stored).not.toHaveProperty('giftedAt')
+    const audit = await t.run((ctx) =>
+      ctx.db
+        .query('adminAuditEvents')
+        .withIndex('by_area_occurred_at', (q) => q.eq('area', 'gifts'))
+        .collect(),
+    )
+    expect(audit.map((event) => event.action)).toEqual([
+      'gift_updated',
+      'gift_reopened',
+    ])
+    expect(audit[0].changes).toEqual([
+      { field: 'giftedBy', before: 'Convidada', after: 'Nome corrigido' },
+      { field: 'giftNote', after: 'Observação corrigida' },
+    ])
+    expect(audit[1].changes).toEqual([
+      { field: 'status', before: 'gifted', after: 'available' },
+      { field: 'giftedBy', before: 'Nome corrigido' },
+      { field: 'giftNote', before: 'Observação corrigida' },
+    ])
+  })
+
   it('clears attribution together and rejects stale/ABA gift commands', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(30_000)
