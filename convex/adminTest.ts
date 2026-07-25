@@ -1,7 +1,11 @@
 import { v } from 'convex/values'
 import type { FunctionReference } from 'convex/server'
 import { internal } from './_generated/api'
-import { internalAction, internalMutation } from './_generated/server'
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { ADMIN_SESSION_TTL_MS } from './adminModel'
 import { expireAdminSessionRecord } from './adminInternal'
@@ -27,6 +31,53 @@ import {
 } from './wineOperations'
 
 const SMOKE_TOKEN = 'c29sNDAtaW50ZXJuYWwtc21va2UtdG9rZW4tMDAwMDA'
+
+/**
+ * Read-only deployment preflight for the Phase 8 Preview runbook. It returns
+ * only aggregate state: no account identifiers, e-mails, links, tokens or
+ * audit payloads can cross this boundary.
+ */
+export const checkPhase8DeploymentReadiness = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const accounts = await ctx.db.query('adminAccounts').collect()
+    const config = await ctx.db
+      .query('adminAuthConfig')
+      .withIndex('by_key', (index) => index.eq('key', 'primary'))
+      .unique()
+    const now = Date.now()
+    const pendingLinks = await ctx.db
+      .query('adminAccessLinks')
+      .withIndex('by_expires_at', (index) => index.gt('expiresAt', now))
+      .collect()
+    const visibleAuditEvents = await ctx.db
+      .query('adminAuditEvents')
+      .withIndex('by_expires_at', (index) => index.gt('expiresAt', now))
+      .collect()
+
+    return {
+      deploymentShape: 'phase8',
+      bootstrapState:
+        config?.bootstrapCompletedAt !== undefined
+          ? 'complete'
+          : config?.ownerAccountId !== undefined
+            ? 'pending'
+            : 'available',
+      legacyCutoffSet: config?.legacyDisabledAt !== undefined,
+      accountCounts: {
+        owner: accounts.filter((account) => account.role === 'owner').length,
+        manager: accounts.filter((account) => account.role === 'manager')
+          .length,
+        seller: accounts.filter((account) => account.role === 'seller').length,
+      },
+      activePendingLinkCount: pendingLinks.filter(
+        (link) =>
+          link.consumedAt === undefined && link.revokedAt === undefined,
+      ).length,
+      visibleAuditEventCount: visibleAuditEvents.length,
+    }
+  },
+})
 
 /**
  * Internal-only and self-cleaning: proves the deployed session schema and

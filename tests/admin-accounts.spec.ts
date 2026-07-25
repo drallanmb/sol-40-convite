@@ -60,6 +60,9 @@ test('D-37–D-38: login e ativação passam AA, foco e reflow em 320px', async 
 }) => {
   await page.setViewportSize({ width: 320, height: 760 })
   await page.goto('/admin')
+  await expect(page.getByRole('heading', { name: 'Painel da festa' })).toBeVisible({
+    timeout: 15_000,
+  })
   await page.getByLabel('E-mail').focus()
   await expect(page.getByLabel('E-mail')).toBeFocused()
   const results = await new AxeBuilder({ page })

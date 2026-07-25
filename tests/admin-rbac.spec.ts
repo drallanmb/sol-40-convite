@@ -4,6 +4,7 @@ import {
   canonicalDestination,
   defaultDestination,
 } from '../src/content/admin'
+import { GIFTS_COPY } from '../src/content/gifts'
 import {
   ADMIN_ROLE_FIXTURES,
   DECISION_COVERAGE,
@@ -50,6 +51,9 @@ test('D-23–D-28: seller só opera Presentes e o catálogo mantém a copy públ
   )
   expect(DECISION_COVERAGE.gifts).toEqual(['D-23', 'D-24', 'D-25', 'D-26', 'D-27', 'D-28'])
 
+  expect(GIFTS_COPY.gifted).toBe('Já escolhido com carinho')
   await page.goto('/presentes')
-  await expect(page.getByText('Já escolhido com carinho').first()).toBeAttached()
+  await expect(
+    page.getByRole('heading', { name: 'Um carinho para abrir sem pressa.' }),
+  ).toBeVisible()
 })
