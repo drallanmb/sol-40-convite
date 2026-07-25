@@ -128,6 +128,15 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   page,
 }) => {
   await page.goto('/')
+  const desktopNavigation = page.getByRole('navigation', {
+    name: 'Navegação principal',
+  })
+  if (await desktopNavigation.isVisible()) {
+    await expect(
+      page.getByRole('link', { name: 'Login administrativo' }),
+    ).toHaveAttribute('href', '/admin')
+  }
+
   const skipLink = page.getByRole('link', { name: 'Pular para o conteúdo' })
   // macOS WebKit follows the operating-system "full keyboard access"
   // preference and may omit links from the native Tab order in automation.
@@ -144,9 +153,15 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   const menu = page.getByRole('button', { name: 'Abrir menu' })
   if (await menu.isVisible()) {
     await menu.click()
-    await expect(page.getByRole('navigation', { name: 'Navegação mobile' })).toBeVisible()
+    const mobileNavigation = page.getByRole('navigation', {
+      name: 'Navegação mobile',
+    })
+    await expect(mobileNavigation).toBeVisible()
     await expect(
-      page.getByRole('navigation', { name: 'Navegação mobile' }).getByRole('link').first(),
+      mobileNavigation.getByRole('link', { name: 'Login administrativo' }),
+    ).toHaveAttribute('href', '/admin')
+    await expect(
+      mobileNavigation.getByRole('link').first(),
     ).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(menu).toBeFocused()

@@ -164,6 +164,14 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
                 ))}
               </nav>
 
+              <NavigationAnchor
+                href="/admin"
+                aria-label="Login administrativo"
+                className="hidden min-h-[44px] items-center px-2 text-small uppercase tracking-label opacity-60 transition-opacity duration-(--duration-fast) ease-out hover:opacity-100 lg:flex"
+              >
+                Login
+              </NavigationAnchor>
+
               <button
                 ref={menuToggleRef}
                 type="button"
@@ -210,6 +218,14 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
                 {link.label}
               </NavigationAnchor>
             ))}
+            <NavigationAnchor
+              href="/admin"
+              aria-label="Login administrativo"
+              onClick={() => setMenuOpen(false)}
+              className="mt-2 flex min-h-[44px] items-center border-t border-line px-2 pt-3 opacity-70 transition-opacity duration-(--duration-fast) ease-out hover:opacity-100"
+            >
+              Login
+            </NavigationAnchor>
           </nav>
         ) : null}
 

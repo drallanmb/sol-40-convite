@@ -324,6 +324,9 @@ describe('event content — approved RSVP copy', () => {
     const withoutApprovedAssurances = surfaceSource
       .replaceAll('sem criar conta', '')
       .replaceAll('Não precisa criar conta', '')
+      .replaceAll('Login administrativo', '')
+      .replaceAll('Login', '')
+      .replaceAll('/admin', '')
 
     expect(withoutApprovedAssurances).not.toMatch(
       /\b(account|cadastro|cadastrar|cadastre|conta|entrar|login|password|senha|sign-?up|administrador|admin)\b/i,
@@ -331,6 +334,11 @@ describe('event content — approved RSVP copy', () => {
     expect(withoutApprovedAssurances).not.toMatch(
       /\/(?:account|admin|cadastro|login|register|sign-?up)\b/i,
     )
+  })
+
+  it('exposes the approved admin login in both responsive header variants', () => {
+    expect(shellSource.match(/href="\/admin"/g)).toHaveLength(2)
+    expect(shellSource.match(/Login administrativo/g)).toHaveLength(2)
   })
 })
 
