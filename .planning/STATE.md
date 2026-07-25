@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07
 current_phase_name: endurecimento-lan-amento
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-07-25T11:28:00.821Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-07-25T11:40:15.171Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 39
-  completed_plans: 34
+  completed_plans: 35
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-25)
 ## Current Position
 
 Phase: 07 (endurecimento-lan-amento) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-07-25 — Phase 07 execution started
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [█████████░] 87%
 | Phase 06 P02 | 12 min | 3 tasks | 15 files |
 | Phase 06 P05 | 6min | 2 tasks | 6 files |
 | Phase 07 P01 | 2h 21m | 3 tasks | 10 files |
+| Phase 07 P02 | 9min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 06]: Operações de convidados, moderação e presentes possuem ownership por registro para impedir duplicação e conclusões stale.
 - [Phase 07]: CSV bruto permanece local; somente grupos normalizados entram em lotes protegidos no Convex. — Preserva privacidade e obriga revalidação server-side antes de qualquer write.
 - [Phase 07]: LAUNCH-03 permanece pendente após 07-01. — O importador está pronto, mas domínio, senha de produção e lista real revisada pertencem aos planos posteriores.
+- [Phase 07]: A origem canônica estática é https://www.sol40.com.br; PUBLIC_ORIGIN não foi criado porque a stack não o consome.
+- [Phase 07]: O gate Playwright é explicitamente emulado; hardware, HEIC, WebViews, fuso e teclado virtual permanecem pending.
+- [Phase 07]: Produção Convex usa --prod e entrada interativa/stdin; evidência verifica somente nomes e login.
+- [Phase 07]: Domínio público não autoriza divulgação: Gate E exige backup e lista real revisada.
 
 ### Pending Todos
 
@@ -161,6 +166,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T11:27:55.256Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-07-25T11:40:15.167Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
