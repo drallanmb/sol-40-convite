@@ -198,7 +198,7 @@ describe('image magic-byte detection', () => {
   })
 })
 
-describe('bounded structural image validation', () => {
+describe('bounded image container prefilter', () => {
   beforeAll(async () => {
     const pngWasm = await readFile(
       join(
@@ -287,12 +287,20 @@ describe('bounded structural image validation', () => {
 
   it.each([
     ['truncated segment', new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 10])],
+    ['missing scan payload', validJpeg().slice(0, -3)],
+    ['missing EOI', validJpeg().slice(0, -2)],
+  ])('rejects invalid JPEG envelope: %s', (_name, bytes) => {
+    expect(validateImageBytes({ bytes, declaredMime: 'image/jpeg' })).toEqual({
+      kind: 'rejected',
+      code: 'unsupported_type',
+    })
+  })
+
+  it.each([
     ['missing SOF', new Uint8Array([
       0xff, 0xd8, 0xff, 0xda, 0, 8, 1, 1, 0, 0, 0x3f, 0, 1, 0xff, 0xd9,
     ])],
     ['zero dimensions', validJpeg({ width: 0 })],
-    ['missing scan payload', validJpeg().slice(0, -3)],
-    ['missing EOI', validJpeg().slice(0, -2)],
     ['zero-filled fake entropy stream', validJpeg()],
     ['SOS component not declared by SOF', (() => {
       const bytes = validImages['image/jpeg'].slice()
@@ -312,10 +320,11 @@ describe('bounded structural image validation', () => {
       bytes[scanStart + 1] = 0xe1
       return bytes
     })()],
-  ])('rejects structurally invalid JPEG: %s', (_name, bytes) => {
+  ])('defers enveloped JPEG bitstream to the production decoder: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/jpeg' })).toEqual({
-      kind: 'rejected',
-      code: 'unsupported_type',
+      kind: 'accepted',
+      mediaType: 'image/jpeg',
+      mediaSize: bytes.byteLength,
     })
   })
 
@@ -367,20 +376,26 @@ describe('bounded structural image validation', () => {
       new Uint8Array([0x2f, 0, 0, 0, 0]),
     )],
     ['VP8X metadata without VP8 image data', validWebp()],
-    ['truncated VP8L bitstream', (() => {
-      const vp8l = concat(
-        encoder.encode('VP8L'),
-        u32le(9),
-        validImages['image/webp'].slice(20, 29),
-        new Uint8Array([0]),
-      )
-      const body = concat(encoder.encode('WEBP'), vp8l)
-      return concat(encoder.encode('RIFF'), u32le(body.byteLength), body)
-    })()],
   ])('rejects structurally invalid WebP: %s', (_name, bytes) => {
     expect(validateImageBytes({ bytes, declaredMime: 'image/webp' })).toEqual({
       kind: 'rejected',
       code: 'unsupported_type',
+    })
+  })
+
+  it('defers an enveloped VP8L bitstream to the production decoder', () => {
+    const vp8l = concat(
+      encoder.encode('VP8L'),
+      u32le(9),
+      validImages['image/webp'].slice(20, 29),
+      new Uint8Array([0]),
+    )
+    const body = concat(encoder.encode('WEBP'), vp8l)
+    const bytes = concat(encoder.encode('RIFF'), u32le(body.byteLength), body)
+    expect(validateImageBytes({ bytes, declaredMime: 'image/webp' })).toEqual({
+      kind: 'accepted',
+      mediaType: 'image/webp',
+      mediaSize: bytes.byteLength,
     })
   })
 
