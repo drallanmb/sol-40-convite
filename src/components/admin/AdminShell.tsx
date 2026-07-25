@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
+  useConvexConnectionState,
+  useQuery_experimental,
+} from 'convex/react'
+import { api } from '../../../convex/_generated/api'
+import {
   Link,
   Navigate,
   Route,
@@ -16,13 +21,15 @@ import {
   type AdminIconName,
 } from '../../content/admin'
 import Button from '../ui/Button'
+import AdminOverview from './AdminOverview'
 
 type AdminShellProps = {
   badges?: Partial<Record<AdminBadgeKind, number>>
   children?: ReactNode
   loggingOut: boolean
   onLogout: () => Promise<void>
-  overview?: ReactNode
+  onUnauthorized: () => void
+  token: string
 }
 
 function AdminIcon({ name }: { name: AdminIconName }) {
@@ -114,12 +121,27 @@ export function AdminShell({
   badges = {},
   loggingOut,
   onLogout,
-  overview,
+  onUnauthorized,
+  token,
 }: AdminShellProps) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const pageTitleRef = useRef<HTMLElement | null>(null)
+  const connection = useConvexConnectionState()
+  const overviewQuery = useQuery_experimental({
+    query: api.adminOverview.get,
+    args: { token },
+  })
+  const unauthorized =
+    overviewQuery.status === 'success' &&
+    overviewQuery.data.kind === 'unauthorized'
+  const overviewData =
+    overviewQuery.status === 'success' &&
+    overviewQuery.data.kind === 'ready'
+      ? overviewQuery.data
+      : null
+  const liveBadges = overviewData?.badges ?? badges
   const activeItem =
     ADMIN_NAV_ITEMS.find((item) => item.route === location.pathname) ??
     ADMIN_NAV_ITEMS[0]
@@ -142,10 +164,22 @@ export function AdminShell({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [menuOpen])
 
+  useEffect(() => {
+    if (unauthorized) onUnauthorized()
+  }, [onUnauthorized, unauthorized])
+
+  if (unauthorized) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-cream text-plum">
+        <p role="status">{ADMIN_COPY.login.checking}</p>
+      </main>
+    )
+  }
+
   const navLinks = (compact: boolean) =>
     ADMIN_NAV_ITEMS.map((item) => {
       const active = item.route === location.pathname
-      const badge = item.badge ? badges[item.badge] : undefined
+      const badge = item.badge ? liveBadges[item.badge] : undefined
       return (
         <Link
           key={item.route}
@@ -264,12 +298,22 @@ export function AdminShell({
           <Route
             path="visao"
             element={
-              overview ?? (
-                <RoutePlaceholder
-                  title={ADMIN_COPY.overview.title}
-                  subtitle={ADMIN_COPY.overview.subtitle}
-                />
-              )
+              <AdminOverview
+                {...(overviewQuery.status === 'pending'
+                  ? { state: 'loading' as const }
+                  : overviewQuery.status === 'error'
+                    ? {
+                        state: 'error' as const,
+                        onRetry: () => window.location.reload(),
+                      }
+                    : {
+                        state: 'ready' as const,
+                        data: overviewData!,
+                        reconnecting:
+                          connection.hasEverConnected &&
+                          !connection.isWebSocketConnected,
+                      })}
+              />
             }
           />
           <Route

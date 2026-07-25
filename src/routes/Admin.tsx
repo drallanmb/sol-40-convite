@@ -181,6 +181,14 @@ function Admin() {
     }
   }
 
+  const handleUnauthorized = useCallback(() => {
+    const current = sessionRef.current
+    dispatch({
+      type: 'session-revoked',
+      sequence: current.sequence,
+    })
+  }, [dispatch])
+
   if (session.kind === 'checking') {
     return (
       <main className="grid min-h-screen place-items-center bg-cream px-4 text-center text-plum">
@@ -215,6 +223,8 @@ function Admin() {
     <AdminShell
       loggingOut={session.kind === 'logging-out'}
       onLogout={handleLogout}
+      onUnauthorized={handleUnauthorized}
+      token={session.token}
     />
   )
 }

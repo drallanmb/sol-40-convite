@@ -146,3 +146,26 @@ export function formatAdminCount(
 ) {
   return `${count} ${count === 1 ? singular : plural}`
 }
+
+export function overviewEmptyState(
+  familyCount: number,
+  personCount: number,
+) {
+  if (familyCount === 0) {
+    return {
+      title: 'Nenhuma família cadastrada',
+      body: 'Adicione uma família para começar a organizar as confirmações.',
+      action: 'Adicionar primeira família',
+      route: ADMIN_ROUTES.guests,
+    } as const
+  }
+  if (personCount === 0) {
+    return {
+      title: 'Nenhuma pessoa cadastrada nos convites',
+      body: 'As famílias já existem. Abra um convite para adicionar pessoas.',
+      action: 'Ver famílias',
+      route: ADMIN_ROUTES.guests,
+    } as const
+  }
+  return null
+}
