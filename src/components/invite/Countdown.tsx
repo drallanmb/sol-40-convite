@@ -62,7 +62,10 @@ export function Countdown() {
         </div>
 
         {copy.showTiles ? (
-          <div aria-live="off" className="flex gap-[clamp(18px,4vw,54px)]">
+          <div
+            aria-live="off"
+            className="grid w-full grid-cols-2 gap-x-6 gap-y-8 sm:flex sm:w-auto sm:gap-[clamp(18px,4vw,54px)]"
+          >
             {TILE_ORDER.map((unit) => (
               <div key={unit} className={unit === 'days' ? 'min-w-[4ch]' : undefined}>
                 <span className="block font-serif text-[clamp(3.5rem,6.5vw,5.5rem)] leading-none tracking-display tabular-nums">

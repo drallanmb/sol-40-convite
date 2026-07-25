@@ -47,6 +47,9 @@ export function PhotoPicker({
         aria-describedby={describedBy}
         onChange={handleSelection}
       />
+      <label htmlFor={inputId} className="sr-only">
+        Selecionar foto para a memória
+      </label>
 
       {photo ? (
         <div className="grid gap-4">

@@ -21,7 +21,7 @@ export function GuideSection() {
         <p className="text-caption font-bold uppercase tracking-label text-wine">{GUIDE_KICKER}</p>
         <h2 className="mt-3 font-serif text-heading leading-[1.02] tracking-display">
           {GUIDE_HEADING_LEAD}
-          <em className="not-italic text-coral">{GUIDE_HEADING_EM}</em>
+          <em className="not-italic text-orange">{GUIDE_HEADING_EM}</em>
         </h2>
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-16 sm:grid-cols-2 lg:grid-cols-4">
@@ -51,7 +51,7 @@ export function GuideSection() {
                   rel="noreferrer"
                   className="flex min-h-[44px] flex-wrap items-baseline justify-between gap-2 py-5"
                 >
-                  <span className="break-words font-serif text-subheading text-coral">{hotel.name}</span>
+                  <span className="break-words font-serif text-subheading text-orange">{hotel.name}</span>
                   <span className="break-words text-body text-ink/80">{hotel.distance}</span>
                 </a>
               </li>
