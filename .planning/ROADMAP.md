@@ -170,14 +170,17 @@ Plans:
   4. O dono aprova/oculta posts do mural na fila de moderação
   5. O dono marca vinhos como presenteados
 
-**Plans**: 2/4 plans executed
+**Plans**: 4/7 plans executed
 
 Plans:
 
 - [x] 06-01-PLAN.md
 - [x] 06-02-PLAN.md
-- [ ] 06-03-PLAN.md
-- [ ] 06-04-PLAN.md
+- [x] 06-03-PLAN.md
+- [x] 06-04-PLAN.md
+- [ ] 06-05-PLAN.md
+- [ ] 06-06-PLAN.md
+- [ ] 06-07-PLAN.md
 
 **Wave 1**
 
@@ -185,15 +188,24 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02: Shell `/admin` responsivo + navegação canônica + Visão geral e badges reativos
+- [x] 06-02: Shell `/admin` responsivo + navegação canônica + Visão geral e badges reativos
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-03: Operação de convidados por família — busca/filtros, criação manual, edição, remoções, conflitos e revogação RSVP
+- [x] 06-03: Operação de convidados por família — busca/filtros, criação manual, edição, remoções, conflitos e revogação RSVP
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 06-04: Moderação e Presentes — filas/tabs, transições e undo condicionais, presentes atômicos e reatividade pública
+- [x] 06-04: Moderação e Presentes — filas/tabs, transições e undo condicionais, presentes atômicos e reatividade pública
+
+**Wave 5** *(gap closure; blocked on Wave 4 completion)*
+
+- [ ] 06-05: Lifecycle físico e migração paginada das sessões RSVP
+- [ ] 06-07: Pending state por registro e proteção contra submissões duplicadas
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 06-06: Revogação por geração e cascade RSVP sem teto fixo
 
 ### Phase 7: Endurecimento & Lançamento
 
