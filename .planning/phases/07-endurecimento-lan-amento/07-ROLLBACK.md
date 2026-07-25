@@ -31,6 +31,18 @@ O alvo Production saudável é composto e deve ser tratado em camadas:
 Reassociar ou promover o frontend Vercel **não** reverte functions, schema,
 environment variables, scheduled work, file storage ou linhas do Convex.
 
+## Alvo de domínio publicado
+
+- Vercel: `www.sol40.com.br` em Production e `sol40.com.br` como redirect
+  permanente `308` para `www`.
+- Cloudflare: apex e `www` como CNAME DNS-only para o alvo específico
+  exibido pela Vercel; o apex é achatado em respostas A.
+- Em `2026-07-25 10:04 -03:00`, os dois hosts estavam `Valid Configuration`,
+  com TLS autorizado, `www` 200 e redirect preservando path/query.
+- O domínio ainda aponta ao frontend saudável
+  `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`. O drill deve mover somente a camada
+  frontend entre releases compatíveis e restaurar esse alvo pretendido.
+
 ## Matriz de incidente
 
 | Falha | Resposta imediata | Recuperação | Verificação obrigatória |

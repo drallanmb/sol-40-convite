@@ -16,7 +16,7 @@ CSV real, conteúdo de backup ou foto privada.
 | Deployment Convex Production | `necessary-coyote-763` |
 | URL `.vercel.app` saudável | Preview `sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app`; Production `sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` |
 | Alvo saudável para rollback | Frontend `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` no commit `3d7aa1c`; backup `20260725T122803Z` |
-| Domínio público | pending — não equivale a convite divulgado |
+| Domínio público | `https://www.sol40.com.br` — publicado; não equivale a convite divulgado |
 | Link enviado aos convidados | pending — proibido antes do Gate E |
 
 ## Classes de evidência
@@ -35,7 +35,7 @@ CSV real, conteúdo de backup ou foto privada.
 | A | Repositório: unitários, build, browser/axe, privacidade e `git diff --check` | passou | 2026-07-25 09:17 -03:00 | checkout limpo do commit `3d7aa1c`: 525/525 unitários + 40/40 browser; build e `git diff --check` verdes · repository/emulated | Codex | Codex |
 | B | Preview isolado: frontend, Convex distinto, rotas profundas e dados fictícios | passou | 2026-07-25 09:39 -03:00 | Vercel `dpl_ESX56bbFXwVLAF6KonicutRm3rzB`; Convex `wooden-hound-372`; 40/40 browser · live/emulated | Codex + dono | Codex; autorização prévia do dono |
 | C | Production `.vercel.app`: commit esperado, Convex production, login e logs | passou | 2026-07-25 09:54 -03:00 | Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763`; 40/40 browser + login/logout real + logs sanitizados · live/emulated | Codex + dono | Codex; autorização explícita do dono para uso único do segredo no Chaveiro |
-| D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | pending | pending | pending · live | Codex + dono | pending |
+| D | `www` público, HTTPS, apex permanente preservando path/query e smoke pós-propagação | parcial — imediato passou | 2026-07-25 10:04 -03:00 | Vercel `Valid Configuration`; TLS autorizado nos dois hosts; `www` 200; apex 308; 40/40 browser · live/emulated | Codex + dono | pós-propagação e drill pendentes |
 | E | Backup validado, lista real importada/revisada, amostragem RSVP e autorização para divulgar | pending | pending | pending · live/manual | Donos | pending |
 
 ## Critérios por gate
@@ -125,12 +125,37 @@ válida; RSVP e memória/upload foram auditados pelos contratos recuperáveis
 
 ### Gate D — domínio
 
-- [ ] `https://www.sol40.com.br` retorna 2xx com certificado válido.
-- [ ] `https://sol40.com.br/<path>?<query>` retorna 301/308 e preserva
+- [x] `https://www.sol40.com.br` retorna 2xx com certificado válido.
+- [x] `https://sol40.com.br/<path>?<query>` retorna 301/308 e preserva
   caminho/query ao redirecionar para `www`.
-- [ ] Canonical, `og:url` e `og:image` usam somente `www`.
+- [x] Canonical, `og:url` e `og:image` usam somente `www`.
 - [ ] Smoke imediato e smoke pós-propagação estão registrados.
-- [ ] Domínio pode ficar público mesmo com LAUNCH-01 físico pendente.
+- [x] Domínio pode ficar público mesmo com LAUNCH-01 físico pendente.
+
+### Tracer DNS/Vercel do Gate D imediato
+
+- Inventário anterior sanitizado: `3` registros — apex `MX`, apex `TXT` e
+  `_dmarc` `TXT`, todos DNS-only. Não existiam registros web no apex ou
+  `www`. Nameservers públicos: somente `ainsley.ns.cloudflare.com` e
+  `cody.ns.cloudflare.com`.
+- A Vercel adicionou `www.sol40.com.br` à Production e
+  `sol40.com.br` como redirect `308` para `www`. A tela autenticada exibiu,
+  para ambos, o mesmo CNAME específico do projeto
+  `8850c6bbc9daf305.vercel-dns-017.com`, com proxy `Disabled`.
+- A Cloudflare recebeu somente dois registros web CNAME: apex e `www`, ambos
+  para o alvo exibido e ambos `Somente DNS`. Os três registros anteriores
+  permaneceram inalterados por nome/tipo/proxy; nenhum redirect da Cloudflare
+  foi criado.
+- A Vercel terminou com `Valid Configuration` nos dois hosts. O CNAME do
+  apex é achatado pela Cloudflare em respostas A; por isso o verificador
+  registra `cloudflare-flattened-cname`, exige respostas A não vazias e
+  mantém a igualdade exata do CNAME de `www` com o valor capturado.
+- Em `2026-07-25 10:04 -03:00`, o tracer confirmou TLS autorizado em ambos,
+  `www` HTTP 200 e apex HTTP 308 para
+  `https://www.sol40.com.br/confirmar?origem=smoke`, em um salto, preservando
+  caminho e query. Cinco rotas profundas retornaram 200, metadados apontaram
+  somente para `www` e 40/40 casos live/emulados passaram, incluindo
+  privacidade administrativa pré-auth.
 
 ### Gate E — divulgação
 

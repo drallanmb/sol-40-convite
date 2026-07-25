@@ -11,7 +11,7 @@ screenshots administrativos são proibidos.
 |---|---|---|---|---|---|---|
 | Preview | `https://sol-40-convite-a22ao6yc7-allans-projects-78f12069.vercel.app` | commit `3d7aa1c`; Vercel `dpl_ESX56bbFXwVLAF6KonicutRm3rzB`; Convex `wooden-hound-372` | 2026-07-25 09:39 | live + emulated | Codex | passou |
 | Production `.vercel.app` | `https://sol-40-convite-fnrrv3vbd-allans-projects-78f12069.vercel.app` | commit `3d7aa1c`; Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` | 2026-07-25 09:54 | live + emulated | Codex | passou |
-| Domínio imediato | `https://www.sol40.com.br` | pending | pending | live + emulated | pending | pending |
+| Domínio imediato | `https://www.sol40.com.br` | commit `3d7aa1c`; Vercel `dpl_55PBruCBvfwrpN7y6WdGk2JpHKnY`; Convex `necessary-coyote-763` | 2026-07-25 10:04 | live + emulated | Codex | passou |
 | Domínio pós-propagação | `https://www.sol40.com.br` | pending | pending | live + emulated | pending | pending |
 
 ## Casos por execução
@@ -72,13 +72,29 @@ Nenhuma linha fictícia foi criada no Production. A reconciliação canônica
 anterior permanece em 37/37, com repetição idempotente 0/37, e o smoke do Gate
 C fez somente leituras públicas, autenticação e revogação da própria sessão.
 
+## Execução domínio imediato — Gate D
+
+| Caso | Resultado | Evidência sanitizada | Severidade | Correção/reteste |
+|---|---|---|---|---|
+| Home + canonical | passou | `www` respondeu 200; canonical, `og:url` e `og:image` usam exclusivamente `https://www.sol40.com.br` | nenhuma | não aplicável |
+| Deep routes | passou | `/`, `/confirmar`, `/presentes`, `/admin` e `/admin/convidados` responderam 200; 40/40 browser confirmou refresh/axe/reflow | nenhuma | não aplicável |
+| RSVP | passou sem escrita | gate público abriu e os contratos permaneceram cobertos; nenhum telefone ou família foi submetido | nenhuma | retestar no pós-propagação |
+| Catálogo + `wa.me` | passou sem compra | catálogo carregou e construção/encoding do handoff permaneceu coberta pelos testes | nenhuma | retestar no pós-propagação |
+| Memória pública | passou sem upload | formulário carregou e nenhum arquivo/foto foi enviado | nenhuma | retestar no pós-propagação |
+| Admin pré-auth | passou | 40/40 confirmou somente login no DOM e nenhuma query/DTO protegido antes da sessão | nenhuma | retestar no pós-propagação |
+| Admin login | coberto pelo Gate C | a senha não foi relida no smoke imediato; login/logout real anterior continua registrado sem segredo | nenhuma | executar novamente no pós-propagação |
+| TLS/redirect | passou | TLS autorizado nos dois hosts; apex 308 preservou `/confirmar?origem=smoke` até `www` em um salto; sem loop | nenhuma | retestar com segundo resolvedor |
+| Convex linkage | passou | jornada pública respondeu contra o frontend Production já provado em `necessary-coyote-763` | nenhuma | retestar no pós-propagação |
+| Logs | passou | Vercel marcou ambos hosts `Valid Configuration`; nenhuma falha P0/P1 ocorreu durante 40/40 | nenhuma | revisar novamente após drill |
+| Rate limits | passou sem stress | nenhum limite foi saturado ou alterado; feedback recuperável continua coberto por testes | nenhuma | não aplicável |
+
 ## Resultado agregado
 
 | Alvo | Estado | P0/P1 abertos | Pode avançar? | Motivo/ação |
 |---|---|---|---|---|
 | Preview | passou | 0 | sim | Gate B verde; avançar para senha segura e Gate C |
 | Production `.vercel.app` | passou | 0 | sim | Gate C verde; pode avançar ao domínio sem autorizar divulgação |
-| Domínio imediato | pending | pending | não | executar primeiro Gate D |
+| Domínio imediato | passou | 0 | sim | DNS/TLS/redirect/rotas/metadata/privacy verdes; repetir pós-propagação |
 | Domínio pós-propagação | pending | pending | não | repetir em outro resolvedor/rede |
 
 ## Regras de evidência
