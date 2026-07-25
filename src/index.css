@@ -36,9 +36,9 @@
   --color-cellar-muted: rgba(255, 243, 223, 0.78);
   --color-gifted: #b3c8b0;
 
-  /* Materiais ilustrados — tokens semânticos preservam o pôr do sol, as
-     palmeiras e a garrafa como um sistema, sem cores literais espalhadas
-     pelos componentes SVG. */
+  /* Materiais ilustrados — tokens semânticos preservam o pôr do sol, o mar
+     e a garrafa como um sistema, sem cores literais espalhadas pelos
+     componentes SVG. */
   --color-sky-dusk: #cf755f;
   --color-sky-apricot: #ed895e;
   --color-sky-coral: #ed684a;
@@ -46,16 +46,10 @@
   --color-horizon-sea: #1a3940;
   --color-sky-halo: rgba(255, 220, 144, 0.8);
   --color-sky-grain: rgba(255, 255, 255, 0.32);
-  --color-horizon-glow: rgba(255, 126, 78, 0.28);
-  --color-horizon-line: rgba(255, 243, 223, 0.08);
   --color-sun: #ffb55d;
   --color-sun-soft: #ffd07d;
   --color-sun-halo: rgba(255, 173, 77, 0.62);
   --color-sun-soft-halo: rgba(255, 208, 125, 0.5);
-  --color-sun-path: rgba(255, 181, 93, 0.55);
-  --color-palm: #291c25;
-  --color-palm-highlight: #4a3241;
-  --color-palm-shadow: rgba(18, 15, 22, 0.2);
   --color-display-shadow: rgba(53, 25, 42, 0.15);
   --color-bottle-shadow: #111816;
   --color-bottle-light: #25302b;
@@ -125,12 +119,11 @@ body {
   outline-offset: 3px;
 }
 
-/* Hero — mar animado (D-08). As três faixas de onda e o caminho de luz
-   dourada rodam via @keyframes puro; cada `.wave-band` recebe uma duração
-   diferente (front 22s / mid 30s / back 38s) para produzir a sensação de
-   paralaxe. Quem pede menos movimento no sistema (media query abaixo)
-   desliga só a animação — a arte (mar + luz) continue visível como
-   imagem estática; nunca escondê-la (P-01). */
+/* Hero — mar animado (D-08). As três faixas de onda rodam via @keyframes
+   puro; cada `.wave-band` recebe uma duração diferente (front 22s / mid
+   30s / back 38s) para produzir a sensação de paralaxe. Quem pede menos
+   movimento no sistema desliga só a animação; a arte continua visível como
+   imagem estática, sem esconder conteúdo (P-01). */
 .wave-band {
   animation: wave-scroll 22s linear infinite;
 }
@@ -143,10 +136,6 @@ body {
   animation-duration: 38s;
 }
 
-.golden-light {
-  animation: light-shimmer 3.5s ease-in-out infinite;
-}
-
 @keyframes wave-scroll {
   from {
     transform: translateX(0);
@@ -156,21 +145,10 @@ body {
   }
 }
 
-@keyframes light-shimmer {
-  0%,
-  100% {
-    opacity: 0.85;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wave-band,
   .wave-band--mid,
-  .wave-band--back,
-  .golden-light {
+  .wave-band--back {
     animation: none;
   }
 }

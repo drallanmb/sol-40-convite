@@ -74,6 +74,13 @@ components:
     rounded: "{rounded.pill}"
     padding: "16px 24px"
     height: "44px"
+  button-hero-secondary:
+    backgroundColor: "{colors.cream}"
+    textColor: "{colors.plum}"
+    typography: "{typography.label}"
+    rounded: "{rounded.pill}"
+    padding: "16px 24px"
+    height: "44px"
   card-public:
     backgroundColor: "{colors.card}"
     textColor: "{colors.ink}"
@@ -190,6 +197,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Primary:** laranja sobre cream, `24px × 16px`, texto Gabarito bold uppercase.
 - **Hover / Focus:** plum no hover, compressão `0.98` no active, foco coral global; RSVP usa outline sea de 3px.
 - **Quiet:** transparente com borda plum de 1px; não recebe sombra.
+- **Hero secondary:** “Ver programação” usa fundo cream, texto e borda plum para permanecer legível sobre céu, horizonte ou mar.
 - **Minimum target:** `44px` em qualquer variante.
 
 ### Cards / Containers
@@ -220,6 +228,13 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Countdown rail:** 56px, largura de conteúdo máxima de 768px, leitura contínua com divisores sutis e números tabulares.
 - **Anchors:** seções públicas usam `scroll-margin-top: 128px`, compensando topbar e rail.
 
+### Hero Sunset
+
+- **Composition:** somente céu, disco solar e três faixas do mar; coqueiros e outras silhuetas laterais são proibidos.
+- **Depth:** o sol pertence à camada de fundo; o plano do mar começa em uma linha de horizonte reta e cobre a parte inferior do disco.
+- **Responsive:** no mobile o mar cobre uma porção maior do disco; no desktop o horizonte corta aproximadamente o terço inferior.
+- **Reflection:** não existe feixe, caminho ou reflexo saindo do sol.
+
 ### Venue Map
 
 - **Map:** iframe sempre montado, interativo e com filtro `sepia(0.18) saturate(0.78) contrast(0.94)`.
@@ -249,6 +264,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Do** preservar contraste WCAG AA, foco visível e alvos mínimos de 44px.
 - **Do** validar 320px, tablet e desktop sem overflow horizontal.
 - **Do** manter o countdown compacto centralizado e ocultá-lo quando o menu móvel estiver aberto.
+- **Do** manter o sol atrás do mar, parcialmente encoberto pela linha d’água.
 - **Do** manter a atribuição e os controles do Google Maps totalmente visíveis.
 - **Do** usar feedback com borda completa e fundo tonal.
 - **Do** carregar rotas secundárias sob demanda com fallback visual da marca.
@@ -259,6 +275,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Don't** usar faixas laterais coloridas em alertas, cartões ou feedbacks.
 - **Don't** usar texto em gradiente, glassmorphism decorativo ou fundos de grade.
 - **Don't** criar grids repetitivos de cartões idênticos quando uma composição editorial resolve melhor.
+- **Don't** recolocar coqueiros ou silhuetas laterais no hero.
 - **Don't** usar sombras difusas largas em elementos com borda de 1px.
 - **Don't** ultrapassar `16px` de raio em cartões; pílulas são reservadas para ações.
 - **Don't** inserir cores hexadecimais novas diretamente em SVGs; crie ou reutilize tokens semânticos.

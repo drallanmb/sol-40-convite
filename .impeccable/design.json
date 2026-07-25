@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-25T14:58:06Z",
+  "generatedAt": "2026-07-25T15:19:31Z",
   "title": "Design System: Sol faz 40",
   "extensions": {
     "colorMeta": {
@@ -131,6 +131,14 @@
       "css": ".ds-btn-quiet { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-plum); border-radius: 100px; padding: 16px 24px; background: transparent; color: var(--color-plum); font-family: var(--font-sans); font-size: 0.9375rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out); } .ds-btn-quiet:hover { background: rgba(53,25,42,.05); } .ds-btn-quiet:active { transform: scale(.98); } .ds-btn-quiet:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
     },
     {
+      "name": "Hero Secondary Button",
+      "kind": "button",
+      "refersTo": "button-hero-secondary",
+      "description": "Ação clara do hero, legível quando toca o horizonte ou o mar.",
+      "html": "<a class=\"ds-btn-hero-secondary\" href=\"#programacao\">VER PROGRAMAÇÃO ↓</a>",
+      "css": ".ds-btn-hero-secondary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-plum); border-radius: 100px; padding: 16px 24px; background: var(--color-cream); color: var(--color-plum); font-family: var(--font-sans); font-size: .9375rem; font-weight: 700; letter-spacing: .1em; text-decoration: none; text-transform: uppercase; transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out); } .ds-btn-hero-secondary:hover { background: var(--color-card); } .ds-btn-hero-secondary:active { transform: scale(.98); } .ds-btn-hero-secondary:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
       "name": "Public Card",
       "kind": "card",
       "refersTo": "card-public",
@@ -151,6 +159,13 @@
       "description": "Mensagem de estado com borda completa e fundo tonal.",
       "html": "<div class=\"ds-feedback-success\">Convite encontrado.</div>",
       "css": ".ds-feedback-success { border: 1px solid rgba(31,70,80,.35); padding: 16px; background: rgba(31,70,80,.05); color: var(--color-sea); font-family: var(--font-sans); line-height: 1.5; } .ds-feedback-success:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }"
+    },
+    {
+      "name": "Hero Sunset",
+      "kind": "custom",
+      "description": "Cena sem coqueiros nem reflexo: uma linha de horizonte reta inicia o mar, que cobre a parte inferior do disco solar.",
+      "html": "<section class=\"ds-hero-sunset\"><div class=\"ds-sun\"></div><div class=\"ds-sea-plane\"></div><div class=\"ds-horizon\"></div><div class=\"ds-sea ds-sea-back\"></div><div class=\"ds-sea ds-sea-mid\"></div><div class=\"ds-sea ds-sea-front\"></div></section>",
+      "css": ".ds-hero-sunset { position: relative; width: 560px; height: 360px; overflow: hidden; background: linear-gradient(180deg, var(--color-sky-dusk), var(--color-sky-coral)); } .ds-sun { position: absolute; left: 50%; top: 59%; width: 220px; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%,-50%); background: var(--color-sun); box-shadow: 0 0 80px var(--color-sun-halo); } .ds-sea-plane { position: absolute; inset: 69% 0 0; background: var(--color-horizon-sea); } .ds-horizon { position: absolute; inset-inline: 0; top: 69%; height: 3px; transform: translateY(-50%); background: var(--color-horizon-plum); } .ds-sea { position: absolute; inset-inline: -10%; bottom: 0; border-radius: 50% 50% 0 0; transform-origin: bottom; } .ds-sea-back { height: 27%; background: var(--color-plum); opacity: .4; } .ds-sea-mid { height: 22%; background: var(--color-sea); opacity: .65; } .ds-sea-front { height: 17%; background: var(--color-sea); opacity: .95; }"
     },
     {
       "name": "Countdown Rail",
@@ -213,6 +228,7 @@
     ],
     "donts": [
       "Don't cobrir, remover ou disfarçar a atribuição do Google Maps.",
+      "Don't recolocar coqueiros ou silhuetas laterais no hero.",
       "Don't usar faixas laterais coloridas em feedbacks.",
       "Don't usar texto em gradiente ou glassmorphism decorativo.",
       "Don't inserir cores novas diretamente em SVGs.",

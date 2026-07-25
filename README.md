@@ -59,6 +59,15 @@ Evite duplicar conteúdo do evento dentro dos componentes. Alterações de copy 
 
 ## Decisões visuais atuais
 
+### Hero
+
+- A cena usa apenas céu, sol e mar; os coqueiros foram removidos.
+- Uma linha de horizonte reta inicia o plano do mar e corta o disco solar.
+- O disco fica atrás de todo o mar, nunca sobre a água.
+- As três faixas do mar preservam o paralaxe lento.
+- Não há feixe ou reflexo saindo do sol.
+- “Ver programação” usa fundo cream para manter contraste ao tocar o horizonte.
+
 ### Navegação e countdown
 
 - Topbar de 72px.

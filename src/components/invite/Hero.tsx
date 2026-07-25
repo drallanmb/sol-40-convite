@@ -1,16 +1,14 @@
 import { Link } from 'react-router'
 import { HERO, SECTION_IDS } from '../../content/event'
 import { buttonClassName } from '../ui/Button'
-import { PalmSvg } from './PalmSvg'
 import { SeaWaves } from './SeaWaves'
 
 /**
- * Hero do convite — céu/sol/horizonte em gradiente pôr do sol, duas
- * palmeiras em SVG, mar animado com caminho de luz dourada e as quatro
+ * Hero do convite — céu/sol/horizonte em gradiente pôr do sol, mar animado
+ * passando à frente do disco solar, caminho de luz dourada e as quatro
  * camadas de texto (eyebrow, lockup Sol/40 anos, tagline, meta de canto)
- * mais as ações do RSVP/programa (D-06/D-07/D-08). Gradientes e keyframes
- * são portados 1:1 do `.hero`/`.hero-sky`/`.hero-sun`/`.hero-horizon` do
- * `globals.css` antigo — não achatáveis em utilitária pura.
+ * mais as ações do RSVP/programa (D-06/D-08). Gradientes e keyframes não
+ * são achatáveis em utilitária pura.
  *
  * O foco programático (tabIndex negativo) permite que o skip link (plan
  * 02-07) mova o foco para cá. Todo texto vem de `HERO`; nenhuma string é
@@ -30,7 +28,7 @@ export function Hero() {
         className="absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 50% 57%, var(--color-sky-halo), transparent 21%), linear-gradient(180deg, var(--color-sky-dusk) 0%, var(--color-sky-apricot) 44%, var(--color-sky-coral) 68%, var(--color-horizon-plum) 69%, var(--color-horizon-sea) 100%)',
+            'radial-gradient(circle at 50% 61%, var(--color-sky-halo), transparent 21%), linear-gradient(180deg, var(--color-sky-dusk) 0%, var(--color-sky-apricot) 52%, var(--color-sky-coral) 100%)',
         }}
       >
         {/* textura sutil, igual ao ::after do hero-sky antigo */}
@@ -44,26 +42,15 @@ export function Hero() {
 
         {/* sol */}
         <div
-          className="absolute left-1/2 top-[54%] aspect-square w-[clamp(260px,28vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          className="absolute left-1/2 top-[62%] aspect-square w-[clamp(260px,28vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full sm:top-[59%]"
           style={{
             background: 'var(--color-sun)',
             boxShadow: '0 0 100px var(--color-sun-halo)',
           }}
         />
-
-        {/* horizonte — duas bandas de gradiente linear empilhadas */}
-        <div
-          className="absolute inset-x-0 top-[69%] bottom-0"
-          style={{
-            backgroundImage:
-              'linear-gradient(180deg, var(--color-horizon-glow), transparent 25%), linear-gradient(176deg, transparent 0 58%, var(--color-horizon-line) 59%, transparent 60%)',
-          }}
-        />
       </div>
 
       <SeaWaves />
-      <PalmSvg side="left" />
-      <PalmSvg side="right" />
 
       {/* camada de texto */}
       <div className="relative z-[3] mx-auto flex max-w-3xl flex-col items-center px-4 text-center text-plum sm:px-8">
@@ -90,7 +77,7 @@ export function Hero() {
           </Link>
           <a
             href={HERO.secondaryCtaHref}
-            className={buttonClassName('quiet', 'w-full sm:w-auto')}
+            className={buttonClassName('heroSecondary', 'w-full sm:w-auto')}
           >
             {HERO.secondaryCtaLabel}
           </a>
