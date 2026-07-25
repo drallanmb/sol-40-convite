@@ -352,9 +352,12 @@ export const importFamilies = mutation({
         name: collapseWhitespace(guest.name),
       }))
       const guestIdentities = guests.map((guest) => importIdentity(guest.name))
+      const guestSourceRows = guests.map((guest) => guest.sourceRow)
       if (
         guests.length === 0 ||
         guests.length > MAX_RSVP_GUESTS ||
+        sourceRows.length !== guests.length ||
+        new Set(guestSourceRows).size !== guestSourceRows.length ||
         new Set(guestIdentities).size !== guestIdentities.length ||
         guests.some(
           (guest) =>

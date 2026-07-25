@@ -1006,6 +1006,27 @@ describe('admin csv import tracer', () => {
         token: TOKEN_A,
         groups: [
           {
+            sourceRows: [4, 5],
+            displayName: 'Família Linhas Incompatíveis',
+            phone: '(79) 99999-4308',
+            guests: [
+              { sourceRow: 4, name: 'Pessoa Linha Um' },
+              { sourceRow: 4, name: 'Pessoa Linha Dois' },
+            ],
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      kind: 'ready',
+      created: [],
+      ignored: [expect.objectContaining({ code: 'invalid_guest' })],
+    })
+
+    await expect(
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_A,
+        groups: [
+          {
             sourceRows: [4],
             displayName: 'Família Presença',
             phone: '(79) 99999-4307',
