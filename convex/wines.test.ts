@@ -11,6 +11,9 @@ import {
   setWineGiftStateForSmoke,
 } from './wineInternal'
 import {
+  assertHttpsReference,
+  assertMutedPalette,
+  assertReferenceDate,
   WINE_CATEGORY_ORDER,
   type PublicWine,
   type WineGiftState,
@@ -94,9 +97,15 @@ describe('catalog wines', () => {
     )
   })
 
-  it('has unique codes and images, valid positive integer prices, and 13/10/14 bands', () => {
+  it('has unique codes, complete palette provenance, valid prices, and 13/10/14 bands', () => {
     expect(new Set(WINE_CATALOG.map((wine) => wine.productCode)).size).toBe(37)
-    expect(new Set(WINE_CATALOG.map((wine) => wine.imageUrl)).size).toBe(37)
+    for (const wine of WINE_CATALOG) {
+      expect(() =>
+        assertMutedPalette(wine.palettePrimary, wine.paletteSecondary),
+      ).not.toThrow()
+      expect(() => assertHttpsReference(wine.paletteReferenceUrl)).not.toThrow()
+      expect(() => assertReferenceDate(wine.paletteReferencedAt)).not.toThrow()
+    }
     expect(
       WINE_CATALOG.every(
         (wine) => Number.isSafeInteger(wine.priceCents) && wine.priceCents > 0,
@@ -115,6 +124,15 @@ describe('catalog wines', () => {
       '350-500': 14,
     })
     expect(FEATURED_WINE_CODES).toEqual(['39778', '39158', '39470'])
+  })
+
+  it('rejects invalid, identical, or excessively saturated palette metadata', () => {
+    expect(() => assertMutedPalette('#6A4A45', '#77856F')).not.toThrow()
+    expect(() => assertMutedPalette('red', '#77856F')).toThrow(/paleta/i)
+    expect(() => assertMutedPalette('#6A4A45', '#6A4A45')).toThrow(/distintas/i)
+    expect(() => assertMutedPalette('#FF0000', '#77856F')).toThrow(/muted/i)
+    expect(() => assertHttpsReference('http://example.com/wine')).toThrow(/https/i)
+    expect(() => assertReferenceDate('25/07/2026')).toThrow(/data/i)
   })
 })
 
@@ -225,6 +243,40 @@ describe('wine reconciliation', () => {
       status: 'gifted',
       giftedBy: 'Convidada Teste',
       giftedAt: 12_345,
+    })
+  })
+
+  it('cleans a legacy imageUrl while preserving the complete gifted state', async () => {
+    const t = makeWineTest()
+    const canonical = WINE_CATALOG.find((wine) => wine.productCode === '39778')!
+
+    await t.run((ctx) =>
+      ctx.db.insert('wines', {
+        ...canonical,
+        imageUrl: '/wines/legacy.png',
+        status: 'gifted',
+        giftedBy: 'Estado anterior',
+        giftedAt: 55_000,
+        updatedAt: 55_000,
+      }),
+    )
+
+    const first = await t.mutation(wineInternal.ensureWineCatalog, {})
+    const second = await t.mutation(wineInternal.ensureWineCatalog, {})
+    const stored = await t.run((ctx) =>
+      ctx.db
+        .query('wines')
+        .withIndex('by_product_code', (query) => query.eq('productCode', '39778'))
+        .unique(),
+    )
+
+    expect(first.updated).toBe(1)
+    expect(second.unchanged).toBe(37)
+    expect(stored).not.toHaveProperty('imageUrl')
+    expect(stored).toMatchObject({
+      status: 'gifted',
+      giftedBy: 'Estado anterior',
+      giftedAt: 55_000,
     })
   })
 
@@ -387,8 +439,9 @@ describe('wine public queries', () => {
     ).toEqual([
       'category',
       'description',
-      'imageUrl',
       'name',
+      'palettePrimary',
+      'paletteSecondary',
       'priceCents',
       'producer',
       'productCode',
@@ -396,7 +449,7 @@ describe('wine public queries', () => {
       'tone',
     ])
     expect(JSON.stringify(result)).not.toMatch(
-      /"_id"|"giftedBy"|"giftedAt"|"updatedAt"/u,
+      /"_id"|"giftedBy"|"giftedAt"|"updatedAt"|"imageUrl"|"paletteReferenceUrl"|"paletteReferencedAt"/u,
     )
   })
 
