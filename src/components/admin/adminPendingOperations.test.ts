@@ -428,14 +428,20 @@ describe('admin screen pending operations', () => {
     let note = container!.querySelector<HTMLTextAreaElement>('#gift-note')!
     await act(async () => setTextareaValue(note, 'Pago no balcão'))
     await act(async () => {
-      buttonWithText(container!, 'Confirmar compra').click()
+      buttonWithText(
+        container!.querySelector<HTMLDialogElement>('dialog[open]')!,
+        'Confirmar compra',
+      ).click()
       buttonWithText(rows[1], 'Confirmar compra').click()
     })
     presenter = container!.querySelector<HTMLInputElement>('#gift-presenter')!
     await act(async () => setInputValue(presenter, 'Pessoa B'))
     note = container!.querySelector<HTMLTextAreaElement>('#gift-note')!
     await act(async () => setTextareaValue(note, 'Pagamento por link'))
-    const submitB = buttonWithText(container!, 'Confirmar compra')
+    const submitB = buttonWithText(
+      container!.querySelector<HTMLDialogElement>('dialog[open]')!,
+      'Confirmar compra',
+    )
     await act(async () => {
       submitB.click()
       submitB.click()

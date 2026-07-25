@@ -29,6 +29,7 @@ type AdminWine = {
   category: 'ate-200' | '200-350' | '350-500'
   status: 'available' | 'gifted'
   giftedBy?: string
+  giftNote?: string
   giftedAt?: number
   updatedAt: number
 }
@@ -61,20 +62,25 @@ function MarkGiftDialog({
   error: string | null
   review: boolean
   onCancel: () => void
-  onSubmit: (presenter: string) => void
+  onSubmit: (presenter: string, note: string) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const fieldRef = useRef<HTMLInputElement>(null)
   const [presenter, setPresenter] = useState('')
+  const [note, setNote] = useState('')
   const titleId = useId()
+  const editing = wine?.status === 'gifted'
   useEffect(() => {
     const dialog = dialogRef.current
     if (wine && !dialog?.open) {
+      setPresenter(wine.giftedBy ?? '')
+      setNote(wine.giftNote ?? '')
       dialog?.showModal()
       window.requestAnimationFrame(() => fieldRef.current?.focus())
     } else if (!wine && dialog?.open) {
       dialog.close()
       setPresenter('')
+      setNote('')
     }
   }, [wine])
   if (!wine) return <dialog ref={dialogRef} />
@@ -91,11 +97,11 @@ function MarkGiftDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault()
-          onSubmit(presenter)
+          onSubmit(presenter, note)
         }}
       >
         <h2 id={titleId} className="font-serif text-2xl font-bold text-plum">
-          Marcar como presenteado
+          {editing ? 'Editar compra confirmada' : 'Confirmar compra'}
         </h2>
         <p className="mt-3 break-words">
           <strong>{wine.name}</strong>{' '}
@@ -120,13 +126,30 @@ function MarkGiftDialog({
             onChange={(event) => setPresenter(event.currentTarget.value)}
           />
           {error ? <p id="gift-presenter-error" role="alert" className="-mt-3 mb-4 text-wine">{error}</p> : null}
+          <Field
+            id="gift-note"
+            appearance="outline"
+            multiline
+            label="Observação (opcional)"
+            hint="Até 500 caracteres. Não inclua dados de cobrança."
+            maxLength={500}
+            value={note}
+            disabled={busy || review}
+            onChange={(event) => setNote(event.currentTarget.value)}
+          />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Button variant="adminSecondary" disabled={busy} onClick={onCancel}>
             Voltar aos presentes
           </Button>
           <Button type="submit" variant="adminPrimary" disabled={busy || review || !presenter.trim()} aria-busy={busy}>
-            {busy ? 'Confirmando…' : 'Confirmar presente'}
+            {busy
+              ? editing
+                ? 'Salvando…'
+                : 'Confirmando…'
+              : editing
+                ? 'Salvar correção'
+                : 'Confirmar compra'}
           </Button>
         </div>
       </form>
@@ -149,6 +172,7 @@ export function AdminGifts({
     args: { token },
   })
   const markGifted = useMutation(api.adminWines.markGifted)
+  const editGift = useMutation(api.adminWines.editGift)
   const makeAvailable = useMutation(api.adminWines.makeAvailable)
   const [search, setSearch] = useState('')
   const [marking, setMarking] = useState<AdminWine | null>(null)
@@ -203,7 +227,7 @@ export function AdminGifts({
     gifted: wines.filter((wine) => wine.status === 'gifted').length,
   }
 
-  async function submitMark(presenter: string) {
+  async function submitMark(presenter: string, note: string) {
     if (!marking) return
     if (!presenter.trim()) {
       setDialogError('Informe o nome de quem presenteou.')
@@ -213,12 +237,17 @@ export function AdminGifts({
     await pendingWines.run(marking.id, async (command) => {
       setDialogError(null)
       try {
-        const result = await markGifted({
+        const payload = {
           token,
           wineId: commandWine.id,
           expectedUpdatedAt: commandWine.updatedAt,
           giftedBy: presenter,
-        })
+          giftNote: note,
+        }
+        const result =
+          commandWine.status === 'gifted'
+            ? await editGift(payload)
+            : await markGifted(payload)
         if (!command.isCurrent()) return
         if (result.kind === 'unauthorized') return onUnauthorized()
         const ownsDialog =
@@ -233,7 +262,11 @@ export function AdminGifts({
           }
         } else if (result.kind === 'updated') {
           if (command.isLatest()) {
-            setFeedback(`${result.wine.name} marcado como presenteado.`)
+            setFeedback(
+              commandWine.status === 'gifted'
+                ? `Compra de ${result.wine.name} corrigida.`
+                : `Compra de ${result.wine.name} confirmada.`,
+            )
           }
           setMarking((current) =>
             current?.id === commandWine.id &&
@@ -245,7 +278,7 @@ export function AdminGifts({
           setDialogError(
             result.kind === 'invalid'
               ? result.message
-              : 'Não foi possível confirmar este presente. Tente novamente.',
+              : 'Não foi possível salvar esta compra. Tente novamente.',
           )
         }
       } catch {
@@ -255,7 +288,7 @@ export function AdminGifts({
           markingRef.current?.id === commandWine.id &&
           markingRef.current.updatedAt === commandWine.updatedAt
         ) {
-          setDialogError('Não foi possível confirmar este presente. Tente novamente.')
+          setDialogError('Não foi possível salvar esta compra. Tente novamente.')
         }
       }
     })
@@ -311,7 +344,7 @@ export function AdminGifts({
       <div role="tablist" aria-label="Estado dos presentes" className="mt-6 flex flex-wrap gap-2">
         {([
           ['available', 'Disponíveis'],
-          ['gifted', 'Presenteados'],
+          ['gifted', 'Compras confirmadas'],
         ] as const).map(([value, label], index, all) => (
           <Button
             key={value}
@@ -378,7 +411,7 @@ export function AdminGifts({
                   ? 'Nenhum vinho encontrado'
                   : status === 'available'
                     ? 'Todos os vinhos foram presenteados'
-                    : 'Nenhum vinho presenteado ainda.'}
+                    : 'Nenhuma compra confirmada ainda.'}
               </h2>
               <p className="mt-2">
                 {search
@@ -422,27 +455,40 @@ export function AdminGifts({
                               <span className="whitespace-nowrap">Cód. Mistral {wine.productCode}</span> · {currency(wine.priceCents)}
                             </p>
                             {wine.status === 'gifted' ? (
-                              <p className="mt-2 break-words text-sm">
-                                Presenteado por <strong>{wine.giftedBy}</strong>
-                                {wine.giftedAt ? ` em ${dateTime(wine.giftedAt)}` : ''}
-                              </p>
+                              <div className="mt-2 break-words text-sm">
+                                <p>
+                                  <strong>Compra confirmada</strong> para{' '}
+                                  <strong>{wine.giftedBy}</strong>
+                                  {wine.giftedAt ? ` em ${dateTime(wine.giftedAt)}` : ''}
+                                </p>
+                                {wine.giftNote ? (
+                                  <p className="mt-1 text-ink/70">{wine.giftNote}</p>
+                                ) : null}
+                              </div>
                             ) : null}
                           </div>
-                          <Button
-                            variant={wine.status === 'available' ? 'adminPrimary' : 'adminSecondary'}
-                            disabled={pendingWines.has(wine.id)}
-                            onClick={() => {
-                              if (wine.status === 'available') {
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant={wine.status === 'available' ? 'adminPrimary' : 'adminSecondary'}
+                              disabled={pendingWines.has(wine.id)}
+                              onClick={() => {
                                 setDialogError(null)
                                 setReview(false)
                                 setMarking(wine)
-                              } else {
-                                setUnmarking(wine)
-                              }
-                            }}
-                          >
-                            {wine.status === 'available' ? 'Marcar como presenteado' : 'Desfazer marcação'}
-                          </Button>
+                              }}
+                            >
+                              {wine.status === 'available' ? 'Confirmar compra' : 'Editar compra'}
+                            </Button>
+                            {wine.status === 'gifted' ? (
+                              <Button
+                                variant="adminSecondary"
+                                disabled={pendingWines.has(wine.id)}
+                                onClick={() => setUnmarking(wine)}
+                              >
+                                Desfazer compra
+                              </Button>
+                            ) : null}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -464,12 +510,12 @@ export function AdminGifts({
           setDialogError(null)
           setReview(false)
         }}
-        onSubmit={(presenter) => void submitMark(presenter)}
+        onSubmit={(presenter, note) => void submitMark(presenter, note)}
       />
       <AdminConfirmDialog
         open={unmarking !== null}
         title={`Tornar ${unmarking?.name ?? ''} disponível novamente?`}
-        body="O nome de quem presenteou e a data da marcação serão removidos."
+        body="A garrafa vai voltar a ficar disponível no catálogo. Nome, observação e data da confirmação serão removidos."
         confirmLabel="Tornar disponível"
         cancelLabel="Voltar aos presentes"
         busy={Boolean(unmarking && pendingWines.has(unmarking.id))}
