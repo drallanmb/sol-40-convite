@@ -37,15 +37,16 @@ do codegen e não devem ser editados manualmente.
 
 | Arquivo sugerido | Responsabilidade provável | Análogo existente |
 |---|---|---|
-| `convex/adminPassword.ts` | Arquivo `"use node"` com `scrypt`, envelope versionado, salt, parser estrito, `timingSafeEqual`, policy/NFC e `needsRehash` | Não há KDF humana hoje; `postImageDecoder.ts` demonstra a separação de runtime Node em action. |
+| `convex/adminPassword.ts` | Política/parser puros e tipos do envelope, sem `"use node"` | Pode ser importado com segurança por código Web-runtime e testes. |
+| `convex/adminPasswordActions.ts` | Módulo `"use node"` exclusivo de action/internalAction com `scrypt`, salt e `timingSafeEqual` | Não há KDF humana hoje; `postImageDecoder.ts` demonstra a separação de runtime Node em action. |
 | `convex/adminAccounts.ts` | API owner-only de listar/criar/desativar/reativar contas e gerar/regenerar links | `adminRsvps.ts` é o análogo de CRUD protegido com validators e respostas discriminadas. |
-| `convex/adminCredentials.ts` ou divisão equivalente | Actions públicas de login, ativação, reset, troca de senha e recuperação mestra, cada uma com snapshot + KDF + finalizer | `postInternal.validatePhoto` demonstra action orquestrando leitura e mutation final; a pesquisa exige reduzir writes de credencial a uma mutation final atômica. |
-| `convex/adminAudit.ts` | Vocabulário, redaction/diff, `appendAuditEvent`, query owner-only paginada e filtros | Não existe auditoria hoje; deve seguir a projeção explícita dos módulos admin e paginação indexada de `rsvpInternal.ts`. |
+| `convex/adminAuthActions.ts` e `convex/adminAccessLinkActions.ts` | Módulos `"use node"` exclusivos de action/internalAction para login, ativação, reset, troca de senha e recuperação mestra; snapshots/finalizers ficam em módulos Web-runtime | `postInternal.validatePhoto` demonstra action orquestrando leitura e mutation final; a pesquisa exige reduzir writes de credencial a uma mutation final atômica. |
+| `convex/adminAuditModel.ts` | Desde a Wave 1: vocabulário, redaction/diff e `appendAuditEvent`; `convex/adminAudit.ts` acrescenta query owner-only/filtros na Wave 6 | Writers novos nunca podem anteceder a primitiva atômica; paginação segue `rsvpInternal.ts`. |
 | `convex/adminAuditInternal.ts` | Expiração idempotente e sweep paginado por `expiresAt` | `adminInternal.expireAdminSessionRecord` e `rsvpInternal` são os análogos diretos. |
 
-Separar `adminAccounts`, `adminCredentials` e `adminAudit` evita transformar
-`adminAuth.ts` em um módulo que mistura login, CRUD, retenção e domínio. A
-decisão exata é de organização, não de comportamento.
+Separar `adminAccounts`, actions Node exclusivas e auditoria evita transformar
+`adminAuth.ts` em módulo `"use node"` incompatível com suas queries/mutations.
+Finalizers e helpers importados por mutations permanecem sempre Web-runtime.
 
 ### Frontend — modificações certas
 

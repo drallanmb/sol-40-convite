@@ -328,6 +328,13 @@ reproduz limites/runtime reais, portanto um smoke real da action é obrigatório
 Actions Node são necessárias para `crypto.scrypt`, mas não são atômicas. Use o
 seguinte padrão:
 
+O arquivo com `"use node"` deve ser uma fronteira exclusiva de
+`action`/`internalAction` (por exemplo `adminPasswordActions.ts`,
+`adminAuthActions.ts` e `adminAccessLinkActions.ts`). Não marque
+`adminAuth.ts`, `adminAccessLinks.ts` ou qualquer módulo que exporte
+query/mutation/finalizer como Node; esses módulos permanecem no runtime Web e
+são chamados pelas actions.
+
 ```text
 public action
   -> uma internal mutation/query agrupada lê snapshot e consome rate-limit
@@ -750,8 +757,9 @@ com contas reais. Não grave tokens, senhas ou links nos artefatos de teste.
 
 ### Recommended plan boundaries
 
-1. **08-01 — Model, crypto and guards:** tabelas/validators, scrypt action
-   helpers, conta/principal, role matrix e testes Wave 0.
+1. **08-01 — Model, crypto, guards and audit primitive:** tabelas/validators,
+   actions Node exclusivas de scrypt, conta/principal, role matrix e o modelo,
+   redaction/diff e `appendAuditEvent` mínimos antes de qualquer writer novo.
 2. **08-02 — Bootstrap, links and migration:** config singleton, activation/
    reset, legacy cutoff, master recovery e cleanup.
 3. **08-03 — Individual login and account sessions:** new gate/login, status
@@ -760,8 +768,9 @@ com contas reais. Não grave tokens, senhas ou links nos artefatos de teste.
    APIs, rotas/nav/destinos por papel, Gestores owner-only.
 5. **08-05 — Seller gifts workflow:** observação, edição sem reopen, copy
    operacional e privacy regression.
-6. **08-06 — Audit and retention:** helper atômico em todos os writers,
-   página/filtros/paginação, scheduled expiry + cron sweep e testes integrados.
+6. **08-06 — Audit query, retention and legacy inventory:** consulta
+   owner-only, página/filtros/paginação, scheduled expiry + cron sweep e
+   retrofit apenas dos writers legados ainda ausentes.
 7. **08-07 — End-to-end hardening/gap closure if needed:** Playwright, axe,
    smoke real Node/scheduler e migração Preview.
 
@@ -774,10 +783,11 @@ e retrofit de auditoria de todos os writers numa única tarefa.
 - Bootstrap deve ser seguro antes de remover o login compartilhado.
 - Guardas RBAC devem estar completos antes de liberar a conta Vanessa.
 - O schema/endpoint de Presentes deve existir antes da UI seller.
-- O helper de auditoria deve ser integrado no mesmo plano de cada conjunto de
-  writers ou num retrofit explícito com matriz completa.
-- Retenção e paginação precisam nascer com auditoria, não como otimização
-  posterior.
+- O modelo/helper/redaction mínimos de auditoria nascem na Wave 1; cada plano
+  02–05 deve integrar e testar o evento no mesmo commit de seus próprios
+  writers. O plano 06 inventaria e corrige somente writers legados faltantes.
+- Retenção, paginação, consulta e UI chegam juntas no plano 06; `expiresAt`
+  e seus índices já existem no schema aditivo da Wave 1.
 
 ## Sources
 

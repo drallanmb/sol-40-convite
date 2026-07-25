@@ -265,15 +265,41 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 (
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
 | 6. Dashboard Interno (/admin) | 7/7 | Complete    | 2026-07-25 |
 | 7. Endurecimento & Lançamento | 4/6 | In Progress|  |
-| 8. Gestão de Gestores | 0/0 | Not planned |  |
+| 8. Gestão de Gestores | 0/7 | Planned    |  |
 
 ### Phase 8: Gestão de gestores — contas individuais, permissões e auditoria
 
 **Goal:** Permitir que o administrador proprietário gerencie gestores com credenciais, permissões e sessões individuais, sem compartilhar a senha-mestra.
 **Requirements**: TBD
 **Depends on:** Phase 7
-**Plans:** 0 plans
+**Plans:** 0/7 plans executed
 
 Plans:
+**Wave 1**
 
+- [ ] 08-01-PLAN.md
 - [ ] TBD (run /gsd-discuss-phase 8 antes de planejar)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 08-03-PLAN.md
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 08-04-PLAN.md
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 08-05-PLAN.md
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 08-06-PLAN.md
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 08-07-PLAN.md
