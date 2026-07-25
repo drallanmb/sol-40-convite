@@ -1,14 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 08-gest-o-de-gestores-contas-individuais-permiss-es-e-auditoria
 source: [08-VERIFICATION.md]
 started: 2026-07-25T18:12:28Z
-updated: 2026-07-25T19:14:56Z
+updated: 2026-07-25T20:12:10Z
 ---
 
 ## Current Test
 
-[testing paused — 1 item outstanding]
+[testing complete]
 
 ## Tests
 
@@ -38,17 +38,15 @@ result: pass
 
 ### 7. Acessibilidade autenticada
 expected: Login, Ativação, Gestores, Minha conta, Presentes e Auditoria funcionam com teclado e axe em desktop e 320 px, com foco e alvos de toque adequados.
-result: blocked
-blocked_by: other
-reason: "preciso abrir, não abri painel, qual senha para allanmesquitab@gmail.com"
+result: pass
 
 ## Summary
 
 total: 7
-passed: 6
+passed: 7
 issues: 0
 pending: 0
 skipped: 0
-blocked: 1
+blocked: 0
 
 ## Gaps
