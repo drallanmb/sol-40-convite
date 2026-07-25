@@ -811,6 +811,216 @@ describe('admin csv import tracer', () => {
       }),
     ).rejects.toThrow(/100 pessoas/iu)
   })
+
+  it('keeps valid csv families while reporting invalid and existing phones by source row', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const existing = await t.mutation((ctx) =>
+      insertInvitation(ctx, {
+        displayName: 'Família Existente',
+        phone: '(79) 9999-4301',
+        contact: 'Contato preservado',
+        guests: [{ name: 'Pessoa Existente', attendance: 'yes' }],
+      }),
+    )
+
+    const result = await t.mutation(api.adminRsvps.importFamilies, {
+      token: TOKEN_A,
+      groups: [
+        {
+          sourceRows: [2],
+          displayName: 'Família Nova',
+          phone: '(79) 99999-4302',
+          guests: [{ sourceRow: 2, name: 'Pessoa Nova' }],
+        },
+        {
+          sourceRows: [3],
+          displayName: 'Família Tentativa',
+          phone: '(79) 99999-4301',
+          guests: [{ sourceRow: 3, name: 'Não Sobrescrever' }],
+        },
+        {
+          sourceRows: [4],
+          displayName: '',
+          phone: '(79) 99999-4303',
+          guests: [{ sourceRow: 4, name: 'Inválida' }],
+        },
+      ],
+    })
+
+    expect(result).toMatchObject({
+      kind: 'ready',
+      created: [
+        expect.objectContaining({
+          sourceRows: [2],
+          displayName: 'Família Nova',
+        }),
+      ],
+      ignored: expect.arrayContaining([
+        expect.objectContaining({
+          sourceRows: [3],
+          code: 'existing_phone',
+        }),
+        expect.objectContaining({
+          sourceRows: [4],
+          code: 'invalid_family',
+        }),
+      ]),
+    })
+    const unchanged = await t.run(async (ctx) => ({
+      family: await ctx.db.get(existing.rsvpId),
+      guests: await ctx.db
+        .query('rsvpGuests')
+        .withIndex('by_rsvp', (index) => index.eq('rsvpId', existing.rsvpId))
+        .collect(),
+    }))
+    expect(unchanged.family).toMatchObject({
+      displayName: 'Família Existente',
+      contact: 'Contato preservado',
+    })
+    expect(unchanged.guests).toEqual([
+      expect.objectContaining({
+        name: 'Pessoa Existente',
+        attendance: 'yes',
+      }),
+    ])
+  })
+
+  it('rejects every incompatible family sharing one logical phone in a tampered batch', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+
+    const result = await t.mutation(api.adminRsvps.importFamilies, {
+      token: TOKEN_A,
+      groups: [
+        {
+          sourceRows: [2],
+          displayName: 'Família Norte',
+          phone: '(79) 9999-4304',
+          guests: [{ sourceRow: 2, name: 'Pessoa Norte' }],
+        },
+        {
+          sourceRows: [3],
+          displayName: 'Família Sul',
+          phone: '(79) 99999-4304',
+          guests: [{ sourceRow: 3, name: 'Pessoa Sul' }],
+        },
+      ],
+    })
+
+    expect(result).toMatchObject({
+      kind: 'ready',
+      created: [],
+      ignored: [
+        expect.objectContaining({
+          sourceRows: [2],
+          code: 'phone_family_conflict',
+        }),
+        expect.objectContaining({
+          sourceRows: [3],
+          code: 'phone_family_conflict',
+        }),
+      ],
+    })
+    expect(
+      await t.run((ctx) => ctx.db.query('rsvps').collect()),
+    ).toEqual([])
+  })
+
+  it('treats replay as existing_phone and concurrent imports create one logical invitation', async () => {
+    const t = makeAdminTest()
+    await Promise.all([
+      insertActiveAdminSession(t, TOKEN_A),
+      insertActiveAdminSession(t, TOKEN_B),
+    ])
+    const group = {
+      sourceRows: [2],
+      displayName: 'Família Concorrente',
+      phone: '(79) 9999-4305',
+      guests: [{ sourceRow: 2, name: 'Pessoa Concorrente' }],
+    }
+
+    const [first, second] = await Promise.all([
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_A,
+        groups: [group],
+      }),
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_B,
+        groups: [{ ...group, phone: '(79) 99999-4305' }],
+      }),
+    ])
+    expect(
+      [first, second].filter(
+        (result) => result.kind === 'ready' && result.created.length === 1,
+      ),
+    ).toHaveLength(1)
+    expect(
+      [first, second].filter(
+        (result) =>
+          result.kind === 'ready' &&
+          result.ignored.some((issue) => issue.code === 'existing_phone'),
+      ),
+    ).toHaveLength(1)
+
+    const replay = await t.mutation(api.adminRsvps.importFamilies, {
+      token: TOKEN_A,
+      groups: [group],
+    })
+    expect(replay).toMatchObject({
+      kind: 'ready',
+      created: [],
+      ignored: [expect.objectContaining({ code: 'existing_phone' })],
+    })
+    expect(
+      await t.run((ctx) => ctx.db.query('rsvps').collect()),
+    ).toHaveLength(1)
+  })
+
+  it('rejects duplicate guests and attendance fields in untrusted mutation args', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    await expect(
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_A,
+        groups: [
+          {
+            sourceRows: [2, 3],
+            displayName: 'Família Duplicada',
+            phone: '(79) 99999-4306',
+            guests: [
+              { sourceRow: 2, name: 'Pessoa Igual' },
+              { sourceRow: 3, name: ' pessoa   igual ' },
+            ],
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      kind: 'ready',
+      created: [],
+      ignored: [expect.objectContaining({ code: 'invalid_guest' })],
+    })
+
+    await expect(
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_A,
+        groups: [
+          {
+            sourceRows: [4],
+            displayName: 'Família Presença',
+            phone: '(79) 99999-4307',
+            guests: [
+              {
+                sourceRow: 4,
+                name: 'Pessoa Presença',
+                attendance: 'yes',
+              },
+            ],
+          },
+        ],
+      } as any),
+    ).rejects.toThrow(/extra field|attendance/iu)
+  })
 })
 
 describe('admin post moderation, revision conflict and public album', () => {
