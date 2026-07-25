@@ -12,7 +12,7 @@ function NotFound() {
         <h1 className="mt-3 font-serif text-subheading">Página não encontrada</h1>
         <p className="mt-4 max-w-prose text-body text-ink/80">
           O endereço que você tentou acessar não existe.{' '}
-          <a href="/" className="font-bold text-coral underline underline-offset-4">
+          <a href="/" className="font-bold text-wine underline underline-offset-4">
             Voltar para o início
           </a>
           .

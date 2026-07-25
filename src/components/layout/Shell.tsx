@@ -138,7 +138,11 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
               {wordmarkMark}
             </NavigationAnchor>
           ) : (
-            <span aria-label="Sol faz 40" className="flex min-h-[44px] w-[58px] items-center justify-center">
+            <span
+              role="img"
+              aria-label="Sol faz 40"
+              className="flex min-h-[44px] w-[58px] items-center justify-center"
+            >
               {wordmarkMark}
             </span>
           )}

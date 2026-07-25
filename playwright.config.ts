@@ -17,12 +17,35 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'emulated-chromium-mobile',
+      name: 'emulated-chromium-desktop',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+    {
+      name: 'emulated-chromium-mobile-320px-2x',
       use: {
         browserName: 'chromium',
         viewport: { width: 320, height: 760 },
-        isMobile: true,
         hasTouch: true,
+        deviceScaleFactor: 2,
+      },
+    },
+    {
+      name: 'emulated-webkit-desktop',
+      use: {
+        browserName: 'webkit',
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+    {
+      name: 'emulated-webkit-mobile-320px-2x',
+      use: {
+        browserName: 'webkit',
+        viewport: { width: 320, height: 760 },
+        hasTouch: true,
+        deviceScaleFactor: 2,
       },
     },
   ],

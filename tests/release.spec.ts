@@ -123,11 +123,19 @@ test('anonymous admin mounts no protected DOM or domain query', async ({ page })
 })
 
 test('keyboard skip link and mobile navigation return focus safely', async ({
+  browserName,
   page,
 }) => {
   await page.goto('/')
-  await page.keyboard.press('Tab')
   const skipLink = page.getByRole('link', { name: 'Pular para o conteúdo' })
+  // macOS WebKit follows the operating-system "full keyboard access"
+  // preference and may omit links from the native Tab order in automation.
+  // Focus it explicitly there, then exercise the same keyboard activation.
+  if (browserName === 'webkit') {
+    await skipLink.focus()
+  } else {
+    await page.keyboard.press('Tab')
+  }
   await expect(skipLink).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.locator('#conteudo')).toBeFocused()
