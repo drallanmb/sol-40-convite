@@ -7,6 +7,7 @@ import {
 } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { appendAuditEvent } from './adminAuditModel'
+import { buildAuditChanges } from './adminAuditModel'
 import { hashAdminToken, validateAdminToken } from './adminSecurity'
 
 export const ADMIN_ACCESS_LINK_TTL_MS = 72 * 60 * 60 * 1_000
@@ -176,6 +177,7 @@ async function revokeAccountSessions(
     .withIndex('by_account', (query) => query.eq('accountId', accountId))
     .collect()
   for (const session of sessions) await ctx.db.delete(session._id)
+  return sessions.length
 }
 
 export const finishAccessLink = internalMutation({
@@ -239,7 +241,7 @@ export const finishAccessLink = internalMutation({
       ...(args.purpose === 'activation' ? { activatedAt: args.now } : {}),
     })
     await ctx.db.patch(link._id, { consumedAt: args.now })
-    await revokeAccountSessions(ctx, account._id)
+    const revokedSessions = await revokeAccountSessions(ctx, account._id)
 
     if (ownerConfigId) {
       await ctx.db.patch(ownerConfigId, {
@@ -259,6 +261,21 @@ export const finishAccessLink = internalMutation({
       targetType: 'adminAccount',
       targetId: account._id,
       targetLabel: account.displayName,
+      occurredAt: args.now,
+    })
+    await appendAuditEvent(ctx, {
+      actorKind: 'system',
+      subjectAccountId: account._id,
+      area: 'sessions',
+      action: 'sessions_revoked',
+      targetType: 'adminAccount',
+      targetId: account._id,
+      targetLabel: account.displayName,
+      changes: buildAuditChanges({
+        before: { sessionCount: revokedSessions },
+        after: { sessionCount: 0 },
+        allowedFields: ['sessionCount'],
+      }),
       occurredAt: args.now,
     })
     return { kind: 'completed' } as const

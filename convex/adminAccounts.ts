@@ -316,6 +316,7 @@ export const generateManagedAccessLink = mutation({
     }
     const now = Date.now()
     let linkAccount = account
+    let revokedSessions = 0
     if (args.purpose === 'reset') {
       const credentialVersion = account.credentialVersion + 1
       const updatedAt = nextAccountUpdatedAt(account.updatedAt, now)
@@ -326,6 +327,7 @@ export const generateManagedAccessLink = mutation({
           index.eq('accountId', account._id),
         )
         .collect()
+      revokedSessions = sessions.length
       for (const session of sessions) await ctx.db.delete(session._id)
       const updated = await ctx.db.get(account._id)
       if (!updated) throw new Error('Conta desapareceu durante a redefinição.')
@@ -341,6 +343,23 @@ export const generateManagedAccessLink = mutation({
       ))
     ) {
       return { kind: 'invalid', message: 'Não foi possível gerar o link.' } as const
+    }
+    if (args.purpose === 'reset') {
+      await appendAuditEvent(ctx, {
+        principal: authorization.principal,
+        subjectAccountId: account._id,
+        area: 'sessions',
+        action: 'sessions_revoked',
+        targetType: 'adminAccount',
+        targetId: account._id,
+        targetLabel: account.displayName,
+        changes: buildAuditChanges({
+          before: { sessionCount: revokedSessions },
+          after: { sessionCount: 0 },
+          allowedFields: ['sessionCount'],
+        }),
+        occurredAt: now,
+      })
     }
     await appendAuditEvent(ctx, {
       principal: authorization.principal,
@@ -421,6 +440,21 @@ export const disableManagedAccount = mutation({
       .withIndex('by_account', (index) => index.eq('accountId', account._id))
       .collect()
     for (const session of sessions) await ctx.db.delete(session._id)
+    await appendAuditEvent(ctx, {
+      principal: authorization.principal,
+      subjectAccountId: account._id,
+      area: 'sessions',
+      action: 'sessions_revoked',
+      targetType: 'adminAccount',
+      targetId: account._id,
+      targetLabel: account.displayName,
+      changes: buildAuditChanges({
+        before: { sessionCount: sessions.length },
+        after: { sessionCount: 0 },
+        allowedFields: ['sessionCount'],
+      }),
+      occurredAt: now,
+    })
     await appendAuditEvent(ctx, {
       principal: authorization.principal,
       subjectAccountId: account._id,
@@ -820,6 +854,22 @@ export const finishOwnPasswordChange = internalMutation({
         await ctx.db.delete(session._id)
       }
     }
+    const revokedCount = Math.max(0, sessions.length - 1)
+    await appendAuditEvent(ctx, {
+      principal: authorization.principal,
+      subjectAccountId: account._id,
+      area: 'sessions',
+      action: 'sessions_revoked',
+      targetType: 'adminAccount',
+      targetId: account._id,
+      targetLabel: account.displayName,
+      changes: buildAuditChanges({
+        before: { sessionCount: revokedCount },
+        after: { sessionCount: 0 },
+        allowedFields: ['sessionCount'],
+      }),
+      occurredAt: args.now,
+    })
     await appendAuditEvent(ctx, {
       principal: authorization.principal,
       subjectAccountId: account._id,

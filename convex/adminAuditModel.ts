@@ -5,6 +5,7 @@ import type { MutationCtx } from './_generated/server'
 import type { AdminPrincipal, AdminRole } from './adminAccountModel'
 
 export const ADMIN_AUDIT_RETENTION_MS = 120 * 24 * 60 * 60 * 1_000
+export const ADMIN_AUDIT_SCHEDULE_HOP_MS = 20 * 24 * 60 * 60 * 1_000
 
 export const adminAuditActorKindValidator = v.union(
   v.literal('account'),
@@ -231,9 +232,13 @@ export async function appendAuditEvent(
     occurredAt,
     expiresAt,
   })
-  await ctx.scheduler.runAt(expiresAt, expireAuditEvent, {
+  await ctx.scheduler.runAt(
+    Math.min(expiresAt, occurredAt + ADMIN_AUDIT_SCHEDULE_HOP_MS),
+    expireAuditEvent,
+    {
     eventId,
     expectedExpiresAt: expiresAt,
-  })
+    },
+  )
   return eventId
 }

@@ -934,7 +934,9 @@ describe('admin access link activation and reset', () => {
     expect(stored.links.filter((link) => link.consumedAt !== undefined)).toHaveLength(1)
     expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_A)
     expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_B)
-    expect(stored.audit.every((event) => event.changes.length === 0)).toBe(true)
+    expect(stored.audit.map((event) => event.action)).toEqual(
+      expect.arrayContaining(['password_reset', 'sessions_revoked']),
+    )
     expect(JSON.stringify(stored.audit)).not.toContain('old-envelope')
   })
 })
@@ -1059,7 +1061,12 @@ describe('admin bootstrap, legacy cutoff and master recovery', () => {
     expect(after.owner?.credentialVersion).toBe(owner.credentialVersion + 1)
     expect(after.manager?.credentialVersion).toBe(7)
     expect(after.sessions).toEqual([])
-    expect(after.audit.at(-1)?.action).toBe('master_recovery_started')
+    expect(after.audit.map((event) => event.action)).toEqual(
+      expect.arrayContaining([
+        'master_recovery_started',
+        'sessions_revoked',
+      ]),
+    )
   })
 })
 

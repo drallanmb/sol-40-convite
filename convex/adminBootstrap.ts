@@ -5,7 +5,7 @@ import {
   query,
   type MutationCtx,
 } from './_generated/server'
-import { appendAuditEvent } from './adminAuditModel'
+import { appendAuditEvent, buildAuditChanges } from './adminAuditModel'
 import { ADMIN_ACCESS_LINK_TTL_MS } from './adminAccessLinks'
 import { normalizeAdminEmail } from './adminAccountModel'
 import { adminRateLimiter } from './adminRateLimits'
@@ -206,6 +206,7 @@ async function deleteAccountSessions(
     .withIndex('by_account', (query) => query.eq('accountId', accountId))
     .collect()
   for (const session of sessions) await ctx.db.delete(session._id)
+  return sessions.length
 }
 
 export const finishMasterRecovery = internalMutation({
@@ -255,7 +256,7 @@ export const finishMasterRecovery = internalMutation({
       credentialVersion: nextVersion,
       updatedAt: args.now,
     })
-    await deleteAccountSessions(ctx, owner._id)
+    const revokedSessions = await deleteAccountSessions(ctx, owner._id)
     await ctx.db.insert('adminAccessLinks', {
       accountId: owner._id,
       purpose: 'reset',
@@ -272,6 +273,21 @@ export const finishMasterRecovery = internalMutation({
       targetType: 'adminAccount',
       targetId: owner._id,
       targetLabel: owner.displayName,
+      occurredAt: args.now,
+    })
+    await appendAuditEvent(ctx, {
+      actorKind: 'system',
+      subjectAccountId: owner._id,
+      area: 'sessions',
+      action: 'sessions_revoked',
+      targetType: 'adminAccount',
+      targetId: owner._id,
+      targetLabel: owner.displayName,
+      changes: buildAuditChanges({
+        before: { sessionCount: revokedSessions },
+        after: { sessionCount: 0 },
+        allowedFields: ['sessionCount'],
+      }),
       occurredAt: args.now,
     })
     return { kind: 'created' } as const

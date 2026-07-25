@@ -63,10 +63,17 @@ export const login = mutation({
   },
   returns: legacyLoginResultValidator,
   handler: async (ctx, args) => {
+    const now = Date.now()
     const rateLimit = await adminRateLimiter.limit(ctx, 'loginGlobal', {
       key: ADMIN_LOGIN_LIMIT_KEY,
     })
     if (!rateLimit.ok) {
+      await appendAuditEvent(ctx, {
+        actorKind: 'anonymous',
+        area: 'auth',
+        action: 'login_rate_limited',
+        occurredAt: now,
+      })
       return {
         kind: 'rate_limited',
         retryAfterSeconds: retryAfterSeconds(rateLimit.retryAfter),
@@ -81,6 +88,12 @@ export const login = mutation({
       configs.length > 1 ||
       configs[0]?.bootstrapCompletedAt !== undefined
     ) {
+      await appendAuditEvent(ctx, {
+        actorKind: 'anonymous',
+        area: 'auth',
+        action: 'login_failed',
+        occurredAt: now,
+      })
       return { kind: 'invalid_credentials' } as const
     }
 
@@ -89,6 +102,12 @@ export const login = mutation({
       process.env.ADMIN_PASSWORD,
     )
     if (!validPassword) {
+      await appendAuditEvent(ctx, {
+        actorKind: 'anonymous',
+        area: 'auth',
+        action: 'login_failed',
+        occurredAt: now,
+      })
       return { kind: 'invalid_credentials' } as const
     }
     if (!validateAdminToken(args.token)) {
@@ -104,7 +123,6 @@ export const login = mutation({
       return { kind: 'token_conflict' } as const
     }
 
-    const now = Date.now()
     const expiresAt = now + ADMIN_SESSION_TTL_MS
     const sessionId = await ctx.db.insert('adminSessions', {
       tokenHash,
@@ -114,6 +132,15 @@ export const login = mutation({
     await ctx.scheduler.runAt(expiresAt, expireAdminSession, {
       sessionId,
       expectedExpiresAt: expiresAt,
+    })
+    await appendAuditEvent(ctx, {
+      principal: { kind: 'legacy' },
+      area: 'auth',
+      action: 'login_succeeded',
+      targetType: 'adminSession',
+      targetId: sessionId,
+      targetLabel: 'Acesso legado',
+      occurredAt: now,
     })
 
     return { kind: 'authenticated', expiresAt } as const

@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import { makeFunctionReference } from 'convex/server'
 import type { Id } from './_generated/dataModel'
 import { internalMutation, type MutationCtx } from './_generated/server'
+import { ADMIN_AUDIT_SCHEDULE_HOP_MS } from './adminAuditModel'
 
 const AUDIT_SWEEP_PAGE_SIZE = 50
 
@@ -78,7 +79,7 @@ export const purgeLegacyAdminSessions = internalMutation({
 })
 
 export async function expireAuditEventRecord(
-  ctx: Pick<MutationCtx, 'db'>,
+  ctx: Pick<MutationCtx, 'db' | 'scheduler'>,
   {
     eventId,
     expectedExpiresAt,
@@ -89,6 +90,22 @@ export async function expireAuditEventRecord(
 ) {
   const event = await ctx.db.get(eventId)
   if (!event || event.expiresAt !== expectedExpiresAt) {
+    return { kind: 'ignored' } as const
+  }
+  const now = Date.now()
+  if (now < expectedExpiresAt) {
+    await ctx.scheduler.runAt(
+      Math.min(expectedExpiresAt, now + ADMIN_AUDIT_SCHEDULE_HOP_MS),
+      makeFunctionReference<
+        'mutation',
+        {
+          eventId: Id<'adminAuditEvents'>
+          expectedExpiresAt: number
+        },
+        unknown
+      >('adminInternal:expireAuditEvent'),
+      { eventId, expectedExpiresAt },
+    )
     return { kind: 'ignored' } as const
   }
   await ctx.db.delete(eventId)
