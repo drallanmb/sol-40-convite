@@ -32,11 +32,25 @@ describe('production metadata', () => {
         /<meta\b[^>]*\bproperty=["']og:image["'][^>]*>/gi,
         'content',
       ),
-    ).toEqual(['https://www.sol40.com.br/og.jpg'])
-    expect(existsSync(projectFile('public/og.jpg'))).toBe(true)
-    expect(readFileSync(projectFile('public/og.jpg')).subarray(0, 2)).toEqual(
+    ).toEqual(['https://www.sol40.com.br/og-sol40-v2.jpg'])
+    expect(existsSync(projectFile('public/og-sol40-v2.jpg'))).toBe(true)
+    expect(
+      readFileSync(projectFile('public/og-sol40-v2.jpg')).subarray(0, 2),
+    ).toEqual(
       Buffer.from([0xff, 0xd8]),
     )
+    expect(
+      attributeValues(
+        /<meta\b[^>]*\bproperty=["']og:image:width["'][^>]*>/gi,
+        'content',
+      ),
+    ).toEqual(['1200'])
+    expect(
+      attributeValues(
+        /<meta\b[^>]*\bproperty=["']og:image:height["'][^>]*>/gi,
+        'content',
+      ),
+    ).toEqual(['630'])
   })
 
   it('declares a large Twitter card and rejects preview origins or a dead runtime-origin contract', () => {
@@ -46,6 +60,12 @@ describe('production metadata', () => {
         'content',
       ),
     ).toEqual(['summary_large_image'])
+    expect(
+      attributeValues(
+        /<meta\b[^>]*\bname=["']twitter:image["'][^>]*>/gi,
+        'content',
+      ),
+    ).toEqual(['https://www.sol40.com.br/og-sol40-v2.jpg'])
 
     const productionContract = [
       html,

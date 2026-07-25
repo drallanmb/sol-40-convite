@@ -98,6 +98,7 @@ Evite duplicar conteúdo do evento dentro dos componentes. Alterações de copy 
 - Feedbacks usam borda completa e fundo tonal; faixas laterais são proibidas.
 - Ilustrações usam tokens semânticos em vez de hexadecimais dispersos.
 - O dashboard administrativo prioriza resumo, distribuição de confirmações, pendências e presentes, com links diretos para cada filtro operacional.
+- A miniatura de compartilhamento usa `public/og-sol40-v2.jpg` em 1200×630, separada dos favicons e versionada para renovar caches externos.
 - Alvos interativos têm pelo menos 44px.
 - Foco visível e contraste WCAG AA são obrigatórios.
 - Motion respeita `prefers-reduced-motion` sem esconder conteúdo.
