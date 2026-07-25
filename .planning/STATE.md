@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 06
-current_phase_name: Dashboard Interno (/admin
-status: executing
-stopped_at: Phase 06 UAT awaiting user response
-last_updated: "2026-07-25T06:02:06.769Z"
+current_phase: 7
+current_phase_name: Endurecimento & Lançamento
+status: planning
+stopped_at: Phase 6 complete, ready to discuss Phase 7
+last_updated: "2026-07-25T06:08:21.941Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 06 implementation verified; human UAT required
+last_activity_desc: Phase 6 complete, transitioned to Phase 7
 progress:
-  total_phases: 6
-  completed_phases: 5
+  total_phases: 7
+  completed_phases: 6
   total_plans: 33
   completed_plans: 33
 ---
@@ -23,22 +23,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-25)
 
 **Core value:** Convidados confirmam presença e escolhem presente sem atrito; donos veem tudo ao vivo, sem trabalho manual.
-**Current focus:** Phase 06 — Dashboard Interno (/admin)
+**Current focus:** Phase 7 — Endurecimento & Lançamento
 
 ## Current Position
 
-Phase: 06 (Dashboard Interno (/admin)) — EXECUTING
-Plan: 7 of 7
-Status: Human verification required
-Last activity: 2026-07-25 — Phase 06 implementation verified; human UAT required
+Phase: 7 — Endurecimento & Lançamento
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-25 — Phase 6 complete, transitioned to Phase 7
 
-Progress: [████████████████████] 33/33 plans ([██████████] 100% plan execution; human verification pending)
+Progress: [████████████████████] 33/33 planned plans (Phase 6 verified; Phase 7 not yet planned)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 21
+- Total plans completed: 28
 - Average duration: —
 - Total execution time: —
 
@@ -50,6 +50,7 @@ Progress: [████████████████████] 33/33 p
 | 02 | 8 | - | - |
 | 3 | 5 | - | - |
 | 4 | 5 | - | - |
+| 6 | 7 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -135,6 +136,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: Invitation and session generation omissions map to zero for additive legacy compatibility; invalid internal generations fail closed.
 - [Phase ?]: Only the no-argument start mutation establishes the RSVP sweep cutoff; continuations require the paired opaque cursor and unchanged validated cutoff.
 - [Phase ?]: Per-session scheduled expiry is primary cleanup; the daily bounded sweep recovers historical or stranded RSVP session rows.
+- [Phase 06]: Revogação RSVP é lógica e imediata por geração; limpeza física usa comandos internos tipados e páginas limitadas.
+- [Phase 06]: Operações de convidados, moderação e presentes possuem ownership por registro para impedir duplicação e conclusões stale.
 
 ### Pending Todos
 
@@ -142,7 +145,6 @@ None yet.
 
 ### Blockers/Concerns
 
-- Método exato de auth do dono (Convex Auth × mutation custom) a decidir na Phase 6
 - Prazo de RSVP e domínio final ainda a definir com os donos (checklist na Phase 7)
 
 ## Deferred Items
@@ -155,6 +157,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T05:37:57.786Z
-Stopped at: Phase 06 UAT awaiting user response
+Last session: 2026-07-25T06:08:21.941Z
+Stopped at: Phase 6 complete, ready to discuss Phase 7
 Resume file: None

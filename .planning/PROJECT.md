@@ -12,9 +12,9 @@ Os convidados confirmam presença e escolhem presente **sem atrito**, e os donos
 
 ## Current State
 
-Fases 1–4 concluídas e verificadas. O convite público, o RSVP por telefone e a
-carta de 37 vinhos estão implementados; o mural da Fase 5 foi desenvolvido em
-paralelo e segue para seu fechamento antes do dashboard.
+Fases 1–6 concluídas e verificadas. Convite, RSVP, carta de 37 vinhos, mural
+moderado e dashboard interno estão implementados e integrados de forma reativa.
+O projeto segue para endurecimento, checklist dos donos e lançamento.
 
 ## Requirements
 
@@ -23,14 +23,15 @@ paralelo e segue para seu fechamento antes do dashboard.
 - [x] **Convite público** com identidade "hora dourada / pôr do sol" — validado na Fase 2
 - [x] **RSVP público por telefone** (sem login) — confirmação por pessoa, edição posterior, contato opcional e rate limit validados na Fase 3
 - [x] **Carta de vinhos** — 37 sugestões em três faixas, estados reativos e handoff para o WhatsApp da Vanessa validados na Fase 4
+- [x] **Mural de memórias** — envio de fotos/recados, moderação prévia e galeria pública aprovados na Fase 5
+- [x] **Dashboard interno** — senha única, visão geral reativa, convidados, moderação e presentes validados na Fase 6
+- [x] **Stack** — Convex + React/Tailwind/TypeScript na Vercel validada pelas Fases 1–6
 
 ### Active
 
 <!-- Escopo v1. Hipóteses até serem entregues e validadas. -->
 
-- [ ] **Mural de memórias** — convidados enviam fotos + recados; **moderação** dos donos antes de publicar; galeria/álbum público
-- [ ] **Dashboard interno** (senha única dos donos) — visão geral com contagem de confirmações ao vivo, lista de convidados/RSVP, fila de moderação do mural, controle de presentes
-- [ ] **Stack**: Convex (banco reativo + file storage p/ fotos + auth), frontend React + Tailwind + TypeScript, deploy na Vercel
+- [ ] **Lançamento** — testes reais, acessibilidade AA, checklist dos donos, domínio e deploy de produção
 
 ### Out of Scope
 
@@ -65,11 +66,11 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Stack Convex + React/Tailwind + Vercel | Dono quer Convex; substitui infra custom (D1/R2/sessões/rate-limit) por primitivas reativas | — Pending |
+| Stack Convex + React/Tailwind + Vercel | Dono quer Convex; substitui infra custom (D1/R2/sessões/rate-limit) por primitivas reativas | ✓ Good — integrada e validada nas Fases 1–6 |
 | RSVP público sem login | Festa de uma noite não justifica contas individuais; capability efêmera escopa uma família | ✓ Good — validado na Fase 3 |
 | Presente = redirect WhatsApp (sem checkout) | Venda é externa, pelo vendedor "Mistral" | ✓ Good — validado na Fase 4 |
-| Mural com moderação antes de publicar | Evitar conteúdo indevido no álbum/telão público | — Pending |
-| Dashboard com senha única dos donos | 2 donos; contas nomeadas já foram descartadas no projeto antigo | ✓ Good (herdado) |
+| Mural com moderação antes de publicar | Evitar conteúdo indevido no álbum/telão público | ✓ Good — projeção pública permanece approved-only |
+| Dashboard com senha única dos donos | 2 donos; contas nomeadas já foram descartadas no projeto antigo | ✓ Good — capability opaca hash-only com expiração absoluta de 7 dias |
 | Telão + Instagram → v2 | Reduz escopo v1 e evita custo externo (Apify) | — Pending |
 | Marcar "presenteado" manual (sem reserva 48h) | Simplicidade; a compra acontece fora do site | ✓ Modelo reativo validado na Fase 4; controle do dono segue para a Fase 6 |
 | Carta usa uma garrafa vetorial neutra e duas cores por vinho | Evita dependência de 37 fotos licenciadas sem perder diferenciação visual | ✓ Good — 37 paletas com proveniência privada e zero mídia remota |
@@ -92,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 after Phase 4 completion*
+*Last updated: 2026-07-25 after Phase 6 completion*
