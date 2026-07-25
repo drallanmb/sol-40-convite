@@ -170,7 +170,7 @@ Plans:
   4. O dono aprova/oculta posts do mural na fila de moderação
   5. O dono marca vinhos como presenteados
 
-**Plans**: 5/7 plans executed
+**Plans**: 7/7 plans executed
 
 Plans:
 
@@ -179,8 +179,8 @@ Plans:
 - [x] 06-03-PLAN.md
 - [x] 06-04-PLAN.md
 - [x] 06-05-PLAN.md
-- [ ] 06-06-PLAN.md
-- [ ] 06-07-PLAN.md
+- [x] 06-06-PLAN.md
+- [x] 06-07-PLAN.md
 
 **Wave 1**
 
@@ -200,12 +200,12 @@ Plans:
 
 **Wave 5** *(gap closure; blocked on Wave 4 completion)*
 
-- [ ] 06-05: Lifecycle físico e migração paginada das sessões RSVP
-- [ ] 06-07: Pending state por registro e proteção contra submissões duplicadas
+- [x] 06-05: Lifecycle físico e migração paginada das sessões RSVP
+- [x] 06-07: Pending state por registro e proteção contra submissões duplicadas
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 06-06: Revogação por geração e cascade RSVP sem teto fixo
+- [x] 06-06: Revogação por geração e cascade RSVP sem teto fixo
 
 ### Phase 7: Endurecimento & Lançamento
 
