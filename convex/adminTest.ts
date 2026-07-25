@@ -8,7 +8,11 @@ import {
 } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { ADMIN_SESSION_TTL_MS } from './adminModel'
-import { expireAdminSessionRecord } from './adminInternal'
+import {
+  expireAdminSessionRecord,
+  sweepExpiredAuditEventsHandler,
+} from './adminInternal'
+import { ADMIN_AUDIT_RETENTION_MS } from './adminAuditModel'
 import {
   hashAdminToken,
   requireAdminSession,
@@ -75,6 +79,113 @@ export const checkPhase8DeploymentReadiness = internalQuery({
           link.consumedAt === undefined && link.revokedAt === undefined,
       ).length,
       visibleAuditEventCount: visibleAuditEvents.length,
+    }
+  },
+})
+
+function summarizeDurations(values: number[]) {
+  const sorted = [...values].sort((left, right) => left - right)
+  const percentile = (fraction: number) =>
+    sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)]
+  return {
+    samples: sorted.length,
+    p50Ms: percentile(0.5),
+    p95Ms: percentile(0.95),
+  }
+}
+
+/**
+ * Node-runtime KDF benchmark. The passphrase and envelope never leave this
+ * action; only bounded timing summaries and boolean outcomes are returned.
+ */
+export const smokePhase8Scrypt = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const passphrase = 'Brisa dourada de Preview sobre o mar 2026'
+    const hashed = await ctx.runAction(
+      internal.adminPasswordActions.hashAdminPassword,
+      { password: passphrase, context: {} },
+    )
+    if (hashed.kind !== 'hashed') {
+      throw new Error('Phase 8 smoke passphrase was rejected.')
+    }
+
+    const correctDurations: number[] = []
+    const incorrectDurations: number[] = []
+    for (let sample = 0; sample < 2; sample += 1) {
+      const correctStartedAt = Date.now()
+      const correct = await ctx.runAction(
+        internal.adminPasswordActions.verifyAdminPassword,
+        { password: passphrase, envelope: hashed.envelope },
+      )
+      correctDurations.push(Date.now() - correctStartedAt)
+      if (correct.kind !== 'verified' || !correct.valid) {
+        throw new Error('Phase 8 correct KDF probe failed.')
+      }
+
+      const incorrectStartedAt = Date.now()
+      const incorrect = await ctx.runAction(
+        internal.adminPasswordActions.verifyAdminPassword,
+        {
+          password: `${passphrase} incorreta`,
+          envelope: hashed.envelope,
+        },
+      )
+      incorrectDurations.push(Date.now() - incorrectStartedAt)
+      if (incorrect.kind !== 'verified' || incorrect.valid) {
+        throw new Error('Phase 8 incorrect KDF probe failed.')
+      }
+    }
+
+    return {
+      kind: 'passed',
+      correct: summarizeDurations(correctDurations),
+      incorrect: summarizeDurations(incorrectDurations),
+    } as const
+  },
+})
+
+/**
+ * Bounded retention probe. It creates one expired and one active aggregate
+ * event, runs the same sweep handler as the cron, and removes the control row.
+ */
+export const smokePhase8Retention = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now()
+    const expiredId = await ctx.db.insert('adminAuditEvents', {
+      actorKind: 'system',
+      actorName: 'Preview smoke',
+      area: 'auth',
+      action: 'login_failed',
+      changes: [],
+      occurredAt: now - ADMIN_AUDIT_RETENTION_MS - 1,
+      expiresAt: now - 1,
+    })
+    const activeId = await ctx.db.insert('adminAuditEvents', {
+      actorKind: 'system',
+      actorName: 'Preview smoke',
+      area: 'auth',
+      action: 'login_failed',
+      changes: [],
+      occurredAt: now,
+      expiresAt: now + ADMIN_AUDIT_RETENTION_MS,
+    })
+
+    try {
+      const sweep = await sweepExpiredAuditEventsHandler(ctx)
+      return {
+        kind: 'passed',
+        expiredDeleted: (await ctx.db.get(expiredId)) === null,
+        activeRetained: (await ctx.db.get(activeId)) !== null,
+        scanned: sweep.scanned,
+        deleted: sweep.deleted,
+      } as const
+    } finally {
+      const expired = await ctx.db.get(expiredId)
+      if (expired) await ctx.db.delete(expiredId)
+      const active = await ctx.db.get(activeId)
+      if (active) await ctx.db.delete(activeId)
     }
   },
 })

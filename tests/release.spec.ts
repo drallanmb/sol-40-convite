@@ -14,8 +14,8 @@ const RELEASE_ROUTES = [
   { path: '/', heading: /Sol/i },
   { path: '/confirmar', heading: /Esse pôr do sol/i },
   { path: '/presentes', heading: /Um carinho para abrir/i },
-  { path: '/admin', heading: /Painel dos donos/i },
-  { path: '/admin/convidados', heading: /Painel dos donos/i },
+  { path: '/admin', heading: /Painel da festa/i },
+  { path: '/admin/convidados', heading: /Painel da festa/i },
   { path: '/rota-inexistente', heading: /Página não encontrada/i },
 ]
 
@@ -109,7 +109,7 @@ for (const route of RELEASE_ROUTES) {
 test('anonymous admin mounts no protected DOM or domain query', async ({ page }) => {
   await observeConvexTraffic(page)
   await page.goto('/admin/convidados')
-  await expect(page.getByRole('heading', { name: 'Painel dos donos' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Painel da festa' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Seções do painel' })).toHaveCount(0)
   await expect(page.getByText('Visão geral', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Convidados', { exact: true })).toHaveCount(0)
