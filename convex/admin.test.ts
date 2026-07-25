@@ -319,6 +319,42 @@ describe('admin password policy and scrypt envelope', () => {
   })
 })
 
+describe('phase 8 Preview smoke contracts', () => {
+  it('benchmarks correct and incorrect scrypt without returning inputs or envelopes', async () => {
+    const t = makeAdminTest()
+    const result = await t.action(internal.adminTest.smokePhase8Scrypt, {})
+
+    expect(result.kind).toBe('passed')
+    expect(result.correct.samples).toBeGreaterThanOrEqual(2)
+    expect(result.incorrect.samples).toBeGreaterThanOrEqual(2)
+    expect(result.correct.p50Ms).toBeGreaterThanOrEqual(0)
+    expect(result.correct.p95Ms).toBeGreaterThanOrEqual(result.correct.p50Ms)
+    expect(JSON.stringify(result)).not.toMatch(
+      /password|envelope|token|hash|secret/iu,
+    )
+  })
+
+  it('reports only aggregate rollout state in the check-only preflight', async () => {
+    const t = makeAdminTest()
+    const result = await t.query(
+      internal.adminTest.checkPhase8DeploymentReadiness,
+      {},
+    )
+
+    expect(result).toEqual({
+      deploymentShape: 'phase8',
+      bootstrapState: 'available',
+      legacyCutoffSet: false,
+      accountCounts: { owner: 0, manager: 0, seller: 0 },
+      activePendingLinkCount: 0,
+      visibleAuditEventCount: 0,
+    })
+    expect(JSON.stringify(result)).not.toMatch(
+      /@|password|token|hash|linkUrl|accountId/iu,
+    )
+  })
+})
+
 describe('admin authorization boundary', () => {
   it('returns the same unauthorized result for missing, malformed, unknown and boundary-expired tokens', async () => {
     const t = makeAdminTest()

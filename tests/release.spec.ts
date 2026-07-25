@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { spawnSync } from 'node:child_process'
 
 const WCAG_AA_TAGS = [
   'wcag2a',
@@ -183,4 +184,51 @@ test('reduced motion keeps content visible without continuous animation', async 
     'animation-name',
     'none',
   )
+})
+
+test('phase 8 smoke aborts Production before any probe', () => {
+  const result = spawnSync(
+    process.execPath,
+    ['scripts/phase8-preview-smoke.mjs', '--check-only'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CONVEX_DEPLOYMENT: 'prod:do-not-touch',
+      },
+    },
+  )
+
+  expect(result.status).not.toBe(0)
+  expect(`${result.stdout}\n${result.stderr}`).toMatch(
+    /Production recusado antes de qualquer probe/iu,
+  )
+  expect(`${result.stdout}\n${result.stderr}`).not.toMatch(
+    /npx convex run|password|token|hash/iu,
+  )
+})
+
+test('phase 8 smoke check-only validates Preview without network or writes', () => {
+  const result = spawnSync(
+    process.execPath,
+    ['scripts/phase8-preview-smoke.mjs', '--check-only'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CONVEX_DEPLOYMENT: 'preview:phase8-safe',
+      },
+    },
+  )
+
+  expect(result.status).toBe(0)
+  expect(JSON.parse(result.stdout)).toEqual({
+    mode: 'check-only',
+    deploymentClass: 'preview',
+    production: false,
+    writesAttempted: 0,
+    status: 'ready',
+  })
 })
