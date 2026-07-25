@@ -1441,25 +1441,35 @@ describe('post storage expiry and orphan cleanup', () => {
       }),
     }))
 
-    await t.mutation(postInternalApi.retireTerminalReservations, {})
-    await t.finishInProgressScheduledFunctions()
+    await t.mutation(
+      postInternalApi.migrateLegacyTerminalReservations,
+      { state: 'expired' },
+    )
 
-    const first = await t.run(async (ctx) => ({
+    const migrated = await t.run(async (ctx) => ({
       before: await ctx.db.get(ids.before),
       exact: await ctx.db.get(ids.exact),
       after: await ctx.db.get(ids.after),
       legacy: await ctx.db.get(ids.legacy),
     }))
-    expect(first.before).toBeNull()
-    expect(first.exact).not.toBeNull()
-    expect(first.after).not.toBeNull()
-    expect(first.legacy).toMatchObject({
+    expect(migrated.before).not.toBeNull()
+    expect(migrated.exact).not.toBeNull()
+    expect(migrated.after).not.toBeNull()
+    expect(migrated.legacy).toMatchObject({
       terminalAt: now - retention - 2,
     })
 
     await t.mutation(postInternalApi.retireTerminalReservations, {})
-    const second = await t.run((ctx) => ctx.db.get(ids.legacy))
-    expect(second).toBeNull()
+    const retired = await t.run(async (ctx) => ({
+      before: await ctx.db.get(ids.before),
+      exact: await ctx.db.get(ids.exact),
+      after: await ctx.db.get(ids.after),
+      legacy: await ctx.db.get(ids.legacy),
+    }))
+    expect(retired.before).toBeNull()
+    expect(retired.legacy).toBeNull()
+    expect(retired.exact).not.toBeNull()
+    expect(retired.after).not.toBeNull()
     vi.useRealTimers()
   })
 
@@ -1534,6 +1544,12 @@ describe('post storage expiry and orphan cleanup', () => {
     })
     expect(postInternalSource).toContain('.paginate({')
     expect(postInternalSource).toContain('cursor: args.cursor ?? null')
+    vi.advanceTimersByTime(0)
+    await t.finishInProgressScheduledFunctions()
+    const remaining = await t.run((ctx) =>
+      ctx.db.query('postUploadReservations').collect(),
+    )
+    expect(remaining).toHaveLength(51)
     vi.useRealTimers()
   })
 
@@ -1548,7 +1564,7 @@ describe('post storage expiry and orphan cleanup', () => {
         await ctx.db.insert('postUploadReservations', {
           tokenHash: `legacy-terminal-page-${index}`,
           deviceKeyHash: `legacy-terminal-device-${index}`,
-          state: index % 2 === 0 ? 'rejected' : 'expired',
+          state: 'rejected',
           expiresAt: oldTerminalAt - index,
           createdAt: oldTerminalAt - index - 1,
         })
@@ -1557,7 +1573,7 @@ describe('post storage expiry and orphan cleanup', () => {
 
     const first = await t.mutation(
       postInternalApi.migrateLegacyTerminalReservations,
-      {},
+      { state: 'rejected' },
     )
     expect(first).toMatchObject({
       scanned: expect.any(Number),

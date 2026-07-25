@@ -65,7 +65,16 @@ const postInternalApi = (internal as unknown as {
     retireTerminalReservations: FunctionReference<
       'mutation',
       'internal',
-      Record<string, never>,
+      { cursor?: string },
+      unknown
+    >
+    migrateLegacyTerminalReservations: FunctionReference<
+      'mutation',
+      'internal',
+      {
+        state?: 'accepted' | 'rejected' | 'expired'
+        cursor?: string
+      },
       unknown
     >
   }
@@ -412,24 +421,29 @@ async function deleteTerminalReservationIfSafe(
 }
 
 export const retireTerminalReservations = internalMutation({
-  args: {},
+  args: {
+    cursor: v.optional(v.string()),
+  },
   returns: v.object({
     scanned: v.number(),
     deleted: v.number(),
-    migrated: v.number(),
     done: v.boolean(),
+    nextCursor: v.optional(v.string()),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const cutoff = Date.now() - TERMINAL_RESERVATION_RETENTION_MS
-    const terminalCandidates = await ctx.db
+    const page = await ctx.db
       .query('postUploadReservations')
       .withIndex('by_terminal_at', (index) =>
-        index.lt('terminalAt', cutoff),
+        index.gt('terminalAt', 0).lt('terminalAt', cutoff),
       )
       .order('asc')
-      .take(TERMINAL_RESERVATION_PAGE_SIZE)
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: TERMINAL_RESERVATION_PAGE_SIZE,
+      })
     let deleted = 0
-    for (const candidate of terminalCandidates) {
+    for (const candidate of page.page) {
       if (
         await deleteTerminalReservationIfSafe(
           ctx,
@@ -441,51 +455,94 @@ export const retireTerminalReservations = internalMutation({
       }
     }
 
-    let migrated = 0
-    let legacyBudget = TERMINAL_RESERVATION_PAGE_SIZE
-    for (const state of TERMINAL_STATES) {
-      if (legacyBudget === 0) {
-        break
-      }
-      const candidates = await ctx.db
-        .query('postUploadReservations')
-        .withIndex('by_state_expires_at', (index) =>
-          index.eq('state', state).lt('expiresAt', cutoff),
-        )
-        .order('asc')
-        .take(legacyBudget)
-      legacyBudget -= candidates.length
-      for (const candidate of candidates) {
-        const current = await ctx.db.get(candidate._id)
-        if (
-          current &&
-          current.state === state &&
-          current.terminalAt === undefined
-        ) {
-          await ctx.db.patch(current._id, {
-            terminalAt: current.expiresAt,
-          })
-          migrated += 1
-        }
-      }
-    }
-
-    const done =
-      terminalCandidates.length < TERMINAL_RESERVATION_PAGE_SIZE &&
-      migrated === 0
-    if (!done) {
+    if (!page.isDone) {
       await ctx.scheduler.runAfter(
         0,
         postInternalApi.retireTerminalReservations,
-        {},
+        { cursor: page.continueCursor },
       )
     }
 
     return {
-      scanned: terminalCandidates.length,
+      scanned: page.page.length,
       deleted,
+      done: page.isDone,
+      ...(page.isDone
+        ? {}
+        : { nextCursor: page.continueCursor }),
+    }
+  },
+})
+
+const terminalStateValidator = v.union(
+  v.literal('accepted'),
+  v.literal('rejected'),
+  v.literal('expired'),
+)
+
+export const migrateLegacyTerminalReservations = internalMutation({
+  args: {
+    state: v.optional(terminalStateValidator),
+    cursor: v.optional(v.string()),
+  },
+  returns: v.object({
+    scanned: v.number(),
+    migrated: v.number(),
+    done: v.boolean(),
+    nextCursor: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const cutoff = Date.now() - TERMINAL_RESERVATION_RETENTION_MS
+    const state = args.state ?? TERMINAL_STATES[0]
+    const page = await ctx.db
+      .query('postUploadReservations')
+      .withIndex('by_state_expires_at', (index) =>
+        index.eq('state', state).lt('expiresAt', cutoff),
+      )
+      .order('asc')
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: TERMINAL_RESERVATION_PAGE_SIZE,
+      })
+    let migrated = 0
+    for (const candidate of page.page) {
+      const current = await ctx.db.get(candidate._id)
+      if (
+        current &&
+        current.state === state &&
+        current.terminalAt === undefined
+      ) {
+        await ctx.db.patch(current._id, {
+          terminalAt: current.expiresAt,
+        })
+        migrated += 1
+      }
+    }
+
+    const stateIndex = TERMINAL_STATES.indexOf(state)
+    const nextState = TERMINAL_STATES[stateIndex + 1]
+    const done = page.isDone && nextState === undefined
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        postInternalApi.migrateLegacyTerminalReservations,
+        { state, cursor: page.continueCursor },
+      )
+    } else if (nextState !== undefined) {
+      await ctx.scheduler.runAfter(
+        0,
+        postInternalApi.migrateLegacyTerminalReservations,
+        { state: nextState },
+      )
+    }
+
+    return {
+      scanned: page.page.length,
       migrated,
       done,
+      ...(!page.isDone
+        ? { nextCursor: page.continueCursor }
+        : {}),
     }
   },
 })
