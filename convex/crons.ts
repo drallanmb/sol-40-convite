@@ -48,6 +48,17 @@ const startExpiredRsvpSessionSweep = (internal as unknown as {
   }
 }).rsvpInternal.startExpiredRsvpSessionSweep
 
+const startExpiredAuditEventsSweep = (internal as unknown as {
+  adminInternal: {
+    startExpiredAuditEventsSweep: FunctionReference<
+      'mutation',
+      'internal',
+      Record<string, never>,
+      unknown
+    >
+  }
+}).adminInternal.startExpiredAuditEventsSweep
+
 const crons = cronJobs()
 
 crons.daily(
@@ -75,6 +86,13 @@ crons.daily(
   'daily expired RSVP session sweep',
   { hourUTC: 3, minuteUTC: 35 },
   startExpiredRsvpSessionSweep,
+  {},
+)
+
+crons.daily(
+  'daily expired admin audit sweep',
+  { hourUTC: 3, minuteUTC: 45 },
+  startExpiredAuditEventsSweep,
   {},
 )
 

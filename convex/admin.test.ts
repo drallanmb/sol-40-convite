@@ -650,6 +650,21 @@ describe('admin audit filters, retention and redaction', () => {
     const expiresAt = occurredAt + ADMIN_AUDIT_RETENTION_MS
 
     vi.setSystemTime(expiresAt - 1)
+    await t.run(async (ctx) => {
+      const sessions = await ctx.db.query('adminSessions').collect()
+      for (const session of sessions) await ctx.db.delete(session._id)
+      const owners = await ctx.db
+        .query('adminAccounts')
+        .withIndex('by_role', (index) => index.eq('role', 'owner'))
+        .collect()
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        accountId: owners[0]._id,
+        credentialVersion: owners[0].credentialVersion,
+        createdAt: expiresAt - 1,
+        expiresAt: expiresAt + ADMIN_SESSION_TTL_MS,
+      })
+    })
     await expect(
       t.query(api.adminAudit.listAuditEvents, {
         token: TOKEN_A,

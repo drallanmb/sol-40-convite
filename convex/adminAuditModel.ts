@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { makeFunctionReference } from 'convex/server'
 import type { Id } from './_generated/dataModel'
 import type { MutationCtx } from './_generated/server'
 import type { AdminPrincipal, AdminRole } from './adminAccountModel'
@@ -106,7 +107,7 @@ export const auditChangeValidator = v.object({
 
 const SECRET_FIELD_PATTERN =
   /(?:password|passwd|secret|token|hash|link|url|header|authorization|cookie|payment|card|cvv)/iu
-const MAX_AUDIT_CHANGES = 20
+export const MAX_AUDIT_CHANGES = 20
 const MAX_AUDIT_STRING_LENGTH = 500
 
 function safeAuditValue(value: unknown): AuditValue | undefined {
@@ -169,7 +170,16 @@ function sanitizeAuditChanges(changes: readonly AuditChange[]) {
     .slice(0, MAX_AUDIT_CHANGES)
 }
 
-type AuditMutationContext = Pick<MutationCtx, 'db'>
+type AuditMutationContext = Pick<MutationCtx, 'db' | 'scheduler'>
+
+const expireAuditEvent = makeFunctionReference<
+  'mutation',
+  {
+    eventId: Id<'adminAuditEvents'>
+    expectedExpiresAt: number
+  },
+  unknown
+>('adminInternal:expireAuditEvent')
 
 type AppendAuditEvent = {
   principal?: AdminPrincipal
@@ -202,7 +212,8 @@ export async function appendAuditEvent(
         ? 'legacy'
         : (event.actorKind ?? 'system')
 
-  return ctx.db.insert('adminAuditEvents', {
+  const expiresAt = occurredAt + ADMIN_AUDIT_RETENTION_MS
+  const eventId = await ctx.db.insert('adminAuditEvents', {
     actorKind,
     ...(account ? { actorAccountId: account._id } : {}),
     actorName: account?.displayName ?? event.actorName,
@@ -218,6 +229,11 @@ export async function appendAuditEvent(
     targetLabel: event.targetLabel?.slice(0, 160),
     changes: sanitizeAuditChanges(event.changes ?? []),
     occurredAt,
-    expiresAt: occurredAt + ADMIN_AUDIT_RETENTION_MS,
+    expiresAt,
   })
+  await ctx.scheduler.runAt(expiresAt, expireAuditEvent, {
+    eventId,
+    expectedExpiresAt: expiresAt,
+  })
+  return eventId
 }
