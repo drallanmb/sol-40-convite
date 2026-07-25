@@ -177,6 +177,7 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
     status: wineStatusValidator,
     giftedBy: v.optional(v.string()),
+    giftNote: v.optional(v.string()),
     giftedAt: v.optional(v.number()),
     updatedAt: v.number(),
   })

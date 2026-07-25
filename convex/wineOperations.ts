@@ -3,13 +3,18 @@ import type { MutationCtx } from './_generated/server'
 import {
   nextWineUpdatedAt,
   WINE_GIFTED_BY_MAX_LENGTH,
+  WINE_GIFT_NOTE_MAX_LENGTH,
   type WineGiftState,
   type WineStatus,
 } from './wineModel'
 
 export function readWineGiftState(wine: Doc<'wines'>): WineGiftState {
   if (wine.status === 'available') {
-    if (wine.giftedBy !== undefined || wine.giftedAt !== undefined) {
+    if (
+      wine.giftedBy !== undefined ||
+      wine.giftNote !== undefined ||
+      wine.giftedAt !== undefined
+    ) {
       throw new Error(
         `Invariante violada: vinho disponível ${wine.productCode} com atribuição.`,
       )
@@ -19,6 +24,8 @@ export function readWineGiftState(wine: Doc<'wines'>): WineGiftState {
   if (
     !wine.giftedBy?.trim() ||
     wine.giftedBy.length > WINE_GIFTED_BY_MAX_LENGTH ||
+    (wine.giftNote !== undefined &&
+      wine.giftNote.length > WINE_GIFT_NOTE_MAX_LENGTH) ||
     wine.giftedAt === undefined
   ) {
     throw new Error(
@@ -28,6 +35,7 @@ export function readWineGiftState(wine: Doc<'wines'>): WineGiftState {
   return {
     status: 'gifted',
     giftedBy: wine.giftedBy,
+    ...(wine.giftNote === undefined ? {} : { giftNote: wine.giftNote }),
     giftedAt: wine.giftedAt,
   }
 }
@@ -35,15 +43,23 @@ export function readWineGiftState(wine: Doc<'wines'>): WineGiftState {
 export function normalizeWineGiftState(state: WineGiftState): WineGiftState {
   if (state.status === 'available') return state
   const giftedBy = state.giftedBy.trim()
+  const giftNote = state.giftNote?.trim() || undefined
   if (
     giftedBy.length === 0 ||
     giftedBy.length > WINE_GIFTED_BY_MAX_LENGTH ||
+    (giftNote !== undefined &&
+      giftNote.length > WINE_GIFT_NOTE_MAX_LENGTH) ||
     !Number.isSafeInteger(state.giftedAt) ||
     state.giftedAt <= 0
   ) {
     throw new Error('Estado operacional de presente inválido.')
   }
-  return { status: 'gifted', giftedBy, giftedAt: state.giftedAt }
+  return {
+    status: 'gifted',
+    giftedBy,
+    ...(giftNote === undefined ? {} : { giftNote }),
+    giftedAt: state.giftedAt,
+  }
 }
 
 export async function transitionWineGiftState(
@@ -76,10 +92,11 @@ export async function transitionWineGiftState(
   await ctx.db.patch(wine._id, {
     status: normalized.status,
     giftedBy: normalized.status === 'gifted' ? normalized.giftedBy : undefined,
+    giftNote: normalized.status === 'gifted' ? normalized.giftNote : undefined,
     giftedAt: normalized.status === 'gifted' ? normalized.giftedAt : undefined,
     updatedAt,
   })
   const updated = await ctx.db.get(wine._id)
   if (!updated) throw new Error('Vinho desapareceu durante a atualização.')
-  return { kind: 'updated', wine: updated } as const
+  return { kind: 'updated', wine: updated, previousWine: wine } as const
 }

@@ -1,11 +1,13 @@
 import { v } from 'convex/values'
 import type { Doc } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
-import { requireAnyAdmin } from './adminAccountModel'
+import { requireAnyAdmin, type AdminPrincipal } from './adminAccountModel'
+import { appendAuditEvent, buildAuditChanges } from './adminAuditModel'
 import { requireAdminSession } from './adminSecurity'
 import {
   WINE_CATEGORY_ORDER,
   WINE_GIFTED_BY_MAX_LENGTH,
+  WINE_GIFT_NOTE_MAX_LENGTH,
   wineCategoryValidator,
   wineStatusValidator,
 } from './wineModel'
@@ -24,6 +26,7 @@ const adminWineValidator = v.object({
   category: wineCategoryValidator,
   status: wineStatusValidator,
   giftedBy: v.optional(v.string()),
+  giftNote: v.optional(v.string()),
   giftedAt: v.optional(v.number()),
   updatedAt: v.number(),
 })
@@ -52,6 +55,7 @@ function projectWine(wine: Doc<'wines'>) {
     category: wine.category,
     status: wine.status,
     ...(wine.giftedBy === undefined ? {} : { giftedBy: wine.giftedBy }),
+    ...(wine.giftNote === undefined ? {} : { giftNote: wine.giftNote }),
     ...(wine.giftedAt === undefined ? {} : { giftedAt: wine.giftedAt }),
     updatedAt: wine.updatedAt,
   }
@@ -70,8 +74,33 @@ async function authorize(ctx: QueryCtx | MutationCtx, token: string) {
   const authorization = await requireAdminSession(ctx, token)
   if (authorization.kind === 'unauthorized') return authorization
   return requireAnyAdmin(authorization.principal)
-    ? ({ kind: 'authorized' } as const)
+    ? ({
+        kind: 'authorized',
+        principal: authorization.principal,
+      } as const)
     : ({ kind: 'forbidden' } as const)
+}
+
+async function auditGiftChange(
+  ctx: MutationCtx,
+  principal: AdminPrincipal,
+  action: 'gift_confirmed' | 'gift_updated' | 'gift_reopened',
+  before: Doc<'wines'>,
+  after: Doc<'wines'>,
+) {
+  await appendAuditEvent(ctx, {
+    principal,
+    area: 'gifts',
+    action,
+    targetType: 'wine',
+    targetId: after._id,
+    targetLabel: after.name,
+    changes: buildAuditChanges({
+      before,
+      after,
+      allowedFields: ['status', 'giftedBy', 'giftNote'],
+    }),
+  })
 }
 
 export const listAdmin = query({
@@ -96,29 +125,53 @@ export const markGifted = mutation({
     wineId: v.id('wines'),
     expectedUpdatedAt: v.number(),
     giftedBy: v.string(),
+    giftNote: v.optional(v.string()),
   },
   returns: resultValidator,
   handler: async (ctx, args) => {
-    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
       return { kind: 'unauthorized' } as const
     }
     const giftedBy = args.giftedBy.trim()
+    const giftNote = args.giftNote?.trim() || undefined
     if (!giftedBy || giftedBy.length > WINE_GIFTED_BY_MAX_LENGTH) {
       return {
         kind: 'invalid',
         message: 'Informe o nome de quem presenteou.',
       } as const
     }
+    if (
+      giftNote !== undefined &&
+      giftNote.length > WINE_GIFT_NOTE_MAX_LENGTH
+    ) {
+      return {
+        kind: 'invalid',
+        message: 'A observação deve ter no máximo 500 caracteres.',
+      } as const
+    }
     const result = await transitionWineGiftState(ctx, {
       wineId: args.wineId,
       expectedStatus: 'available',
       expectedUpdatedAt: args.expectedUpdatedAt,
-      target: { status: 'gifted', giftedBy, giftedAt: Date.now() },
+      target: {
+        status: 'gifted',
+        giftedBy,
+        ...(giftNote === undefined ? {} : { giftNote }),
+        giftedAt: Date.now(),
+      },
     })
     if (result.kind === 'conflict') {
       return { kind: 'conflict', wine: projectWine(result.wine) } as const
     }
     if (result.kind === 'not_found') return result
+    await auditGiftChange(
+      ctx,
+      authorization.principal,
+      'gift_confirmed',
+      result.previousWine,
+      result.wine,
+    )
     return { kind: 'updated', wine: projectWine(result.wine) } as const
   },
 })

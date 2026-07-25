@@ -25,6 +25,7 @@ export const wineGiftStateValidator = v.union(
   v.object({
     status: v.literal('gifted'),
     giftedBy: v.string(),
+    giftNote: v.optional(v.string()),
     giftedAt: v.number(),
   }),
 )
@@ -47,7 +48,12 @@ export type WineTone = 'rubi' | 'dourado' | 'rose' | 'verde'
 export type WineStatus = 'available' | 'gifted'
 export type WineGiftState =
   | { status: 'available' }
-  | { status: 'gifted'; giftedBy: string; giftedAt: number }
+  | {
+      status: 'gifted'
+      giftedBy: string
+      giftNote?: string
+      giftedAt: number
+    }
 
 export type WineCatalogItem = {
   productCode: string
@@ -76,6 +82,7 @@ export const WINE_PRODUCER_MAX_LENGTH = 180
 export const WINE_DESCRIPTION_MAX_LENGTH = 320
 export const WINE_PALETTE_REFERENCE_URL_MAX_LENGTH = 500
 export const WINE_GIFTED_BY_MAX_LENGTH = 180
+export const WINE_GIFT_NOTE_MAX_LENGTH = 500
 const HEX_COLOR_PATTERN = /^#[0-9A-F]{6}$/u
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u
 
