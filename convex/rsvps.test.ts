@@ -7,6 +7,7 @@ import type { Id } from './_generated/dataModel'
 import {
   expireRsvpSessionRecord,
   insertInvitation,
+  RSVP_SESSION_SWEEP_PAGE_SIZE,
 } from './rsvpInternal'
 import { RSVP_SESSION_TTL_MS } from './rsvpModel'
 import { RSVP_RATE_LIMITS, rsvpRateLimiter } from './rsvpRateLimits'
@@ -908,6 +909,167 @@ describe('unlock capability and privacy', () => {
     expect(normalizeRsvpGeneration(2)).toBe(2)
     expect(() => normalizeRsvpGeneration(-1)).toThrow(/generation/i)
     expect(() => normalizeRsvpGeneration(1.5)).toThrow(/generation/i)
+  })
+})
+
+describe('expired RSVP session sweep', () => {
+  const sweepApi = (internal.rsvpInternal as unknown as {
+    startExpiredRsvpSessionSweep: unknown
+    continueExpiredRsvpSessionSweep: unknown
+  })
+
+  it('starts without caller state and drains historical sessions in bounded pages with one stable cutoff', async () => {
+    vi.useFakeTimers()
+    const cutoff = Date.UTC(2026, 7, 3, 10, 0, 0)
+    vi.setSystemTime(cutoff)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-5100',
+      displayName: 'Migração Histórica',
+      guests: [],
+    })
+    await t.run(async (ctx) => {
+      for (let index = 0; index < RSVP_SESSION_SWEEP_PAGE_SIZE + 2; index += 1) {
+        await ctx.db.insert('rsvpSessions', {
+          tokenHash: `expired-${index}`,
+          rsvpId: invitation.rsvpId,
+          expiresAt: index === 0 ? cutoff : cutoff - index,
+          createdAt: cutoff - 10_000,
+        })
+      }
+      await ctx.db.insert('rsvpSessions', {
+        tokenHash: 'active-control',
+        rsvpId: invitation.rsvpId,
+        expiresAt: cutoff + 1,
+        createdAt: cutoff,
+      })
+    })
+
+    let result = await t.mutation(
+      sweepApi.startExpiredRsvpSessionSweep as never,
+      {},
+    ) as {
+      scanned: number
+      deleted: number
+      done: boolean
+      nextCursor?: string
+    }
+    expect(result).toEqual({
+      scanned: RSVP_SESSION_SWEEP_PAGE_SIZE,
+      deleted: RSVP_SESSION_SWEEP_PAGE_SIZE,
+      done: false,
+      nextCursor: expect.any(String),
+    })
+    const firstJob = await t.run(async (ctx) => {
+      const pending = await ctx.db.system
+        .query('_scheduled_functions')
+        .order('desc')
+        .first()
+      return pending
+    })
+    expect(firstJob?.args).toEqual([
+      { cursor: result.nextCursor, cutoff },
+    ])
+
+    while (!result.done) {
+      result = await t.mutation(
+        sweepApi.continueExpiredRsvpSessionSweep as never,
+        { cursor: result.nextCursor, cutoff } as never,
+      ) as typeof result
+    }
+    expect(result.scanned).toBeLessThanOrEqual(RSVP_SESSION_SWEEP_PAGE_SIZE)
+
+    const remaining = await t.run((ctx) =>
+      ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_expires_at')
+        .collect(),
+    )
+    expect(remaining.map((session) => session.tokenHash)).toEqual([
+      'active-control',
+    ])
+
+    await expect(
+      t.mutation(sweepApi.startExpiredRsvpSessionSweep as never, {}),
+    ).resolves.toEqual({
+      scanned: 0,
+      deleted: 0,
+      done: true,
+    })
+  })
+
+  it('fails closed for malformed, future, missing, and unpaired continuation state', async () => {
+    vi.useFakeTimers()
+    const cutoff = Date.UTC(2026, 7, 3, 12, 0, 0)
+    vi.setSystemTime(cutoff)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-5101',
+      displayName: 'Validação da Migração',
+      guests: [],
+    })
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rsvpSessions', {
+        tokenHash: 'expired-untouched',
+        rsvpId: invitation.rsvpId,
+        expiresAt: cutoff,
+        createdAt: cutoff - 1,
+      })
+      await ctx.db.insert('rsvpSessions', {
+        tokenHash: 'active-untouched',
+        rsvpId: invitation.rsvpId,
+        expiresAt: cutoff + 1,
+        createdAt: cutoff,
+      })
+    })
+
+    await expect(
+      t.mutation(
+        sweepApi.continueExpiredRsvpSessionSweep as never,
+        { cursor: '', cutoff } as never,
+      ),
+    ).rejects.toThrow()
+    await expect(
+      t.mutation(
+        sweepApi.continueExpiredRsvpSessionSweep as never,
+        { cursor: '\u0000', cutoff } as never,
+      ),
+    ).rejects.toThrow()
+    await expect(
+      t.mutation(
+        sweepApi.continueExpiredRsvpSessionSweep as never,
+        { cursor: 'opaque', cutoff: cutoff + 1 } as never,
+      ),
+    ).rejects.toThrow()
+    await expect(
+      t.mutation(
+        sweepApi.continueExpiredRsvpSessionSweep as never,
+        { cutoff } as never,
+      ),
+    ).rejects.toThrow()
+    await expect(
+      t.mutation(
+        sweepApi.continueExpiredRsvpSessionSweep as never,
+        { cursor: 'opaque' } as never,
+      ),
+    ).rejects.toThrow()
+    await expect(
+      t.mutation(
+        sweepApi.startExpiredRsvpSessionSweep as never,
+        { cursor: 'opaque', cutoff } as never,
+      ),
+    ).rejects.toThrow()
+
+    const rows = await t.run((ctx) => ctx.db.query('rsvpSessions').collect())
+    expect(rows.map((row) => row.tokenHash).sort()).toEqual([
+      'active-untouched',
+      'expired-untouched',
+    ])
+    expect(
+      await t.run((ctx) =>
+        ctx.db.system.query('_scheduled_functions').collect(),
+      ),
+    ).toEqual([])
   })
 })
 
