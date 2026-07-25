@@ -17,6 +17,7 @@ import {
   validatePostCapability,
 } from './postSecurity'
 import { makePostTest as makePostTestHarness } from './postTest'
+import postsSource from './posts.ts?raw'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
 
@@ -978,5 +979,239 @@ describe('photo upload reservation and validation', () => {
       }),
     ).resolves.toEqual({ kind: 'awaiting_upload' })
     vi.useRealTimers()
+  })
+})
+
+describe('post storage expiry and orphan cleanup', () => {
+  async function storageExists(
+    t: ReturnType<typeof makePostTest>,
+    storageId: string,
+  ) {
+    return t.run(async (ctx) =>
+      (await ctx.storage.get(storageId as never)) !== null,
+    )
+  }
+
+  it.each([
+    [-1, 'active', true],
+    [0, 'expired', false],
+    [1, 'expired', false],
+  ])('expires a processing reservation at the exact 24-hour boundary (%i ms)', async (offset, expectedKind, shouldExist) => {
+    vi.useFakeTimers()
+    const expiresAt = new Date('2026-07-26T01:00:00.000Z').getTime()
+    vi.setSystemTime(expiresAt + offset)
+    const t = makePostTest()
+    const storageId = await t.run((ctx) =>
+      ctx.storage.store(
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: 'image/jpeg',
+        }),
+      ),
+    )
+    const reservationId = await t.run((ctx) =>
+      ctx.db.insert('postUploadReservations', {
+        tokenHash: 'token-hash',
+        deviceKeyHash: 'device-hash',
+        state: 'processing',
+        storageId,
+        expiresAt,
+        validationRequestedAt: expiresAt - 1_000,
+        createdAt: expiresAt - 24 * 60 * 60 * 1_000,
+      }),
+    )
+
+    await expect(
+      t.mutation(postInternalApi.expireReservation, { reservationId }),
+    ).resolves.toMatchObject({ kind: expectedKind })
+    await expect(storageExists(t, storageId)).resolves.toBe(shouldExist)
+    if (offset >= 0) {
+      await expect(
+        t.mutation(postInternalApi.expireReservation, { reservationId }),
+      ).resolves.toMatchObject({ kind: 'expired' })
+    }
+    vi.useRealTimers()
+  })
+
+  it('preserves accepted post storage during repeated reservation expiry', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-07-27T01:00:00.000Z').getTime()
+    vi.setSystemTime(now)
+    const t = makePostTest()
+    const storageId = await t.run((ctx) =>
+      ctx.storage.store(
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], {
+          type: 'image/jpeg',
+        }),
+      ),
+    )
+    const reservationId = await t.run((ctx) =>
+      ctx.db.insert('postUploadReservations', {
+        tokenHash: 'token-hash',
+        deviceKeyHash: 'device-hash',
+        state: 'processing',
+        storageId,
+        expiresAt: now - 1,
+        validationRequestedAt: now - 2,
+        createdAt: now - 24 * 60 * 60 * 1_000,
+      }),
+    )
+    const postId = await t.run((ctx) =>
+      ctx.db.insert('posts', {
+        storageId,
+        mediaType: 'image/jpeg',
+        mediaSize: 4,
+        status: 'pendente',
+        source: 'convidado',
+        uploadReservationId: reservationId,
+        createdAt: now - 1,
+      }),
+    )
+    await t.run((ctx) =>
+      ctx.db.patch(reservationId, { state: 'accepted', postId }),
+    )
+
+    await expect(
+      t.mutation(postInternalApi.expireReservation, { reservationId }),
+    ).resolves.toEqual({ kind: 'owned' })
+    await expect(storageExists(t, storageId)).resolves.toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('recovers cleanup for rejected or already-expired reservations idempotently', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-07-27T01:00:00.000Z').getTime()
+    vi.setSystemTime(now)
+    const t = makePostTest()
+
+    for (const [index, state] of ['rejected', 'expired'].entries()) {
+      const storageId = await t.run((ctx) =>
+        ctx.storage.store(new Blob([`terminal-${state}`])),
+      )
+      const reservationId = await t.run((ctx) =>
+        ctx.db.insert('postUploadReservations', {
+          tokenHash: `token-${index}`,
+          deviceKeyHash: `device-${index}`,
+          state: state as 'rejected' | 'expired',
+          storageId,
+          ...(state === 'rejected'
+            ? { errorCode: 'unsupported_type' }
+            : {}),
+          expiresAt: now - 1,
+          createdAt: now - 24 * 60 * 60 * 1_000,
+        }),
+      )
+
+      await expect(
+        t.mutation(postInternalApi.expireReservation, { reservationId }),
+      ).resolves.toEqual({ kind: 'expired' })
+      await expect(storageExists(t, storageId)).resolves.toBe(false)
+      await expect(
+        t.mutation(postInternalApi.expireReservation, { reservationId }),
+      ).resolves.toEqual({ kind: 'expired' })
+    }
+    vi.useRealTimers()
+  })
+
+  it('deletes only old unowned storage and preserves young, post-owned, and reservation-owned blobs', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-07-27T01:00:00.000Z').getTime()
+    const oldTime = now - 24 * 60 * 60 * 1_000
+    vi.setSystemTime(oldTime - 1)
+    const t = makePostTest()
+    const oldOrphan = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['old orphan'])),
+    )
+    const postOwned = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['post owner'])),
+    )
+    const reservationOwned = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['reservation owner'])),
+    )
+    vi.setSystemTime(oldTime)
+    const exactBoundary = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['exact boundary'])),
+    )
+    vi.setSystemTime(now)
+    const youngOrphan = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['young orphan'])),
+    )
+    await t.run(async (ctx) => {
+      await ctx.db.insert('posts', {
+        storageId: postOwned,
+        mediaType: 'image/jpeg',
+        mediaSize: 10,
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: now,
+      })
+      await ctx.db.insert('postUploadReservations', {
+        tokenHash: 'token-hash',
+        deviceKeyHash: 'device-hash',
+        state: 'processing',
+        storageId: reservationOwned,
+        expiresAt: now + 1,
+        createdAt: now,
+      })
+    })
+
+    const result = await t.mutation(postInternalApi.sweepOrphanStorage, {})
+
+    expect(result).toMatchObject({ deleted: 1 })
+    await expect(storageExists(t, oldOrphan)).resolves.toBe(false)
+    await expect(storageExists(t, exactBoundary)).resolves.toBe(true)
+    await expect(storageExists(t, youngOrphan)).resolves.toBe(true)
+    await expect(storageExists(t, postOwned)).resolves.toBe(true)
+    await expect(storageExists(t, reservationOwned)).resolves.toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('paginates orphan cleanup and remains idempotent across repeated sweeps', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-07-27T01:00:00.000Z').getTime()
+    vi.setSystemTime(now - 24 * 60 * 60 * 1_000 - 1)
+    const t = makePostTest()
+    const storageIds = []
+    for (let index = 0; index < 55; index += 1) {
+      storageIds.push(
+        await t.run((ctx) =>
+          ctx.storage.store(new Blob([`orphan-${index}`])),
+        ),
+      )
+    }
+    vi.setSystemTime(now)
+
+    await expect(
+      t.mutation(postInternalApi.sweepOrphanStorage, {}),
+    ).resolves.toMatchObject({ deleted: 50, done: false })
+    vi.advanceTimersByTime(0)
+    await t.finishInProgressScheduledFunctions()
+
+    const remaining = await Promise.all(
+      storageIds.map((storageId) => storageExists(t, storageId)),
+    )
+    expect(remaining.filter(Boolean)).toHaveLength(0)
+    await expect(
+      t.mutation(postInternalApi.sweepOrphanStorage, {}),
+    ).resolves.toMatchObject({ deleted: 0, done: true })
+    vi.useRealTimers()
+  })
+})
+
+describe('post public surface', () => {
+  it('exports exactly the five planned anonymous functions and no cleanup or moderation primitive', () => {
+    const exports = [...postsSource.matchAll(/^export const (\w+)/gmu)]
+      .map((match) => match[1])
+      .sort()
+
+    expect(exports).toEqual([
+      'getSubmissionStatus',
+      'listApproved',
+      'requestUpload',
+      'submitPhotoMemory',
+      'submitTextMemory',
+    ])
+    expect(postsSource).not.toMatch(
+      /export const (approve|hide|listPending|listHidden|sweep|cleanup)/u,
+    )
   })
 })

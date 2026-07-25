@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
+import type * as postInternal from "../postInternal.js";
 import type * as postModel from "../postModel.js";
 import type * as postRateLimits from "../postRateLimits.js";
 import type * as postSecurity from "../postSecurity.js";
 import type * as postTest from "../postTest.js";
+import type * as posts from "../posts.js";
 import type * as rsvpInternal from "../rsvpInternal.js";
 import type * as rsvpModel from "../rsvpModel.js";
 import type * as rsvpRateLimits from "../rsvpRateLimits.js";
@@ -27,10 +30,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
+  postInternal: typeof postInternal;
   postModel: typeof postModel;
   postRateLimits: typeof postRateLimits;
   postSecurity: typeof postSecurity;
   postTest: typeof postTest;
+  posts: typeof posts;
   rsvpInternal: typeof rsvpInternal;
   rsvpModel: typeof rsvpModel;
   rsvpRateLimits: typeof rsvpRateLimits;

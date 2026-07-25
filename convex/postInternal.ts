@@ -10,6 +10,9 @@ import {
 import { mediaTypeValidator } from './postModel'
 import { validateImageBytes } from './uploadValidation'
 
+const ORPHAN_STORAGE_AGE_MS = 24 * 60 * 60 * 1_000
+const ORPHAN_SWEEP_PAGE_SIZE = 50
+
 const postInternalApi = (internal as unknown as {
   postInternal: {
     readReservationForValidation: FunctionReference<
@@ -48,6 +51,12 @@ const postInternalApi = (internal as unknown as {
           | 'mime_mismatch'
           | 'heic_requires_conversion'
       },
+      unknown
+    >
+    sweepOrphanStorage: FunctionReference<
+      'mutation',
+      'internal',
+      { cursor?: string },
       unknown
     >
   }
@@ -258,7 +267,10 @@ export const rejectPhoto = internalMutation({
       return { kind: 'ignored' } as const
     }
 
-    await ctx.storage.delete(args.storageId)
+    const metadata = await ctx.db.system.get('_storage', args.storageId)
+    if (metadata) {
+      await ctx.storage.delete(args.storageId)
+    }
     await ctx.db.patch(reservation._id, {
       state: 'rejected',
       errorCode: args.code,
@@ -285,6 +297,24 @@ export const expireReservation = internalMutation({
     if (reservation.state === 'accepted') {
       return { kind: 'owned' } as const
     }
+    if (reservation.state === 'expired') {
+      if (reservation.storageId !== undefined) {
+        const postOwner = await ctx.db
+          .query('posts')
+          .withIndex('by_storage_id', (index) =>
+            index.eq('storageId', reservation.storageId),
+          )
+          .first()
+        const metadata = await ctx.db.system.get(
+          '_storage',
+          reservation.storageId,
+        )
+        if (!postOwner && metadata) {
+          await ctx.storage.delete(reservation.storageId)
+        }
+      }
+      return { kind: 'expired' } as const
+    }
     if (Date.now() < reservation.expiresAt) {
       return { kind: 'active' } as const
     }
@@ -296,10 +326,85 @@ export const expireReservation = internalMutation({
         )
         .first()
       if (!postOwner) {
-        await ctx.storage.delete(reservation.storageId)
+        const metadata = await ctx.db.system.get(
+          '_storage',
+          reservation.storageId,
+        )
+        if (metadata) {
+          await ctx.storage.delete(reservation.storageId)
+        }
       }
     }
     await ctx.db.patch(reservation._id, { state: 'expired' })
     return { kind: 'expired' } as const
+  },
+})
+
+export const sweepOrphanStorage = internalMutation({
+  args: {
+    cursor: v.optional(v.string()),
+  },
+  returns: v.object({
+    scanned: v.number(),
+    deleted: v.number(),
+    done: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db.system
+      .query('_storage')
+      .order('asc')
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: ORPHAN_SWEEP_PAGE_SIZE,
+      })
+    const cutoff = Date.now() - ORPHAN_STORAGE_AGE_MS
+    let deleted = 0
+
+    for (const metadata of page.page) {
+      if (metadata._creationTime >= cutoff) {
+        continue
+      }
+
+      const [postOwner, reservationOwner] = await Promise.all([
+        ctx.db
+          .query('posts')
+          .withIndex('by_storage_id', (index) =>
+            index.eq('storageId', metadata._id),
+          )
+          .first(),
+        ctx.db
+          .query('postUploadReservations')
+          .withIndex('by_storage_id', (index) =>
+            index.eq('storageId', metadata._id),
+          )
+          .first(),
+      ])
+      if (postOwner || reservationOwner) {
+        continue
+      }
+
+      const currentMetadata = await ctx.db.system.get(
+        '_storage',
+        metadata._id,
+      )
+      if (currentMetadata) {
+        await ctx.storage.delete(metadata._id)
+        deleted += 1
+      }
+    }
+
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        postInternalApi.sweepOrphanStorage,
+        { cursor: page.continueCursor },
+      )
+    }
+
+    return {
+      scanned: page.page.length,
+      deleted,
+      done: page.isDone,
+    }
   },
 })
