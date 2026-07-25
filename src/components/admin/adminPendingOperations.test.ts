@@ -5,6 +5,9 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { usePendingOperations } from '../../lib/adminOperations'
 
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
+  .IS_REACT_ACT_ENVIRONMENT = true
+
 type Deferred<T> = {
   promise: Promise<T>
   resolve: (value: T) => void

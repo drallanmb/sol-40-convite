@@ -1,3 +1,80 @@
+import { useCallback, useRef, useState } from 'react'
+
+export type PendingIdsAction =
+  | { type: 'begin'; id: string }
+  | { type: 'settle'; id: string }
+  | { type: 'clear' }
+
+export function pendingIdsReducer(
+  pendingIds: ReadonlySet<string>,
+  action: PendingIdsAction,
+): ReadonlySet<string> {
+  if (action.type === 'clear') {
+    return pendingIds.size === 0 ? pendingIds : new Set()
+  }
+  if (action.type === 'begin') {
+    if (pendingIds.has(action.id)) return pendingIds
+    return new Set(pendingIds).add(action.id)
+  }
+  if (!pendingIds.has(action.id)) return pendingIds
+  const next = new Set(pendingIds)
+  next.delete(action.id)
+  return next
+}
+
+export type PendingOperationResult<T> =
+  | { started: false }
+  | { started: true; value: T }
+
+export function usePendingOperations() {
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
+  const pendingRef = useRef<ReadonlySet<string>>(pendingIds)
+
+  const run = useCallback(
+    <T,>(
+      id: string,
+      operation: () => Promise<T>,
+    ): Promise<PendingOperationResult<T>> => {
+      if (pendingRef.current.has(id)) {
+        return Promise.resolve({ started: false })
+      }
+
+      const begun = pendingIdsReducer(pendingRef.current, {
+        type: 'begin',
+        id,
+      })
+      pendingRef.current = begun
+      setPendingIds(begun)
+
+      return (async () => {
+        try {
+          return { started: true, value: await operation() } as const
+        } finally {
+          const settled = pendingIdsReducer(pendingRef.current, {
+            type: 'settle',
+            id,
+          })
+          pendingRef.current = settled
+          setPendingIds(settled)
+        }
+      })()
+    },
+    [],
+  )
+
+  const clear = useCallback(() => {
+    const cleared = pendingIdsReducer(pendingRef.current, { type: 'clear' })
+    pendingRef.current = cleared
+    setPendingIds(cleared)
+  }, [])
+
+  const has = useCallback((id: string) => pendingIds.has(id), [pendingIds])
+
+  return { pendingIds, has, run, clear }
+}
+
 export type ModerationStatus = 'pendente' | 'aprovado' | 'oculto'
 export type ModerationTab = ModerationStatus
 
