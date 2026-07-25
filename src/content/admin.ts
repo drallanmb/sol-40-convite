@@ -5,6 +5,7 @@ export const ADMIN_ROUTES = {
   moderation: '/admin/moderacao',
   gifts: '/admin/presentes',
   managers: '/admin/gestores',
+  audit: '/admin/auditoria',
   myAccount: '/admin/minha-conta',
   guestsPending: '/admin/convidados?presenca=pending',
   moderationPending: '/admin/moderacao?status=pendente',
@@ -19,6 +20,7 @@ export type AdminIconName =
   | 'moderation'
   | 'gifts'
   | 'managers'
+  | 'audit'
 
 export type AdminNavItem = {
   label: string
@@ -67,6 +69,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     shortLabel: 'Gestores',
     route: ADMIN_ROUTES.managers,
     icon: 'managers',
+    badge: null,
+    roles: ['owner'],
+  },
+  {
+    label: 'Auditoria',
+    shortLabel: 'Auditoria',
+    route: ADMIN_ROUTES.audit,
+    icon: 'audit',
     badge: null,
     roles: ['owner'],
   },
@@ -177,6 +187,7 @@ export function canonicalAdminDestination(pathname: string, search = '') {
   }
   if (pathname === ADMIN_ROUTES.overview) return pathname
   if (pathname === ADMIN_ROUTES.managers) return pathname
+  if (pathname === ADMIN_ROUTES.audit) return pathname
   if (pathname === ADMIN_ROUTES.myAccount) return pathname
   return ADMIN_ROUTES.overview
 }

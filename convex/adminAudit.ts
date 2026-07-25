@@ -61,7 +61,7 @@ export const listAuditEvents = query({
     const to = Math.min(now, args.to ?? now)
     const limit = Math.min(50, Math.max(1, Math.trunc(args.limit ?? 25)))
     if (from > to) {
-      return { kind: 'ready', events: [] } as const
+      return { kind: 'ready' as const, events: [] }
     }
     const page = await ctx.db
       .query('adminAuditEvents')

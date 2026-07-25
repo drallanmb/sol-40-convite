@@ -3285,7 +3285,9 @@ describe('admin family and guest operations', () => {
     await t.mutation((ctx) => createRsvpSession(ctx, { rsvpId: familyId, token: publicToken }))
     const before = await t.run(async (ctx) => ({
       family: await ctx.db.get(familyId),
-      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+      purgeJobs: (
+        await ctx.db.system.query('_scheduled_functions').collect()
+      ).filter((job) => JSON.stringify(job.args).includes('commandGeneration')),
     }))
 
     const result = await t.mutation(api.adminRsvps.updateFamily, {
@@ -3299,10 +3301,12 @@ describe('admin family and guest operations', () => {
     expect(await t.query(api.rsvps.getCurrent, { token: publicToken })).not.toBeNull()
     const after = await t.run(async (ctx) => ({
       family: await ctx.db.get(familyId),
-      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+      purgeJobs: (
+        await ctx.db.system.query('_scheduled_functions').collect()
+      ).filter((job) => JSON.stringify(job.args).includes('commandGeneration')),
     }))
     expect(after.family?.generation ?? 0).toBe(before.family?.generation ?? 0)
-    expect(after.scheduled).toHaveLength(before.scheduled.length)
+    expect(after.purgeJobs).toHaveLength(before.purgeJobs.length)
   })
 
   it('revokes 160 historical sessions immediately and purges only older generations', async () => {
@@ -3337,8 +3341,10 @@ describe('admin family and guest operations', () => {
     expect(
       await t.run(async (ctx) => (await ctx.db.get(seeded.rsvpId))?.generation),
     ).toBe(1)
-    const purgeJob = await t.run((ctx) =>
-      ctx.db.system.query('_scheduled_functions').order('desc').first(),
+    const purgeJob = await t.run(async (ctx) =>
+      (await ctx.db.system.query('_scheduled_functions').collect()).find(
+        (job) => JSON.stringify(job.args).includes('commandGeneration'),
+      ),
     )
     expect(purgeJob?.args).toEqual([
       {

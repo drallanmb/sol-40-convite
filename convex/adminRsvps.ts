@@ -4,7 +4,15 @@ import { normalizePhone } from '../src/lib/phone'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
-import { requireOperational } from './adminAccountModel'
+import {
+  requireOperational,
+  type AdminPrincipal,
+} from './adminAccountModel'
+import {
+  appendAuditEvent,
+  buildAuditChanges,
+  type AdminAuditAction,
+} from './adminAuditModel'
 import { requireAdminSession } from './adminSecurity'
 import {
   createUniqueGuestPublicRef,
@@ -191,6 +199,34 @@ async function requireRsvpAccess(ctx: QueryCtx | MutationCtx, token: string) {
     : ({ kind: authorization.kind } as const)
 }
 
+async function auditRsvpWrite(
+  ctx: MutationCtx,
+  principal: AdminPrincipal,
+  args: {
+    action: AdminAuditAction
+    targetType: 'rsvpFamily' | 'rsvpGuest' | 'rsvpImport'
+    targetId?: string | Id<'rsvps'>
+    targetLabel?: string
+    before?: Record<string, unknown>
+    after?: Record<string, unknown>
+    allowedFields?: readonly string[]
+  },
+) {
+  await appendAuditEvent(ctx, {
+    principal,
+    area: 'rsvps',
+    action: args.action,
+    targetType: args.targetType,
+    targetId: args.targetId,
+    targetLabel: args.targetLabel,
+    changes: buildAuditChanges({
+      before: args.before,
+      after: args.after,
+      allowedFields: args.allowedFields ?? [],
+    }),
+  })
+}
+
 async function readExpectedFamily(
   ctx: MutationCtx,
   familyId: Id<'rsvps'>,
@@ -272,8 +308,10 @@ export const createFamily = mutation({
     savedValidator,
   ),
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
     try {
       const inserted = await insertInvitation(ctx, {
         displayName: args.displayName,
@@ -283,6 +321,17 @@ export const createFamily = mutation({
       })
       const family = await ctx.db.get(inserted.rsvpId)
       if (!family) throw new Error('Família recém-criada não encontrada.')
+      await auditRsvpWrite(ctx, authorization.authorization.principal, {
+        action: 'rsvp_created',
+        targetType: 'rsvpFamily',
+        targetId: family._id,
+        targetLabel: family.displayName,
+        after: {
+          displayName: family.displayName,
+          guestCount: args.guests.length,
+        },
+        allowedFields: ['displayName', 'guestCount'],
+      })
       return { kind: 'saved', family: await projectFamily(ctx, family) } as const
     } catch (error) {
       return {
@@ -301,8 +350,10 @@ export const importFamilies = mutation({
   },
   returns: importFamiliesResultValidator,
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
 
     if (args.groups.length > IMPORT_MAX_FAMILIES) {
       throw new Error(`Cada lote aceita no máximo ${IMPORT_MAX_FAMILIES} famílias.`)
@@ -454,6 +505,22 @@ export const importFamilies = mutation({
       })
     }
 
+    if (created.length > 0) {
+      await auditRsvpWrite(ctx, authorization.authorization.principal, {
+        action: 'rsvp_imported',
+        targetType: 'rsvpImport',
+        targetLabel: `${created.length} famílias`,
+        after: {
+          familyCount: created.length,
+          guestCount: created.reduce(
+            (total, family) => total + family.people,
+            0,
+          ),
+        },
+        allowedFields: ['familyCount', 'guestCount'],
+      })
+    }
+
     return { kind: 'ready', created, ignored } as const
   },
 })
@@ -471,8 +538,10 @@ export const updateFamily = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const clean = cleanFamilyPatch(args.patch)
@@ -513,6 +582,15 @@ export const updateFamily = mutation({
     }
     const family = await ctx.db.get(expected.family._id)
     if (!family) throw new Error('Família desapareceu durante a atualização.')
+    await auditRsvpWrite(ctx, authorization.authorization.principal, {
+      action: 'rsvp_updated',
+      targetType: 'rsvpFamily',
+      targetId: family._id,
+      targetLabel: family.displayName,
+      before: { displayName: expected.family.displayName },
+      after: { displayName: family.displayName },
+      allowedFields: ['displayName'],
+    })
     return { kind: 'saved', family: await projectFamily(ctx, family) } as const
   },
 })
@@ -527,8 +605,10 @@ export const addGuest = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const name = args.name.trim()
@@ -543,7 +623,7 @@ export const addGuest = mutation({
       return { kind: 'invalid', message: `O convite aceita até ${MAX_RSVP_GUESTS} pessoas.` } as const
     }
     const now = Date.now()
-    await ctx.db.insert('rsvpGuests', {
+    const guestId = await ctx.db.insert('rsvpGuests', {
       rsvpId: expected.family._id,
       publicRef: await createUniqueGuestPublicRef(ctx, expected.family._id),
       name,
@@ -556,6 +636,14 @@ export const addGuest = mutation({
     })
     const family = await ctx.db.get(expected.family._id)
     if (!family) throw new Error('Família não encontrada após adicionar pessoa.')
+    await auditRsvpWrite(ctx, authorization.authorization.principal, {
+      action: 'rsvp_updated',
+      targetType: 'rsvpGuest',
+      targetId: String(guestId),
+      targetLabel: name,
+      after: { name, attendance: args.attendance },
+      allowedFields: ['name', 'attendance'],
+    })
     return { kind: 'saved', family: await projectFamily(ctx, family) } as const
   },
 })
@@ -573,8 +661,10 @@ export const updateGuest = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const guest = await ctx.db.get(args.guestId)
@@ -597,6 +687,20 @@ export const updateGuest = mutation({
     })
     const family = await ctx.db.get(expected.family._id)
     if (!family) throw new Error('Família não encontrada após editar pessoa.')
+    const updatedGuest = await ctx.db.get(guest._id)
+    if (!updatedGuest) throw new Error('Pessoa desapareceu durante a edição.')
+    await auditRsvpWrite(ctx, authorization.authorization.principal, {
+      action: 'rsvp_updated',
+      targetType: 'rsvpGuest',
+      targetId: String(guest._id),
+      targetLabel: updatedGuest.name,
+      before: { name: guest.name, attendance: guest.attendance },
+      after: {
+        name: updatedGuest.name,
+        attendance: updatedGuest.attendance,
+      },
+      allowedFields: ['name', 'attendance'],
+    })
     return { kind: 'saved', family: await projectFamily(ctx, family) } as const
   },
 })
@@ -610,8 +714,10 @@ export const removeGuest = mutation({
   },
   returns: mutationResultValidator,
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const guest = await ctx.db.get(args.guestId)
@@ -622,6 +728,14 @@ export const removeGuest = mutation({
     })
     const family = await ctx.db.get(expected.family._id)
     if (!family) throw new Error('Família não encontrada após remover pessoa.')
+    await auditRsvpWrite(ctx, authorization.authorization.principal, {
+      action: 'rsvp_updated',
+      targetType: 'rsvpGuest',
+      targetId: String(guest._id),
+      targetLabel: guest.name,
+      before: { name: guest.name, attendance: guest.attendance },
+      allowedFields: ['name', 'attendance'],
+    })
     return { kind: 'saved', family: await projectFamily(ctx, family) } as const
   },
 })
@@ -634,8 +748,10 @@ export const removeFamily = mutation({
   },
   returns: removedValidator,
   handler: async (ctx, args) => {
-    const denied = await requireRsvpAccess(ctx, args.token)
-    if (denied) return denied
+    const authorization = await authorize(ctx, args.token)
+    if (authorization.kind !== 'authorized') {
+      return authorization
+    }
     const expected = await readExpectedFamily(ctx, args.familyId, args.expectedUpdatedAt)
     if (expected.kind !== 'ready') return expected
     const guests = await ctx.db
@@ -650,6 +766,17 @@ export const removeFamily = mutation({
     await ctx.scheduler.runAfter(0, purgeRsvpSessionsBatchRef, {
       rsvpId: expected.family._id,
       command: { kind: 'deleteAll' },
+    })
+    await auditRsvpWrite(ctx, authorization.authorization.principal, {
+      action: 'rsvp_deleted',
+      targetType: 'rsvpFamily',
+      targetId: expected.family._id,
+      targetLabel: expected.family.displayName,
+      before: {
+        displayName: expected.family.displayName,
+        guestCount: guests.length,
+      },
+      allowedFields: ['displayName', 'guestCount'],
     })
     return { kind: 'removed' } as const
   },

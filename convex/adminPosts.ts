@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import type { Doc, Id } from './_generated/dataModel'
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
 import { requireOperational } from './adminAccountModel'
+import { appendAuditEvent, buildAuditChanges } from './adminAuditModel'
 import { postStatusValidator, type PostStatus } from './postModel'
 import { requireAdminSession } from './adminSecurity'
 
@@ -85,7 +86,7 @@ async function authorize(ctx: QueryCtx | MutationCtx, token: string) {
   const authorization = await requireAdminSession(ctx, token)
   if (authorization.kind === 'unauthorized') return authorization
   return requireOperational(authorization.principal)
-    ? ({ kind: 'authorized' } as const)
+    ? ({ kind: 'authorized', principal: authorization.principal } as const)
     : ({ kind: 'forbidden' } as const)
 }
 
@@ -188,6 +189,19 @@ export const transitionPost = mutation({
       targetStatus: args.targetStatus,
       now: Date.now(),
     })
+    await appendAuditEvent(ctx, {
+      principal: authorization.principal,
+      area: 'moderation',
+      action: 'moderation_transitioned',
+      targetType: 'post',
+      targetId: updated._id,
+      targetLabel: updated.author ?? 'Memória sem autoria',
+      changes: buildAuditChanges({
+        before: { status: expected.post.status },
+        after: { status: updated.status },
+        allowedFields: ['status'],
+      }),
+    })
     return {
       kind: 'updated',
       post: await projectPost(ctx, updated),
@@ -226,6 +240,19 @@ export const undoPost = mutation({
       post: expected.post,
       targetStatus: args.priorStatus,
       now: Date.now(),
+    })
+    await appendAuditEvent(ctx, {
+      principal: authorization.principal,
+      area: 'moderation',
+      action: 'moderation_undone',
+      targetType: 'post',
+      targetId: updated._id,
+      targetLabel: updated.author ?? 'Memória sem autoria',
+      changes: buildAuditChanges({
+        before: { status: expected.post.status },
+        after: { status: updated.status },
+        allowedFields: ['status'],
+      }),
     })
     return {
       kind: 'updated',

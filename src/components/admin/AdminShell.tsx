@@ -28,6 +28,7 @@ import AdminGifts from './AdminGifts'
 import AdminModeration from './AdminModeration'
 import AdminMyAccount from './AdminMyAccount'
 import AdminManagers from './AdminManagers'
+import AdminAudit from './AdminAudit'
 import type { AdminPrincipalView } from '../../lib/adminSession'
 
 type AdminShellProps = {
@@ -70,6 +71,11 @@ function AdminIcon({ name }: { name: AdminIconName }) {
         <circle cx="8" cy="8" r="3" />
         <circle cx="17" cy="9" r="2.5" />
         <path d="M3 20v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2M14 15h3a4 4 0 0 1 4 4v1" />
+      </>
+    ),
+    audit: (
+      <>
+        <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />
       </>
     ),
   }
@@ -174,7 +180,12 @@ export function AdminShell({
 
   const navLinks = (compact: boolean) =>
     permittedItems
-      .filter((item) => !compact || item.route !== ADMIN_ROUTES.managers)
+      .filter(
+        (item) =>
+          !compact ||
+          (item.route !== ADMIN_ROUTES.managers &&
+            item.route !== ADMIN_ROUTES.audit),
+      )
       .map((item) => {
       const active = item.route === location.pathname
       const badge = item.badge ? liveBadges[item.badge] : undefined
@@ -308,12 +319,20 @@ export function AdminShell({
                 </Link>
               ) : null}
               {principal.role === 'owner' ? (
-                <Link
-                  to={ADMIN_ROUTES.managers}
-                  className="mb-2 flex min-h-11 items-center rounded-lg px-3 text-sm font-bold text-plum hover:bg-cream"
-                >
-                  Gestores
-                </Link>
+                <>
+                  <Link
+                    to={ADMIN_ROUTES.managers}
+                    className="mb-2 flex min-h-11 items-center rounded-lg px-3 text-sm font-bold text-plum hover:bg-cream"
+                  >
+                    Gestores
+                  </Link>
+                  <Link
+                    to={ADMIN_ROUTES.audit}
+                    className="mb-2 flex min-h-11 items-center rounded-lg px-3 text-sm font-bold text-plum hover:bg-cream"
+                  >
+                    Auditoria
+                  </Link>
+                </>
               ) : null}
               <Button
                 variant="adminSecondary"
@@ -389,6 +408,16 @@ export function AdminShell({
             element={
               principal.role === 'owner' ? (
                 <AdminManagers token={token} onUnauthorized={onUnauthorized} />
+              ) : (
+                <Navigate to={roleDefault} replace />
+              )
+            }
+          />
+          <Route
+            path="auditoria"
+            element={
+              principal.role === 'owner' ? (
+                <AdminAudit token={token} onUnauthorized={onUnauthorized} />
               ) : (
                 <Navigate to={roleDefault} replace />
               )
