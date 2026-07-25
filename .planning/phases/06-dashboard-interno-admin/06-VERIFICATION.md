@@ -1,216 +1,302 @@
 ---
 phase: 06-dashboard-interno-admin
-verified: 2026-07-25T04:54:49Z
-status: gaps_found
-score: "3/5 roadmap must-haves verified"
+verified: 2026-07-25T06:00:09Z
+status: human_needed
+score: "4/5 roadmap must-haves verified"
 behavior_unverified: 1
 overrides_applied: 0
 requirements:
-  satisfied: [ADMIN-01, ADMIN-05, ADMIN-06]
+  satisfied: [ADMIN-01, ADMIN-04, ADMIN-05, ADMIN-06]
   needs_human: [ADMIN-02, ADMIN-03]
-  blocked: [ADMIN-04]
-gaps:
-  - truth: "O dono lista, busca, edita e remove convidados e RSVPs, incluindo troca de telefone e remoção de família depois de qualquer quantidade válida de acessos públicos."
-    status: failed
-    reason: "Sessões públicas RSVP expiradas não têm expiração/limpeza física. Depois de 129 sessões acumuladas, updateFamily e removeFamily recusam permanentemente a operação, contrariando a revogação total e o cascade exigidos por ADMIN-04."
-    artifacts:
-      - path: "convex/rsvpSecurity.ts"
-        issue: "createRsvpSession insere a sessão, mas não agenda exclusão nem oferece limpeza de expiradas."
-      - path: "convex/adminRsvps.ts"
-        issue: "Troca de telefone e remoção de família usam take(129) e falham quando existem mais de 128 sessões vinculadas."
-      - path: "convex/admin.test.ts"
-        issue: "O teste de cascade cobre somente uma quantidade pequena e não exercita mais de 128 sessões históricas/expiradas."
-    missing:
-      - "Agendar exclusão idempotente no expiresAt para cada sessão pública RSVP."
-      - "Limpar/migrar de forma limitada as sessões expiradas já existentes."
-      - "Fazer revogação/cascade concluir para mais de 128 sessões, com paginação interna se o limite transacional exigir."
-      - "Adicionar regressão com mais de 128 sessões expiradas provando troca de telefone e remoção de família com zero sessões remanescentes."
-  - truth: "Somente o registro afetado fica desabilitado, mesmo quando operações em registros diferentes estão simultaneamente em andamento."
-    status: partial
-    reason: "Cada tela guarda apenas um busyFamily/busyPost/busyWine. A operação B substitui o id de A e o finally de A pode limpar o bloqueio de B, permitindo submissão duplicada e feedback fora de ordem."
-    artifacts:
-      - path: "src/components/admin/AdminGuests.tsx"
-        issue: "busyFamily é um único string|null compartilhado por operações concorrentes."
-      - path: "src/components/admin/AdminModeration.tsx"
-        issue: "busyPost é sobrescrito e limpo incondicionalmente por qualquer conclusão."
-      - path: "src/components/admin/AdminGifts.tsx"
-        issue: "busyWine não representa mais de uma operação em andamento."
-    missing:
-      - "Rastrear IDs pendentes em Set/mapa por registro e remover somente o ID concluído."
-      - "Impedir nova chamada para um ID já pendente."
-      - "Adicionar testes de componente com promises controladas para A/B, resolvendo A primeiro e mantendo B desabilitado."
+  blocked: []
+re_verification:
+  previous_status: gaps_found
+  previous_score: "3/5"
+  gaps_closed:
+    - "CR-01: RSVP sessions now have scheduled expiry, bounded historical cleanup, immediate generation revocation, monotonic older-generation purge, and deleteAll family cleanup with 160-row regression evidence."
+    - "WR-01: Guests, moderation, and gifts now use synchronous token-owned per-record pending operations with deterministic A-first/B-pending component coverage."
+  gaps_remaining: []
+  regressions: []
+gaps: []
 behavior_unverified_items:
-  - truth: "A visão geral e os badges atualizam ao vivo em duas sessões autenticadas após mudanças nas tabelas fonte."
-    test: "Abrir duas sessões autenticadas, mudar RSVP/moderação/presente em uma e observar a outra sem recarregar."
-    expected: "Contagens, badges e listas mudam uma vez e refletem o mesmo estado confirmado no servidor."
-    why_human: "O código usa queries Convex reativas e não copia os resultados, mas nenhum teste automatizado executado pelo verificador exerce a assinatura WebSocket entre dois navegadores."
+  - truth: "A visão geral, badges, listas administrativas e superfícies públicas atualizam ao vivo entre duas sessões reais."
+    test: "Abrir duas sessões administrativas autenticadas e uma janela pública; alterar RSVP, moderação e presente em uma sessão e observar as demais sem recarregar."
+    expected: "Overview, badges, listas e projeções públicas mudam uma vez para o estado confirmado no servidor; logout, expiração ou revogação removem imediatamente dados, drafts, diálogos e pending state protegidos."
+    why_human: "Queries Convex reativas estão conectadas às tabelas fonte, mas os testes executados não estabelecem duas conexões WebSocket de navegadores independentes nem o lifecycle real de storage entre abas."
+human_verification:
+  - test: "Two-session reactivity and authorization loss"
+    expected: "RSVP, moderação e presente alterados numa sessão aparecem sem reload na outra sessão e nas superfícies públicas cabíveis; revogação/expiração/logout limpam todo estado protegido e preservam apenas rota/filtro."
+    why_human: "Exige duas sessões reais, WebSocket Convex, storage/tab lifecycle e observação do DOM público."
+  - test: "320 CSS px at 200% zoom and 1023/1024 breakpoint switch"
+    expected: "Não há overflow horizontal de página, ação inacessível, navegação duplicada nem foco duplicado; abaixo de 1024 há exatamente quatro destinos inferiores e a partir de 1024 há apenas a sidebar."
+    why_human: "Viewport, zoom e composição responsiva reais não são provados por jsdom ou inspeção de classes."
+  - test: "Long-content resilience"
+    expected: "Nomes longos de família, pessoa e vinho e uma memória longa quebram linha sem ocultar badges, conteúdo decisório, diálogos ou controles destrutivos."
+    why_human: "Intrinsic sizing, fonte renderizada e contenção visual dependem do navegador."
+  - test: "iOS and Android virtual keyboards"
+    expected: "Nos diálogos de criação/edição de família e de presente, campo ativo e CTA primário continuam visíveis e alcançáveis acima do teclado."
+    why_human: "O redimensionamento por teclado virtual e WebView não é reproduzido fielmente pelo ambiente de testes."
+  - test: "Accessibility and device chrome"
+    expected: "Contraste e foco visível passam em chips/textos/botões; safe area, Escape, trap/restauração de foco, navegação por teclado, reduced motion e alvos de 44px funcionam."
+    why_human: "Contraste renderizado, foco real, preferências do sistema e device chrome exigem auditoria manual em navegador/dispositivo."
+  - test: "Prohibition 06-01/P1 — credential and protected-data disclosure"
+    expected: "Confirmar que senha, registros protegidos brutos, hash de sessão e material de credencial não aparecem em storage, logs, DTOs públicos ou mensagens."
+    why_human: "O plano mantém esta proibição judgment-tier como unresolved; evidência de código favorável não constitui aceitação humana."
+  - test: "Prohibition 06-01/P2 — authentication scope"
+    expected: "Confirmar que a senha compartilhada não virou contas individuais, papéis, acesso de moderadora, OAuth ou credencial guest-to-admin."
+    why_human: "Proibição judgment-tier unresolved requer decisão humana explícita."
+  - test: "Prohibition 06-02/P1 — excluded shell features"
+    expected: "Confirmar ausência de papéis de moderadora, códigos de equipe, Instagram, telão, settings, QR, reservas, checkout e importação em massa."
+    why_human: "Proibição judgment-tier unresolved requer decisão humana explícita."
+  - test: "Prohibition 06-02/P2 — overview truthfulness"
+    expected: "Confirmar que o overview não apresenta contagem fabricada, stale como atual, família como pessoa ou dado não autorizado como verdade ao vivo."
+    why_human: "A aritmética é testada, mas a alegação completa de verdade operacional inclui julgamento e reatividade real."
+  - test: "Prohibition 06-03/P1 — family-data isolation"
+    expected: "Confirmar que telefone/contato privados, ids internos e registros de outra família não aparecem em endpoints públicos ou respostas admin não autorizadas."
+    why_human: "Proibição judgment-tier unresolved requer revisão humana explícita da fronteira de dados."
+  - test: "Prohibition 06-03/P2 — stale/destructive truthfulness"
+    expected: "Confirmar que edição stale/ambígua nunca sobrescreve estado novo e ação destrutiva só anuncia sucesso após a consequência exata."
+    why_human: "Testes cobrem conflitos centrais, mas o must-NOT permanece judgment-tier unresolved."
+  - test: "Prohibition 06-04/P1 — moderation privacy"
+    expected: "Confirmar que texto, metadados e URLs protegidas de memórias pendentes/ocultas nunca chegam a consumidores públicos."
+    why_human: "Proibição judgment-tier unresolved requer aceite humano apesar das projeções e regressões favoráveis."
+  - test: "Prohibition 06-04/P2 — moderation stale/undo safety"
+    expected: "Confirmar que undo ou ação stale não sobrescreve decisão mais nova nem informa visibilidade pública incorreta."
+    why_human: "O teste ABA passa, mas a proibição declarada continua unresolved e não pode ser silenciosamente aprovada."
+  - test: "Prohibition 06-04/P3 — gift attribution privacy"
+    expected: "Confirmar que nome do presenteador e timestamp nunca aparecem no catálogo público."
+    why_human: "Proibição judgment-tier unresolved requer aceite humano apesar do DTO público estreito."
+  - test: "Prohibition 06-04/P4 — atomic gift truthfulness"
+    expected: "Confirmar que mark/unmark não anuncia sucesso nem limpa atribuição quando um estado concorrente novo impede a transição exata."
+    why_human: "Regressões stale/ABA passam, mas o must-NOT permanece judgment-tier unresolved."
+  - test: "Prohibition 06-05/P1 — cleanup authority and identity"
+    expected: "Confirmar que cleanup não usa autoridade cliente, não expõe token/hash, não renova expiração e não apaga linha cuja identidade/expiração diverge do comando."
+    why_human: "Proibição judgment-tier unresolved requer decisão humana explícita."
+  - test: "Prohibition 06-05/P2 — bounded migration"
+    expected: "Confirmar que a migração não coleta tabela ilimitada, não troca lifecycle por novo teto e não repete continuação sem progresso."
+    why_human: "Paginação e regressões são favoráveis, porém o plano mantém o must-NOT judgment-tier unresolved."
+  - test: "Prohibition 06-06/P1 — no fixed-count denial"
+    expected: "Confirmar que operações do dono não falham por quantidade histórica fixa e não anunciam revogação enquanto capability antiga ainda autoriza."
+    why_human: "Os casos de 160 linhas passam, mas a proibição permanece judgment-tier unresolved."
+  - test: "Prohibition 06-06/P2 — generation purge isolation"
+    expected: "Confirmar que purge não apaga sessão current/newer, não cruza família, não contorna revisão otimista e não expõe hash."
+    why_human: "A entrega reordenada é testada, mas o must-NOT declarado requer resolução humana explícita."
+  - test: "Prohibition 06-07/P1 — pending ownership"
+    expected: "Confirmar que conclusão não limpa coleção/lock alheio, não duplica mutation para id pendente e não aplica feedback/dialog cleanup stale."
+    why_human: "Os testes DOM cobrem o cenário determinístico, mas a proibição judgment-tier segue unresolved."
+  - test: "Prohibition 06-07/P2 — automation does not replace physical UAT"
+    expected: "Confirmar explicitamente que os testes de concorrência não foram aceitos como substitutos dos testes reais de duas sessões, zoom, teclado, safe area, foco, reduced motion e contraste."
+    why_human: "Esta é uma proibição de processo judgment-tier e exige aceite humano."
 ---
 
 # Phase 6: Dashboard Interno (/admin) Verification Report
 
 **Phase Goal:** Os donos operam tudo de um painel protegido que atualiza ao vivo.
-**Verified:** 2026-07-25T04:54:49Z
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Verified:** 2026-07-25T06:00:09Z
+**Status:** human_needed
+**Re-verification:** Yes — after CR-01 and WR-01 gap closure
 
 ## Verdict
 
-A autenticação administrativa, o gate protegido, a moderação e a operação de
-presentes existem, estão conectados aos dados reais e têm testes
-comportamentais focados. A fase, porém, não pode ser encerrada: a operação de
-convidados fica permanentemente indisponível quando uma família acumula mais
-de 128 sessões públicas RSVP, inclusive expiradas. Essas sessões não são
-removidas pelo tempo.
+Os dois gaps de código do relatório anterior estão fechados. A revogação RSVP
+não depende mais de contar sessões históricas, e as três telas operacionais
+mantêm pending state independente por registro. A leitura direta do código e
+12 spot-checks focados confirmam lifecycle, sweep, revogação/cascade com 160
+sessões, entrega reordenada e concorrência A/B nas telas reais.
 
-O warning de concorrência do code review também foi confirmado no código. Ele
-não cria corrupção silenciosa no backend porque as revisões esperadas recusam
-o write obsoleto, mas viola o contrato de busy state da interface e permite
-submissões duplicadas enquanto outra operação ainda está pendente.
+A fase não recebe `passed`: a verdade de atualização ao vivo ainda não foi
+exercida entre dois navegadores reais; os backstops de dispositivo/layout
+continuam explícitos; e as 16 proibições judgment-tier dos planos permanecem
+`unresolved`. Não há gap automatizado conhecido nem regressão observada.
 
 ## Goal Achievement
 
-### Observable Truths
+### Observable Roadmap Truths
 
 | # | Truth | Status | Evidence |
 |---|---|---|---|
-| 1 | O dono entra com a senha compartilhada; sem senha, `/admin` não expõe dados. | ✓ VERIFIED | `adminAuth.login` limita tentativas, compara o segredo no servidor, persiste somente hash e agenda expiração; `Admin.tsx` monta apenas status/login antes da autenticação. O teste nomeado de sessão absoluta passou. |
-| 2 | A visão geral mostra confirmações atualizando ao vivo. | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `AdminShell` assina `adminOverview.get`; a query autoriza primeiro e lê diretamente `rsvps`, `rsvpGuests`, `posts` e `wines`. O teste de agregados passou, mas o verificador não executou uma assinatura WebSocket em dois navegadores. |
-| 3 | O dono lista, busca, edita e remove convidados e RSVPs. | ✗ FAILED | CRUD, busca e revisão existem, porém `updateFamily` e `removeFamily` recusam mais de 128 sessões enquanto sessões expiradas permanecem indefinidamente. |
-| 4 | O dono aprova/oculta posts do mural na fila de moderação. | ✓ VERIFIED | `adminPosts` autoriza antes da projeção, ordena pendentes, aplica somente transições legais e usa revisão no undo. O teste nomeado de undo stale/ABA passou. |
-| 5 | O dono marca vinhos como presenteados. | ✓ VERIFIED | `adminWines` e `wineOperations` exigem presenter, usam timestamp/revisão do servidor e limpam atribuição atomicamente. O teste nomeado stale/ABA de presente passou. |
+| 1 | O dono entra com a senha compartilhada; sem senha, `/admin` não expõe dados. | ✓ VERIFIED | `adminAuth.login` verifica o segredo server-side, cria capability hash-only com TTL absoluto e expiry agendada; `Admin.tsx` não monta o shell protegido antes do status válido. Teste nomeado de sessão absoluta passou. |
+| 2 | A visão geral mostra confirmações atualizando ao vivo. | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `AdminShell` mantém `adminOverview.get` como query Convex direta; a query autoriza e deriva contagens das tabelas fonte, e o teste de agregados passa. Nenhum spot-check abriu duas conexões WebSocket reais. |
+| 3 | O dono lista, busca, edita e remove convidados e RSVPs. | ✓ VERIFIED | CRUD, busca/filtros agrupados e revisão otimista estão conectados. Phone change incrementa geração atomicamente; family delete remove a família antes do `deleteAll`; regressões com 160 sessões provam revogação imediata e convergência física. |
+| 4 | O dono aprova/oculta posts na fila de moderação. | ✓ VERIFIED | Query protegida, ordem oldest-first, transições fechadas, revisão monotônica e undo condicional estão conectados; teste stale/ABA e componente concorrente passam. |
+| 5 | O dono marca vinhos como presenteados. | ✓ VERIFIED | Mark/unmark protegidos usam presenter/timestamp/revisão e transição atômica compartilhada; DTO público omite atribuição; regressões stale/ABA e componente concorrente passam. |
 
-**Score:** 3/5 truths verified (1 present, behavior-unverified; 1 failed)
+**Score:** 4/5 roadmap truths verified (1 present, behavior-unverified)
+
+## Previous Gap Re-verification
+
+### CR-01 — CLOSED
+
+- `createRsvpSession` lê a geração atual, grava somente hash/generation/expiry e
+  agenda `expireRsvpSession` no `expiresAt`.
+- `resolveActiveRsvpSession` exige `now < expiresAt`, convite existente e
+  igualdade legacy-aware de geração.
+- `expireRsvpSessionRecord` compara id + expiry e é idempotente.
+- O sweep histórico inicia sem input, captura cutoff server-side, usa
+  `by_expires_at` em páginas de 50, valida cursor/cutoff e preserva linhas
+  ativas.
+- `updateFamily` incrementa geração junto da troca lógica de telefone e agenda
+  `olderThanGeneration`; acesso antigo falha antes da limpeza.
+- A limpeza usa o predicado monotônico
+  `sessionGeneration < commandGeneration`, preservando geração igual/nova sob
+  atraso, retry e reordenação.
+- `removeFamily` apaga guests/família antes de agendar o modo exclusivo
+  `deleteAll`; a ausência da família revoga imediatamente.
+- Os testes reais de integração criam 160 sessões nos dois caminhos e terminam
+  com zero sessões obsoletas/vinculadas.
+
+### WR-01 — CLOSED
+
+- `usePendingOperations` mantém `Map<id, token>` síncrono e `Set` imutável para
+  renderização.
+- Segundo `run(id)` no mesmo tick retorna `started: false` antes da mutation.
+- O `finally` remove apenas o id se o mesmo token ainda for dono.
+- `clear()` invalida tokens antes de limpar pending state; promises tardias não
+  repovoam dados protegidos.
+- Guests, moderation e gifts usam ids de família/post/vinho; feedback e
+  diálogos verificam `isCurrent()`/`isLatest()` e identidade/revisão.
+- Três testes jsdom dos componentes exportados resolvem A antes de B, mantêm B
+  disabled/`aria-busy`, recusam duplicata e cobrem auth clear.
 
 ## Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |---|---|---|---|
-| `convex/adminAuth.ts`, `adminSecurity.ts`, `adminInternal.ts` | Sessão protegida absoluta e revogável | ✓ VERIFIED | Substantivos, indexados, testados e conectados ao gate. |
-| `src/routes/Admin.tsx`, `AdminShell.tsx` | Gate e shell `/admin/*` | ✓ VERIFIED (code) / HUMAN UI | Nenhum subtree protegido monta no checking/anônimo; quatro rotas estão conectadas. Backstops visuais permanecem abaixo. |
-| `convex/adminOverview.ts`, `AdminOverview.tsx` | Resumo operacional de fontes reais | ✓ VERIFIED (data flow) / BEHAVIOR UNVERIFIED | Query protegida e componente conectados; reatividade multi-browser requer UAT. |
-| `convex/adminRsvps.ts`, `AdminGuests.tsx` | Operação completa por família | ✗ BLOCKED | CRUD existe, mas a revogação/cascade tem teto permanente de 128 sessões. |
-| `convex/adminPosts.ts`, `AdminModeration.tsx` | Fila e transições de moderação | ✓ VERIFIED | Estado/revisão e UI estão conectados; projeção pública continua aprovada-only. |
-| `convex/adminWines.ts`, `wineOperations.ts`, `AdminGifts.tsx` | Operação atômica de presentes | ✓ VERIFIED | Projeção admin, writers e UI estão conectados; DTO público permanece estreito. |
+| `convex/adminAuth.ts`, `adminSecurity.ts`, `adminInternal.ts` | Auth/session protected and revocable | ✓ VERIFIED | Substantive, indexed, scheduled and shared by protected endpoints. |
+| `src/routes/Admin.tsx`, `AdminShell.tsx` | Fail-closed gate and four-area shell | ✓ VERIFIED (code) / HUMAN UI | Protected subtree is gated; physical responsive/accessibility checks remain below. |
+| `convex/adminOverview.ts`, `AdminOverview.tsx` | Real source-row operational summary | ✓ VERIFIED (flow) / BEHAVIOR UNVERIFIED | Direct protected query and render path; multi-browser live behavior awaits UAT. |
+| `convex/rsvpSecurity.ts`, `rsvpInternal.ts` | Session lifecycle and bounded cleanup | ✓ VERIFIED | Scheduled expiry, indexed sweep, generation authorization and bounded purge are substantive and tested. |
+| `convex/adminRsvps.ts`, `AdminGuests.tsx` | Complete family operation | ✓ VERIFIED | Cap-free revocation/cascade plus per-family command ownership. |
+| `convex/adminPosts.ts`, `AdminModeration.tsx` | Protected moderation queue | ✓ VERIFIED | Closed transitions, exact undo and per-post pending ownership. |
+| `convex/adminWines.ts`, `wineOperations.ts`, `AdminGifts.tsx` | Atomic gift operation | ✓ VERIFIED | Protected attribution, narrow public projection and per-wine command ownership. |
+| `src/lib/adminOperations.ts` | Shared pending/concurrency primitives | ✓ VERIFIED | Synchronous duplicate guard and token-owned settlement are wired to all three screens. |
+| `adminPendingOperations.test.ts` | Actual-screen A/B ordering proof | ✓ VERIFIED | Guests, moderation and gifts exercise deferred mutation promises in rendered DOM. |
 
 ## Key Link Verification
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `Admin.tsx` | `AdminShell` | `getSessionStatus` válido | ✓ WIRED | Shell não monta antes de autorização. |
-| `AdminShell` | overview/guests/moderation/gifts | rotas e queries protegidas | ✓ WIRED | Os quatro destinos reais substituem placeholders. |
-| `adminOverview.get` | tabelas fonte | `requireAdminSession` + consultas diretas | ✓ WIRED | Não há contador materializado ou snapshot cliente. |
-| `AdminGuests` | `adminRsvps` | mutations com expected revision | ⚠️ PARTIAL | Wiring funcional, mas o cascade falha acima de 128 sessões e o busy state concorrente é inexato. |
-| `AdminModeration` | `adminPosts` | status + revision + undo | ✓ WIRED | Teste stale/ABA passou. |
-| `AdminGifts` | `adminWines` | `updatedAt` + transição atômica | ✓ WIRED | Teste stale/ABA passou. |
+| `createRsvpSession` | `expireRsvpSession` | `scheduler.runAt(expiresAt, {sessionId, expectedExpiresAt})` | ✓ WIRED | Exact absolute lifecycle command. |
+| `resolveActiveRsvpSession` | invitation/session generation | strict expiry + legacy-aware equality | ✓ WIRED | Old/missing-family capabilities fail before projection. |
+| `updateFamily` | bounded purge | atomic generation patch + immutable `olderThanGeneration` command | ✓ WIRED | No `.take(129)` or session-count refusal remains. |
+| `removeFamily` | orphan purge | family delete + explicit `deleteAll` command | ✓ WIRED | Logical denial precedes physical cleanup. |
+| daily cron | historical sweep | no-argument start + cursor/cutoff continuation | ✓ WIRED | Indexed pages and stable server cutoff. |
+| admin screens | Convex mutations | `usePendingOperations.run(recordId, operation)` | ✓ WIRED | Independent lock, duplicate guard and token-scoped completion. |
+| `AdminShell` | overview/guests/moderation/gifts | nested routes + protected reactive queries | ✓ WIRED | Four destinations consume source-backed data. |
 
 ## Data-Flow Trace
 
 | Surface | Source | Produces Real Data | Status |
 |---|---|---|---|
-| Overview | `adminOverview.get` → RSVP/posts/wines | Yes | ✓ FLOWING |
-| Guests | `adminRsvps.listFamilies` → grouped protected DTO | Yes | ⚠️ FLOWING WITH CASCADE GAP |
-| Moderation | `adminPosts.listByStatus` → posts + protected storage URL | Yes, after auth | ✓ FLOWING |
-| Gifts | `adminWines.listAdmin` → wines with admin-only attribution | Yes, after auth | ✓ FLOWING |
-| Public album/catalog | `posts.listApproved` / public wines projection | Yes, narrow DTOs | ✓ FLOWING |
+| Overview/badges | `adminOverview.get` → rsvps/guests/posts/wines | Yes | ✓ FLOWING; live cross-browser behavior pending |
+| Guests | `adminRsvps.listFamilies` → grouped protected DTO | Yes | ✓ FLOWING |
+| Moderation | `adminPosts.listByStatus` → protected post/storage projection | Yes, after auth | ✓ FLOWING |
+| Gifts | `adminWines.listAdmin` → protected wine attribution | Yes, after auth | ✓ FLOWING |
+| Public RSVP | token hash → active generation-matched family | Yes | ✓ FLOWING |
+| Public album/catalog | approved posts / narrow wine DTO | Yes | ✓ FLOWING |
 
 ## Behavioral Spot-Checks
 
-| Behavior | Command | Result | Status |
-|---|---|---|---|
-| Sessão absoluta de sete dias sem token/hash no retorno | `npx vitest run convex/admin.test.ts -t "creates an absolute seven-day session and exposes no token or hash"` | 1 passed | ✓ PASS |
-| Agregados de overview vindos das tabelas fonte | `npx vitest run convex/admin.test.ts -t "counts mixed-family attendance, memories, wines and badges from source rows"` | 1 passed | ✓ PASS |
-| Cascade RSVP no caso pequeno coberto pelo teste atual | `npx vitest run convex/admin.test.ts -t "keeps public refs stable, revokes only on logical phone change and cascades sessions"` | 1 passed | ✓ PASS, insufficient for >128 |
-| Undo de moderação não sobrescreve revisão nova/ABA | `npx vitest run convex/admin.test.ts -t "undoes the exact action but rejects stale and ABA revisions without writing"` | 1 passed | ✓ PASS |
-| Desmarcar presente não limpa gift novo/ABA | `npx vitest run convex/admin.test.ts -t "clears attribution together and rejects stale/ABA gift commands"` | 1 passed | ✓ PASS |
-| Build de produção | `npm run build` | TypeScript + Vite succeeded | ✓ PASS |
+Command:
 
-A evidência do gate anterior também registra 24 arquivos e 477 testes
-passando. Ela confirma ausência de regressão geral, mas não cobre o caso
-histórico de mais de 128 sessões.
+`npx vitest run convex/rsvps.test.ts convex/admin.test.ts src/lib/adminOperations.test.ts src/components/admin/adminPendingOperations.test.ts -t "stores invitation generation|starts without caller state and drains|revokes 160 historical|preserves generation 2|removes a family with 160|admin screen pending operations|creates an absolute seven-day session|counts mixed-family attendance|undoes the exact action|clears attribution together"`
+
+Result: **3 files passed, 1 skipped by selector; 12 tests passed, 89 skipped;
+exit 0**.
+
+| Behavior | Status |
+|---|---|
+| Absolute admin session and no credential/hash DTO | ✓ PASS |
+| Overview counts from mixed source rows | ✓ PASS |
+| New RSVP session generation + scheduled physical expiry | ✓ PASS |
+| Historical sweep bounded under stable server cutoff | ✓ PASS |
+| 160-session phone change: immediate denial + zero obsolete rows | ✓ PASS |
+| Delayed/reordered purge preserves generation 2 | ✓ PASS |
+| 160-session family removal + deleteAll convergence | ✓ PASS |
+| Moderation stale/ABA undo protection | ✓ PASS |
+| Gift stale/ABA atomic attribution clearing | ✓ PASS |
+| Guests/moderation/gifts A-first/B-pending and auth clear | ✓ PASS |
+
+The orchestrator additionally recorded `npm test -- --run` with **25 files and
+494 passing tests**, and `npm run build` passing. Those broad results are
+regression evidence, not a substitute for the focused checks above or physical
+UAT.
 
 ## Probe Execution
 
-Nenhum `probe-*.sh` foi declarado ou encontrado para a fase.
+No `probe-*.sh` is declared or present for Phase 6. The phase uses Vitest,
+schema synchronization and bounded internal Convex smokes instead.
 
 ## Requirements Coverage
 
-| Requirement | Source Plan | Status | Evidence |
+| Requirement | Source Plans | Status | Evidence |
 |---|---|---|---|
-| ADMIN-01 | 06-01 | ✓ SATISFIED | Senha server-only, capability opaca hash-only, TTL absoluto, logout e expiração agendada. |
-| ADMIN-02 | 06-02 | ? NEEDS HUMAN | Shell e breakpoints existem no código; zoom real, safe area, foco e troca 1023/1024 ainda exigem UAT final. |
-| ADMIN-03 | 06-02 | ? NEEDS HUMAN | Agregados estão corretos e a assinatura é reativa por construção; atualização simultânea entre navegadores não foi exercida pelo verificador. |
-| ADMIN-04 | 06-03 | ✗ BLOCKED | Operações falham depois de 128 sessões acumuladas. |
-| ADMIN-05 | 06-04 | ✓ SATISFIED | Fila, transições, revisão, undo condicional e privacidade pública testados. |
-| ADMIN-06 | 06-04 | ✓ SATISFIED | Mark/unmark atômicos, presenter obrigatório, timestamp server-side e DTO público estreito testados. |
+| ADMIN-01 | 06-01, 06-02 | ✓ SATISFIED | Server-only password, opaque hash-only capability, absolute TTL, logout/expiry and fail-closed gate. |
+| ADMIN-02 | 06-02 | ? NEEDS HUMAN | Sidebar/bottom-bar/route implementation exists; real zoom, breakpoint, keyboard, safe-area, focus and contrast checks remain. |
+| ADMIN-03 | 06-02 | ? NEEDS HUMAN | Source-row arithmetic and protected query pass; real two-session WebSocket update is behavior-unverified. |
+| ADMIN-04 | 06-03, 06-05, 06-06, 06-07 | ✓ SATISFIED | Full family operation, generation revocation, bounded lifecycle/cascade, 160-row cases and per-family pending state. |
+| ADMIN-05 | 06-04, 06-07 | ✓ SATISFIED | Protected queue, legal transitions, revision-safe undo, privacy and independent per-post pending state. |
+| ADMIN-06 | 06-04, 06-07 | ✓ SATISFIED | Required presenter/server time, atomic mark/unmark, public omission and independent per-wine pending state. |
 
-Não há requisito órfão: ADMIN-01–06 aparecem nos quatro planos. O estado
-Pending de ADMIN-04–06 em `REQUIREMENTS.md` e os contadores 2/4 do
-`ROADMAP.md` são tracking ainda não atualizado, não evidência de ausência de
-código.
+ADMIN-01–06 are all claimed by plans; no phase requirement is orphaned. The
+stale Pending markers for ADMIN-05/06 and 5/7 plan count in tracking files are
+orchestration metadata, not implementation failures.
 
 ## Adversarial / Test Quality Findings
 
-1. **Requisito parcialmente atendido:** ADMIN-04 funciona somente enquanto a
-   família possui no máximo 128 sessões históricas.
-2. **Teste que parece mais amplo do que é:** o caso
-   `keeps public refs stable... cascades sessions` passa, mas usa poucas
-   sessões e não prova “revogar todas” sob o histórico que causa o defeito.
-3. **Caminho sem cobertura:** não há teste para 129 sessões expiradas nem
-   teste de componente que mantenha B busy após A concluir.
+1. **Partial requirement sought:** ADMIN-03 remains present and wired but not
+   behaviorally proven across independent browser subscriptions.
+2. **Potentially misleading evidence rejected:** jsdom A/B concurrency proves
+   promise/DOM ownership, not real Convex WebSocket propagation, zoom, virtual
+   keyboards or device safe areas.
+3. **Error-path check:** auth-clear tests invalidate in-flight command tokens;
+   late promises cannot repopulate feedback/dialog state.
+4. **Previously weak lifecycle test replaced:** the old small cascade case is
+   now complemented by 160-row phone/family cases and arbitrary cleanup order.
 
 ## Anti-Patterns Found
 
-| File | Lines | Pattern | Severity | Impact |
-|---|---:|---|---|---|
-| `convex/adminRsvps.ts` | 20, 227–234, 371–380 | Teto fixo sobre dados que acumulam sem lifecycle | 🛑 BLOCKER | Bloqueia troca de telefone e remoção de família. |
-| `AdminGuests.tsx` | 193, 264–354 | Um único busy ID para operações concorrentes | ⚠️ Warning | Busy state inexato e possível duplicate submit. |
-| `AdminModeration.tsx` | 82, 132–198 | Um único busy ID para operações concorrentes | ⚠️ Warning | Outra ação pode perder o bloqueio antes de concluir. |
-| `AdminGifts.tsx` | 154, 202–258 | Um único busy ID para operações concorrentes | ⚠️ Warning | Dialog/linha pode ser reativado prematuramente. |
-
-Nenhum `TBD`, `FIXME`, `XXX`, `TODO`, `HACK`, placeholder ou handler
-`console.log` foi encontrado nos 43 arquivos revisados.
+No `TBD`, `FIXME`, `XXX`, `TODO`, `HACK`, placeholder or console-only handler
+was found in the Phase 6 production/test scope. The final independent code
+review reports 47 files reviewed, 101 focused tests and zero critical, warning
+or informational findings.
 
 ## Prohibition Review
 
-Os dez `must_haves.prohibitions` dos planos continuam declarados como
-`status: unresolved` e sem mecanismo de enforcement tipado no frontmatter.
-Leitura de código e testes fornece evidência favorável — nenhum papel/feature
-antiga reapareceu, queries públicas continuam estreitas, tokens/senhas não
-entram em DTOs, e revisões impedem overwrite stale — mas esse é um julgamento
-LLM não autoritativo. Após fechar os gaps, recomenda-se revisão humana explícita
-dos quatro grupos: segredos/escopo da autenticação; privacidade e verdade dos
-dados RSVP/overview; privacidade e concorrência da moderação; privacidade e
-atomicidade dos presentes.
+All 16 plan prohibitions remain declared `status: unresolved` without a typed
+test-tier enforcement declaration. Code and tests provide favorable,
+non-authoritative evidence: protected/public projections are separate; no
+excluded roles/features were added; stale writes use revisions; RSVP cleanup
+is internal/bounded/generation-safe; and pending completion is token-owned.
+
+Under the verifier contract, favorable LLM judgment cannot silently turn those
+judgment-tier items green. Each prohibition is therefore represented as an
+explicit human-verification item in the frontmatter.
 
 ## Human Verification Required
 
-Depois de corrigir os gaps, executar:
+Automated code gaps are closed. Complete the following before marking the phase
+passed:
 
-1. Duas sessões autenticadas, alterando RSVP, moderação e presente em uma e
-   observando overview, badges, listas e superfícies públicas na outra.
-2. 320 CSS px com zoom real de 200%, e 1023/1024px, verificando ausência de
-   overflow, navegação duplicada ou foco inacessível.
-3. Nomes muito longos de família/pessoa/vinho e mensagem longa de memória,
-   preservando controles destrutivos, badges e conteúdo decisório.
-4. Teclado virtual real em iOS e Android nos diálogos de família e presente,
-   mantendo campo ativo e CTA alcançáveis.
-5. Contraste/foco/chips, reduced motion, safe area, Escape, trap e restauração
-   de foco em dispositivos/navegadores reais.
-6. Revisão humana dos dez prohibitions ainda marcados `unresolved`.
+1. Two-session WebSocket reactivity, public parity and authorization-loss
+   clearing.
+2. 320 CSS px at real 200% zoom and the 1023/1024 shell transition.
+3. Long family/person/wine/memory content.
+4. iOS and Android virtual keyboards in family and gift dialogs.
+5. Contrast, visible focus, safe area, Escape, focus trap/restore, keyboard
+   completion, reduced motion and 44px targets.
+6. Explicitly accept or reject each of the 16 unresolved prohibitions listed
+   in frontmatter.
 
 ## Gaps Summary
 
-O gap CR-01 é decisivo: sem lifecycle das sessões públicas, uma quantidade
-alcançável de acessos expira logicamente, mas permanece fisicamente e torna
-ADMIN-04 incapaz de trocar telefone ou remover a família. A fase deve continuar
-aberta até a limpeza/expiração e o cascade acima de 128 serem provados por
-regressão. WR-01 deve ser corrigido junto para que a interface represente
-operações concorrentes com fidelidade.
-
-Nenhum item é deferível para a Phase 7: os critérios de lançamento não incluem
-lifecycle RSVP nem o busy state concorrente do dashboard.
+No automated implementation gap remains from CR-01 or WR-01, and no regression
+was found. The only blocking route is human verification: one roadmap truth is
+present but behavior-unverified, eight explicit plan backstop truths collapse
+into the five device/browser scenarios above, and 16 judgment-tier
+prohibitions require explicit human resolution.
 
 ---
 
-_Verified: 2026-07-25T04:54:49Z_
+_Verified: 2026-07-25T06:00:09Z_
 _Verifier: Claude (gsd-verifier)_
