@@ -1,0 +1,295 @@
+import { describe, expect, it } from 'vitest'
+import {
+  ADMIN_SESSION_STORAGE_KEY,
+  adminDeadlineAction,
+  adminStorageEventAction,
+  generateAdminCapability,
+  readAdminSession,
+  reduceAdminSession,
+  storeAdminSession,
+  type AdminSessionState,
+} from './adminSession'
+
+class MemoryStorage implements Storage {
+  readonly values = new Map<string, string>()
+  shouldThrow = false
+
+  get length() {
+    return this.values.size
+  }
+
+  clear() {
+    if (this.shouldThrow) throw new Error('blocked')
+    this.values.clear()
+  }
+
+  getItem(key: string) {
+    if (this.shouldThrow) throw new Error('blocked')
+    return this.values.get(key) ?? null
+  }
+
+  key(index: number) {
+    if (this.shouldThrow) throw new Error('blocked')
+    return [...this.values.keys()][index] ?? null
+  }
+
+  removeItem(key: string) {
+    if (this.shouldThrow) throw new Error('blocked')
+    this.values.delete(key)
+  }
+
+  setItem(key: string, value: string) {
+    if (this.shouldThrow) throw new Error('blocked')
+    this.values.set(key, value)
+  }
+}
+
+const TOKEN_A = 'A'.repeat(43)
+
+function checking(sequence = 1): AdminSessionState {
+  return { kind: 'checking', sequence, token: TOKEN_A }
+}
+
+describe('admin capability persistence', () => {
+  it('generates canonical base64url from exactly 32 injected random bytes', () => {
+    const token = generateAdminCapability((bytes) => {
+      bytes.forEach((_, index) => {
+        bytes[index] = index
+      })
+    })
+
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/u)
+    expect(token).not.toContain('=')
+  })
+
+  it('restores only a versioned capability and non-authoritative expiry hint', () => {
+    const storage = new MemoryStorage()
+    expect(
+      storeAdminSession(storage, {
+        token: TOKEN_A,
+        expiresAt: 987_654,
+      }),
+    ).toBe(true)
+
+    const serialized = storage.getItem(ADMIN_SESSION_STORAGE_KEY)
+    expect(JSON.parse(serialized ?? '')).toEqual({
+      version: 1,
+      token: TOKEN_A,
+      expiresAt: 987_654,
+    })
+    expect(serialized).not.toContain('password')
+    expect(serialized).not.toContain('draft')
+    expect(readAdminSession(storage)).toEqual({
+      token: TOKEN_A,
+      expiresAt: 987_654,
+    })
+  })
+
+  it('does not treat the expiry hint as authorization after reopen', () => {
+    const storage = new MemoryStorage()
+    storeAdminSession(storage, { token: TOKEN_A, expiresAt: 987_654 })
+
+    const restored = readAdminSession(storage)
+    expect(restored).toEqual({ token: TOKEN_A, expiresAt: 987_654 })
+    expect(checking()).toEqual({
+      kind: 'checking',
+      sequence: 1,
+      token: TOKEN_A,
+    })
+  })
+
+  it.each([
+    ['not json', 'not-json'],
+    ['wrong version', JSON.stringify({ version: 2, token: TOKEN_A })],
+    ['malformed token', JSON.stringify({ version: 1, token: 'short' })],
+    [
+      'bad expiry',
+      JSON.stringify({ version: 1, token: TOKEN_A, expiresAt: 'tomorrow' }),
+    ],
+  ])('clears malformed storage: %s', (_, value) => {
+    const storage = new MemoryStorage()
+    storage.setItem(ADMIN_SESSION_STORAGE_KEY, value)
+
+    expect(readAdminSession(storage)).toBeNull()
+    expect(storage.getItem(ADMIN_SESSION_STORAGE_KEY)).toBeNull()
+  })
+
+  it('fails safely when browser storage throws', () => {
+    const storage = new MemoryStorage()
+    storage.shouldThrow = true
+
+    expect(readAdminSession(storage)).toBeNull()
+    expect(storeAdminSession(storage, { token: TOKEN_A })).toBe(false)
+  })
+})
+
+describe('admin session reducer fail-closed lifecycle', () => {
+  it('authenticates only the current authoritative status result', () => {
+    const transition = reduceAdminSession(checking(), {
+      type: 'status-valid',
+      sequence: 1,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+      now: 9_999,
+    })
+
+    expect(transition.state).toEqual({
+      kind: 'authenticated',
+      sequence: 1,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+    })
+    expect(transition.effects).toEqual([
+      {
+        type: 'store-session',
+        session: { token: TOKEN_A, expiresAt: 10_000 },
+      },
+    ])
+  })
+
+  it('expires at the exact local deadline and explicitly clears protected state', () => {
+    const authenticated: AdminSessionState = {
+      kind: 'authenticated',
+      sequence: 3,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+    }
+    const transition = reduceAdminSession(authenticated, {
+      type: 'deadline-reached',
+      sequence: 3,
+    })
+
+    expect(transition.state).toEqual({
+      kind: 'anonymous',
+      sequence: 3,
+      notice: 'expired',
+    })
+    expect(transition.effects).toEqual([
+      { type: 'clear-sensitive-state' },
+      { type: 'clear-stored-session' },
+    ])
+    expect(adminDeadlineAction(
+      { token: TOKEN_A, expiresAt: 10_000 },
+      10_000,
+      3,
+    )).toEqual({ type: 'deadline-reached', sequence: 3 })
+  })
+
+  it('treats server revocation and cross-tab removal as immediate clearing', () => {
+    const authenticated: AdminSessionState = {
+      kind: 'authenticated',
+      sequence: 4,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+    }
+    for (const action of [
+      { type: 'session-revoked', sequence: 4 } as const,
+      { type: 'storage-removed', sequence: 4 } as const,
+    ]) {
+      const transition = reduceAdminSession(authenticated, action)
+      expect(transition.state.kind).toBe('anonymous')
+      expect(transition.effects).toContainEqual({
+        type: 'clear-sensitive-state',
+      })
+    }
+    expect(
+      adminStorageEventAction(
+        { key: ADMIN_SESSION_STORAGE_KEY, newValue: null },
+        4,
+      ),
+    ).toEqual({ type: 'storage-removed', sequence: 4 })
+    expect(
+      adminStorageEventAction({ key: 'unrelated', newValue: null }, 4),
+    ).toBeNull()
+  })
+
+  it('cannot reauthenticate from a stale result after a later logout', () => {
+    const authenticated: AdminSessionState = {
+      kind: 'authenticated',
+      sequence: 1,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+    }
+    const loggingOut = reduceAdminSession(authenticated, {
+      type: 'logout-started',
+      sequence: 2,
+    }).state
+    const stale = reduceAdminSession(loggingOut, {
+      type: 'status-valid',
+      sequence: 1,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+      now: 2_000,
+    })
+
+    expect(stale.state).toEqual(loggingOut)
+    expect(stale.effects).toEqual([])
+  })
+
+  it('clears protected state after logout failure while retaining only a bounded revocation token', () => {
+    const loggingOut: AdminSessionState = {
+      kind: 'logging-out',
+      sequence: 2,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+    }
+    const transition = reduceAdminSession(loggingOut, {
+      type: 'logout-failed',
+      sequence: 2,
+    })
+
+    expect(transition.state).toEqual({
+      kind: 'error',
+      sequence: 2,
+      reason: 'network',
+      retryToken: TOKEN_A,
+    })
+    expect(transition.effects).toEqual([
+      { type: 'clear-sensitive-state' },
+      { type: 'clear-stored-session' },
+    ])
+  })
+
+  it.each([
+    ['invalid_credentials', undefined],
+    ['rate_limited', 30],
+    ['network', undefined],
+    ['configuration', undefined],
+  ] as const)('keeps %s as a distinct retryable outcome', (reason, retryAfterSeconds) => {
+    const state: AdminSessionState = {
+      kind: 'authenticating',
+      sequence: 5,
+    }
+    const transition = reduceAdminSession(state, {
+      type: 'login-failed',
+      sequence: 5,
+      reason,
+      ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+    })
+
+    expect(transition.state).toMatchObject({ kind: 'error', reason })
+    if (retryAfterSeconds !== undefined) {
+      expect(transition.state).toHaveProperty(
+        'retryAfterSeconds',
+        retryAfterSeconds,
+      )
+    }
+  })
+
+  it('does not persist route, filters, password, protected DTOs or drafts in any transition', () => {
+    const transition = reduceAdminSession(checking(), {
+      type: 'status-valid',
+      sequence: 1,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+      now: 1_000,
+    })
+    const serialized = JSON.stringify(transition)
+
+    expect(serialized).not.toContain('pathname')
+    expect(serialized).not.toContain('search')
+    expect(serialized).not.toContain('password')
+    expect(serialized).not.toContain('draft')
+    expect(serialized).not.toContain('family')
+  })
+})
