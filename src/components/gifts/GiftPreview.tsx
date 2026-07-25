@@ -43,7 +43,7 @@ function PreviewError() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="mt-4 inline-flex min-h-11 items-center justify-center border border-cream px-6 py-2 text-[16px] font-bold leading-[1.25] text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar"
+        className="mt-4 inline-flex min-h-11 items-center justify-center border border-cream px-6 py-2 text-[16px] font-bold leading-[1.25] text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar motion-reduce:transform-none motion-reduce:transition-none"
       >
         {GIFTS_COPY.retry}
       </button>
@@ -88,7 +88,7 @@ function PreviewCard({ wine }: { wine: PublicWine }) {
       to={`/presentes#${wineDomId(wine.productCode)}`}
       aria-label={`${wine.name}, ${formattedPrice}${accessibleStatus}`}
       data-wine-status={wine.status}
-      className="group flex min-h-[452px] min-w-0 flex-col border border-cellar-line bg-cellar-soft p-6 text-cream outline-none transition-transform duration-(--duration-fast) ease-out focus-visible:outline-[3px] focus-visible:outline-peach focus-visible:outline-offset-[3px]"
+      className="group flex min-h-[452px] min-w-0 flex-col border border-cellar-line bg-cellar-soft p-6 text-cream outline-none transition-transform duration-(--duration-fast) ease-out focus-visible:outline-[3px] focus-visible:outline-peach focus-visible:outline-offset-[3px] motion-reduce:transform-none motion-reduce:transition-none"
     >
       <div
         className={
@@ -195,7 +195,7 @@ export function GiftPreview() {
 
         <Link
           to="/presentes"
-          className="mt-8 inline-flex min-h-12 items-center justify-center border border-cream px-6 py-3 text-[16px] font-bold leading-[1.25] text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar"
+          className="mt-8 inline-flex min-h-12 items-center justify-center border border-cream px-6 py-3 text-[16px] font-bold leading-[1.25] text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar motion-reduce:transform-none motion-reduce:transition-none"
         >
           {PREVIEW_COPY.cta}
         </Link>
