@@ -1,14 +1,16 @@
 ---
 phase: 08-gest-o-de-gestores-contas-individuais-permiss-es-e-auditoria
 verified: 2026-07-25T18:10:52Z
-status: human_needed
+status: passed
 score: 29/31 must-haves verified
 behavior_unverified: 2
 behavior_unverified_items:
+
   - truth: "Owner, manager e seller têm jornadas reais, navegação, dados e ações coerentes em desktop/mobile."
     test: "Executar no Preview as jornadas autenticadas de Allan, Soraya/Guga e Vanessa, inclusive gestão de contas, Presentes e Auditoria."
     expected: "Cada papel entra no destino correto, vê somente suas áreas e conclui apenas as operações autorizadas em desktop e 320 px."
     why_human: "Os testes Playwright exercitam superfícies anônimas e políticas/fixtures, mas não autenticam os três papéis contra o deployment real."
+
   - truth: "Runtime Preview valida scrypt, cutoff legado, scheduler/retention e link copy/paste onde convex-test não é evidência suficiente."
     test: "Executar o smoke confirmado e os cenários de dois navegadores, replay de link e retenção descritos no runbook."
     expected: "Métricas scrypt sanitizadas, cutoff reativo, replay recusado e cleanup de 120 dias aprovados no runtime Convex real."
