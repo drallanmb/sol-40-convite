@@ -1,5 +1,6 @@
 import type { Doc } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
+import type { AdminPrincipal } from './adminAccountModel'
 import {
   ADMIN_CAPABILITY_BYTE_LENGTH,
   isAdminSessionActive,
@@ -71,6 +72,7 @@ export type AdminAuthorization =
   | {
       kind: 'authorized'
       session: Doc<'adminSessions'>
+      principal: AdminPrincipal
     }
   | { kind: 'unauthorized' }
 
@@ -96,5 +98,43 @@ export async function requireAdminSession(
     return { kind: 'unauthorized' }
   }
 
-  return { kind: 'authorized', session: sessions[0] }
+  const session = sessions[0]
+  if (session.accountId === undefined) {
+    const configs = await ctx.db
+      .query('adminAuthConfig')
+      .withIndex('by_key', (query) => query.eq('key', 'primary'))
+      .take(2)
+    if (configs.length > 1 || configs[0]?.legacyDisabledAt !== undefined) {
+      return { kind: 'unauthorized' }
+    }
+    return {
+      kind: 'authorized',
+      session,
+      principal: { kind: 'legacy' },
+    }
+  }
+
+  const account = await ctx.db.get(session.accountId)
+  if (
+    account === null ||
+    account.state !== 'active' ||
+    session.credentialVersion === undefined ||
+    session.credentialVersion !== account.credentialVersion
+  ) {
+    return { kind: 'unauthorized' }
+  }
+
+  return {
+    kind: 'authorized',
+    session,
+    principal: {
+      kind: 'account',
+      account: {
+        _id: account._id,
+        displayName: account.displayName,
+        email: account.email,
+        role: account.role,
+      },
+    },
+  }
 }

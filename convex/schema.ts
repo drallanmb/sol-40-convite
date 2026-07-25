@@ -11,6 +11,16 @@ import {
   wineStatusValidator,
   wineToneValidator,
 } from './wineModel'
+import {
+  adminAccountStateValidator,
+  adminRoleValidator,
+} from './adminAccountModel'
+import {
+  adminAuditActionValidator,
+  adminAuditActorKindValidator,
+  adminAuditAreaValidator,
+  auditChangeValidator,
+} from './adminAuditModel'
 
 export default defineSchema({
   rsvps: defineTable({
@@ -46,10 +56,57 @@ export default defineSchema({
 
   adminSessions: defineTable({
     tokenHash: v.string(),
+    accountId: v.optional(v.id('adminAccounts')),
+    credentialVersion: v.optional(v.number()),
+    deviceLabel: v.optional(v.string()),
     createdAt: v.number(),
     expiresAt: v.number(),
   })
     .index('by_token_hash', ['tokenHash'])
+    .index('by_account', ['accountId'])
+    .index('by_expires_at', ['expiresAt']),
+
+  adminAccounts: defineTable({
+    email: v.string(),
+    displayName: v.string(),
+    role: adminRoleValidator,
+    state: adminAccountStateValidator,
+    passwordHash: v.optional(v.string()),
+    credentialVersion: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    activatedAt: v.optional(v.number()),
+    disabledAt: v.optional(v.number()),
+  })
+    .index('by_email', ['email'])
+    .index('by_role', ['role']),
+
+  adminAuthConfig: defineTable({
+    key: v.literal('primary'),
+    ownerAccountId: v.optional(v.id('adminAccounts')),
+    legacyDisabledAt: v.optional(v.number()),
+    bootstrapCompletedAt: v.optional(v.number()),
+  }).index('by_key', ['key']),
+
+  adminAuditEvents: defineTable({
+    actorKind: adminAuditActorKindValidator,
+    actorAccountId: v.optional(v.id('adminAccounts')),
+    actorName: v.optional(v.string()),
+    actorRole: v.optional(adminRoleValidator),
+    subjectAccountId: v.optional(v.id('adminAccounts')),
+    area: adminAuditAreaValidator,
+    action: adminAuditActionValidator,
+    targetType: v.optional(v.string()),
+    targetId: v.optional(v.string()),
+    targetLabel: v.optional(v.string()),
+    changes: v.array(auditChangeValidator),
+    occurredAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index('by_occurred_at', ['occurredAt'])
+    .index('by_actor_occurred_at', ['actorAccountId', 'occurredAt'])
+    .index('by_area_occurred_at', ['area', 'occurredAt'])
+    .index('by_action_occurred_at', ['action', 'occurredAt'])
     .index('by_expires_at', ['expiresAt']),
 
   posts: defineTable({

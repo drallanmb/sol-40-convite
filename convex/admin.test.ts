@@ -222,7 +222,7 @@ describe('admin authorization boundary', () => {
         accountId: id,
         credentialVersion: 3,
         createdAt: 1_000,
-        expiresAt: now + 1,
+        expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
       })
       return id
     })
@@ -245,10 +245,16 @@ describe('admin authorization boundary', () => {
     expect(hasAdminCapability('manager', 'audit')).toBe(false)
     expect(hasAdminCapability('seller', 'gifts')).toBe(true)
     expect(hasAdminCapability('seller', 'overview')).toBe(false)
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
+    ).resolves.toMatchObject({ kind: 'ready', familyCount: 0 })
 
     await t.run((ctx) => ctx.db.patch(accountId, { state: 'disabled' }))
     await expect(
       t.run((ctx) => requireAdminSession(ctx, TOKEN_A, now)),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
     ).resolves.toEqual({ kind: 'unauthorized' })
 
     await t.run((ctx) =>
@@ -344,7 +350,7 @@ describe('admin audit model', () => {
         createdAt: 1_000,
         updatedAt: 1_000,
       })
-      await appendAuditEvent(ctx, {
+      const eventId = await appendAuditEvent(ctx, {
         principal: {
           kind: 'account',
           account: {
@@ -358,14 +364,17 @@ describe('admin audit model', () => {
         action: 'account_updated',
         targetType: 'adminAccount',
         targetId: accountId,
-        changes: buildAuditChanges({
-          before: { displayName: 'Allan', passwordHash: 'old-secret' },
-          after: { displayName: 'Allan M.', passwordHash: 'new-secret' },
-          allowedFields: ['displayName', 'passwordHash'],
-        }),
+        changes: [
+          ...buildAuditChanges({
+            before: { displayName: 'Allan', passwordHash: 'old-secret' },
+            after: { displayName: 'Allan M.', passwordHash: 'new-secret' },
+            allowedFields: ['displayName', 'passwordHash'],
+          }),
+          { field: 'token', before: TOKEN_A, after: TOKEN_B },
+        ],
         occurredAt: 5_000,
       })
-      return ctx.db.get(event)
+      return ctx.db.get(eventId)
     })
 
     expect(event).toMatchObject({
