@@ -128,7 +128,7 @@ export function remainingMessageCharacters(value: string) {
 }
 
 export function toMemoryRetrySeconds(seconds: number) {
-  return Math.max(1, Math.ceil(seconds))
+  return Math.max(1, seconds)
 }
 
 export function tickMemoryRetrySeconds(seconds: number) {

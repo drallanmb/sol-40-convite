@@ -188,7 +188,7 @@ export function MemoryForm() {
   function fail(code: MemoryErrorCode, retryAfterSeconds?: number) {
     transition({ type: 'submission_failed', code, retryAfterSeconds })
     if (retryAfterSeconds !== undefined) {
-      setRetryRemaining(Math.max(1, Math.ceil(retryAfterSeconds)))
+      setRetryRemaining(Math.max(1, retryAfterSeconds))
     }
   }
 

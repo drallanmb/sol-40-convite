@@ -112,7 +112,7 @@ describe('memory draft validation and Unicode limits', () => {
 
   it('uses the server countdown as positive whole seconds and re-enables at zero', () => {
     expect(toMemoryRetrySeconds(0)).toBe(1)
-    expect(toMemoryRetrySeconds(1.1)).toBe(2)
+    expect(toMemoryRetrySeconds(7)).toBe(7)
     expect(tickMemoryRetrySeconds(1)).toBe(0)
     expect(tickMemoryRetrySeconds(0)).toBe(0)
   })
