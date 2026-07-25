@@ -1,8 +1,8 @@
 ---
 phase: 06-dashboard-interno-admin
-reviewed: 2026-07-25T04:44:48Z
+reviewed: 2026-07-25T05:57:19Z
 depth: standard
-files_reviewed: 43
+files_reviewed: 47
 files_reviewed_list:
   - convex/_generated/api.d.ts
   - convex/admin.test.ts
@@ -16,8 +16,11 @@ files_reviewed_list:
   - convex/adminSecurity.ts
   - convex/adminTest.ts
   - convex/adminWines.ts
+  - convex/crons.ts
   - convex/rsvpInternal.ts
   - convex/rsvpModel.ts
+  - convex/rsvpSecurity.ts
+  - convex/rsvps.test.ts
   - convex/rsvps.ts
   - convex/schema.ts
   - convex/wineInternal.ts
@@ -32,6 +35,7 @@ files_reviewed_list:
   - src/components/admin/AdminModeration.tsx
   - src/components/admin/AdminOverview.tsx
   - src/components/admin/AdminShell.tsx
+  - src/components/admin/adminPendingOperations.test.ts
   - src/components/ui/Button.tsx
   - src/components/ui/Card.tsx
   - src/components/ui/Field.tsx
@@ -48,83 +52,54 @@ files_reviewed_list:
   - src/lib/adminSession.ts
   - src/routes/Admin.tsx
 findings:
-  critical: 1
-  warning: 1
+  critical: 0
+  warning: 0
   info: 0
-  total: 2
-status: issues_found
+  total: 0
+status: clean
 ---
 
 # Phase 06: Code Review Report
 
-**Reviewed:** 2026-07-25T04:44:48Z
+**Reviewed:** 2026-07-25T05:57:19Z
 **Depth:** standard
-**Files Reviewed:** 43
-**Status:** issues_found
+**Files Reviewed:** 47
+**Status:** clean
 
 ## Summary
 
-The protected admin boundary, optimistic revisions, legal moderation transitions, and public DTO privacy are generally coherent. The review found one shipping blocker in RSVP-session cascading: expired public sessions are retained indefinitely, while the new admin operations refuse to proceed after a fixed row count. It also found one repeated client-side concurrency weakness where a single busy identifier cannot safely represent multiple allowed in-flight record operations.
+The complete Phase 06 admin surface and the three gap-closure plans were reviewed adversarially. The earlier fixed-session-count blocker and scalar busy-state warning are closed in the production paths, not merely hidden by tests. Authorization remains server-side, protected projections stay separate from public DTOs, and the new internal cleanup writers do not widen the public API.
+
+Focused regression execution passed 101 tests across `convex/admin.test.ts`, `convex/rsvps.test.ts`, `src/lib/adminOperations.test.ts`, and `src/components/admin/adminPendingOperations.test.ts`.
+
+All reviewed files meet quality standards. No issues found.
 
 ## Narrative Findings (AI reviewer)
 
-## Critical Issues
+### Prior CR-01 closure: verified
 
-### CR-01: Accumulated expired RSVP sessions can permanently block phone changes and family deletion
+`createRsvpSession` snapshots the current invitation generation and schedules one guarded expiry at the absolute `expiresAt`. Authorization requires strict `now < expiresAt`, an existing invitation, and legacy-aware generation equality. The daily recovery path starts with a server-owned cutoff, scans `by_expires_at` in fixed pages, carries the same cutoff and opaque continuation cursor, re-reads rows before deletion, and is retry-safe.
 
-**Classification:** BLOCKER
+Phone changes no longer enumerate or refuse a fixed number of sessions. They atomically increment the invitation generation before scheduling `olderThanGeneration` cleanup, so every old capability becomes unauthorized immediately. The predicate is monotonic (`sessionGeneration < commandGeneration`), preserving equal/newer sessions even when consecutive phone-change jobs are delayed, retried, or reordered. Family deletion removes the invitation before scheduling the exclusive `deleteAll` cleanup, so access fails closed immediately and no new family session can be issued. Pagination advances after deletes and the checked 160-row regressions converge correctly.
 
-**File:** `convex/adminRsvps.ts:227-235,371-380`
+### Prior WR-01 closure: verified
 
-**Issue:** Both a logical phone change and family deletion read at most 129 `rsvpSessions` rows and refuse the operation when more than 128 exist. Public RSVP sessions expire after eight hours, but expiry is only checked during authorization; those rows are not removed by any scheduler or cleanup path. Each successful public unlock creates another row. Consequently, ordinary repeated unlocks accumulate forever and eventually make the owner's phone-change and family-delete operations permanently return an error. A party knowing the invitation phone can also deliberately reach this state over repeated rate-limit windows. This violates the phase contract that phone edits revoke linked public access and that owners can delete a family, and creates an availability/data-management denial of service.
+`usePendingOperations` owns each record with a synchronous ref-backed token, exposes independent immutable pending membership, rejects same-tick duplicate work before calling the mutation, and settles only the matching token/id. Authorization clear invalidates every token before pending UI state is cleared, so late promises cannot repopulate protected feedback.
 
-**Fix:** Give public RSVP sessions a real lifecycle and make cascade deletion independent of a permanent fixed-count refusal. Schedule idempotent deletion when each RSVP session is created (as admin sessions already do), add a bounded migration/cleanup for existing expired rows, and process large family cascades in paginated internal batches if a transaction cannot safely delete every row at once. The admin operation should complete only after every session for the family has been removed:
+Guests serialize commands per family while allowing different families to overlap; moderation scopes apply/undo by post; gifts scope mark/unmark and dialog cleanup by wine and captured revision. Completion handlers check current ownership, and global feedback uses latest-command ownership. The component tests exercise the actual exported screens with deferred mutation promises: A and B start, duplicate B is refused, A resolves first, and B remains disabled and `aria-busy` until its own settlement.
 
-```ts
-// On public-session creation:
-await ctx.scheduler.runAt(expiresAt, internal.rsvpInternal.expireRsvpSession, {
-  sessionId,
-  expectedExpiresAt: expiresAt,
-})
+### Security and contract probes
 
-// The expiry mutation must be idempotent and guard against a replaced expiry.
-const session = await ctx.db.get(sessionId)
-if (session?.expiresAt === expectedExpiresAt) {
-  await ctx.db.delete(sessionId)
-}
-```
-
-Add a regression test with more than 128 historical/expired sessions proving both phone update and family deletion finish and leave zero linked sessions.
-
-## Warnings
-
-### WR-01: A single busy identifier is cleared by the wrong concurrent operation
-
-**Classification:** WARNING
-
-**Files:** `src/components/admin/AdminGuests.tsx:193,264-290,297-331,339-355`; `src/components/admin/AdminModeration.tsx:82,132-168,171-198`; `src/components/admin/AdminGifts.tsx:154,202-230,234-258`
-
-**Issue:** These screens intentionally disable only the affected record, so operations on different records can run concurrently. However, each screen stores only one `busyFamily`, `busyPost`, or `busyWine`. Starting operation B overwrites A's busy identifier; when A finishes, its unconditional `setBusy*(null)` clears B's still-active lock. B can then be submitted again, and later completions can overwrite feedback or dialog state out of order. Server-side expected revisions usually prevent data corruption, but the UI no longer reliably prevents duplicate submissions or represents which records are actually pending.
-
-**Fix:** Track pending record IDs independently (for example, a `Set<string>` or per-record operation map), atomically add the target before a request, and remove only that target in `finally`. Also guard handlers against launching a second request for an ID already present:
-
-```ts
-setBusyIds((current) => new Set(current).add(id))
-try {
-  await mutateRecord()
-} finally {
-  setBusyIds((current) => {
-    const next = new Set(current)
-    next.delete(id)
-    return next
-  })
-}
-```
-
-Add deferred-promise component tests that start operations for A and B, resolve A first, and verify B remains disabled until B resolves.
+- Public RSVP DTOs still omit session generation, token hashes, internal cleanup handles, phone, and storage metadata.
+- Public wine DTOs still omit giver identity and timestamp; those fields remain available only through authorized admin queries.
+- Every admin query and mutation authorizes before reading or writing protected records.
+- Moderation and gift writes retain expected-status/revision checks, legal-transition enforcement, and stale/ABA conflict behavior.
+- Scheduled expiry, historical sweep, phone purge, and family purge are internal mutations. Their retries are idempotent and active/equal/newer RSVP sessions survive the relevant cleanup predicate.
+- The generated API declares cleanup and smoke modules only through the internal API filter; no admin operational writer was accidentally removed.
+- No test was accepted as proof of physical-device layout, independent-browser WebSocket reactivity, zoom, virtual keyboard, safe-area, focus, reduced-motion, or contrast. Those remain human UAT backstops rather than code-review findings.
 
 ---
 
-_Reviewed: 2026-07-25T04:44:48Z_
+_Reviewed: 2026-07-25T05:57:19Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
