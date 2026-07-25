@@ -83,6 +83,7 @@ export type Hotel = {
 
 export const NAV_LINKS: NavLink[] = [
   { label: 'Confirmar presença', href: '/confirmar' },
+  { label: 'Presentes', href: '/presentes' },
   { label: 'Local', href: '#aracaju' },
   { label: 'Programação', href: '#programacao' },
   { label: 'Traje', href: '#traje' },
@@ -92,9 +93,18 @@ export const NAV_LINKS: NavLink[] = [
 /** Reduced navigation for `/confirmar`; home fragments stay absolute. */
 export const RSVP_NAV_LINKS: NavLink[] = [
   { label: 'Convite', href: '/' },
+  { label: 'Presentes', href: '/presentes' },
   { label: 'Programação', href: '/#programacao' },
   { label: 'Local', href: '/#aracaju' },
 ]
+
+/** Persistent gifts invitation shown only after a backend-confirmed RSVP save. */
+export const GIFTS_RSVP_CALLOUT = {
+  heading: 'Quer deixar um carinho para a Sol?',
+  body: 'A carta de vinhos está aberta para você escolher um presente.',
+  cta: 'Escolher um presente',
+  href: '/presentes',
+} as const
 
 // ---------------------------------------------------------------------------
 // Hero
