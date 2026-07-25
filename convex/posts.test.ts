@@ -17,7 +17,10 @@ import {
   validatePostCapability,
 } from './postSecurity'
 import { makePostTest as makePostTestHarness } from './postTest'
+import cronsSource from './crons.ts?raw'
+import postInternalSource from './postInternal.ts?raw'
 import postsSource from './posts.ts?raw'
+import schemaSource from './schema.ts?raw'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
 
@@ -667,6 +670,62 @@ describe('photo upload reservation and validation', () => {
     vi.useRealTimers()
   })
 
+  it('uses an indexed bounded collision lookup with a large historical reservation set', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T01:00:00.000Z'))
+    const t = makePostTest()
+    const collidingToken = deviceKeyFor(130_000)
+    const collidingHash = await hashPostCapability(collidingToken)
+
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 1_000; index += 1) {
+        await ctx.db.insert('postUploadReservations', {
+          tokenHash: index === 999 ? collidingHash : `historical-${index}`,
+          deviceKeyHash: `historical-device-${index}`,
+          state: index % 2 === 0 ? 'accepted' : 'expired',
+          expiresAt: 1,
+          createdAt: index + 1,
+        })
+      }
+    })
+
+    for (let index = 0; index < 4; index += 1) {
+      await expect(
+        t.mutation(postApi.requestUpload, {
+          deviceKey: DEVICE_KEY_A,
+          token: deviceKeyFor(131_000 + index),
+        }),
+      ).resolves.toMatchObject({ kind: 'reserved' })
+    }
+
+    await expect(
+      t.mutation(postApi.requestUpload, {
+        deviceKey: DEVICE_KEY_A,
+        token: collidingToken,
+      }),
+    ).resolves.toEqual({ kind: 'token_conflict' })
+
+    const denied = await t.mutation(postApi.requestUpload, {
+      deviceKey: DEVICE_KEY_A,
+      token: deviceKeyFor(132_000),
+    })
+    const rows = await t.run((ctx) =>
+      ctx.db.query('postUploadReservations').collect(),
+    )
+
+    expect(denied).toMatchObject({ kind: 'rate_limited' })
+    expect(denied).not.toHaveProperty('uploadUrl')
+    expect(rows).toHaveLength(1_004)
+    expect(schemaSource).toContain(".index('by_token_hash', ['tokenHash'])")
+    expect(postsSource).toMatch(
+      /query\('postUploadReservations'\)\s*\.withIndex\('by_token_hash'/u,
+    )
+    expect(postsSource).not.toMatch(
+      /query\('postUploadReservations'\)[\s\S]{0,240}\.filter\([\s\S]{0,160}tokenHash/u,
+    )
+    vi.useRealTimers()
+  })
+
   it.each([
     ['jpeg', 'image/jpeg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0])],
     [
@@ -1109,6 +1168,171 @@ describe('post storage expiry and orphan cleanup', () => {
         t.mutation(postInternalApi.expireReservation, { reservationId }),
       ).resolves.toEqual({ kind: 'expired' })
     }
+    vi.useRealTimers()
+  })
+
+  it('retires old terminal reservations in bounded pages while preserving accepted post media', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-08-10T01:00:00.000Z').getTime()
+    const oldTerminalAt = now - 8 * 24 * 60 * 60 * 1_000
+    vi.setSystemTime(now)
+    const t = makePostTest()
+    const acceptedStorageId = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['accepted-owned'])),
+    )
+    const rejectedStorageId = await t.run((ctx) =>
+      ctx.storage.store(new Blob(['rejected-orphan'])),
+    )
+    const fixture = await t.run(async (ctx) => {
+      const acceptedReservationId = await ctx.db.insert(
+        'postUploadReservations',
+        {
+          tokenHash: 'retention-accepted',
+          deviceKeyHash: 'retention-device-accepted',
+          state: 'accepted',
+          storageId: acceptedStorageId,
+          expiresAt: oldTerminalAt,
+          terminalAt: oldTerminalAt,
+          createdAt: oldTerminalAt - 1,
+        },
+      )
+      const postId = await ctx.db.insert('posts', {
+        storageId: acceptedStorageId,
+        mediaType: 'image/jpeg',
+        mediaSize: 14,
+        status: 'pendente',
+        source: 'convidado',
+        uploadReservationId: acceptedReservationId,
+        createdAt: oldTerminalAt,
+      })
+      await ctx.db.patch(acceptedReservationId, { postId })
+
+      const rejectedReservationId = await ctx.db.insert(
+        'postUploadReservations',
+        {
+          tokenHash: 'retention-rejected',
+          deviceKeyHash: 'retention-device-rejected',
+          state: 'rejected',
+          storageId: rejectedStorageId,
+          errorCode: 'unsupported_type',
+          expiresAt: oldTerminalAt,
+          terminalAt: oldTerminalAt,
+          createdAt: oldTerminalAt - 1,
+        },
+      )
+
+      const pageIds = []
+      for (let index = 0; index < 51; index += 1) {
+        pageIds.push(
+          await ctx.db.insert('postUploadReservations', {
+            tokenHash: `retention-page-${index}`,
+            deviceKeyHash: `retention-page-device-${index}`,
+            state: 'expired',
+            expiresAt: oldTerminalAt,
+            terminalAt: oldTerminalAt,
+            createdAt: oldTerminalAt - index - 2,
+          }),
+        )
+      }
+      return {
+        acceptedReservationId,
+        rejectedReservationId,
+        pageIds,
+      }
+    })
+
+    const first = await t.mutation(
+      postInternalApi.retireTerminalReservations,
+      {},
+    )
+    expect(first).toMatchObject({ scanned: 50, done: false })
+    await t.finishInProgressScheduledFunctions()
+
+    const snapshot = await t.run(async (ctx) => ({
+      acceptedReservation: await ctx.db.get(fixture.acceptedReservationId),
+      rejectedReservation: await ctx.db.get(fixture.rejectedReservationId),
+      remainingPageRows: (
+        await Promise.all(fixture.pageIds.map((id) => ctx.db.get(id)))
+      ).filter(Boolean),
+      acceptedBlob: await ctx.storage.get(acceptedStorageId),
+      rejectedBlob: await ctx.storage.get(rejectedStorageId),
+      posts: await ctx.db.query('posts').collect(),
+    }))
+
+    expect(snapshot.acceptedReservation).toBeNull()
+    expect(snapshot.rejectedReservation).toBeNull()
+    expect(snapshot.remainingPageRows).toHaveLength(0)
+    expect(snapshot.acceptedBlob).not.toBeNull()
+    expect(snapshot.rejectedBlob).toBeNull()
+    expect(snapshot.posts).toHaveLength(1)
+    await expect(
+      t.mutation(postInternalApi.retireTerminalReservations, {}),
+    ).resolves.toMatchObject({ scanned: 0, deleted: 0, done: true })
+    expect(postInternalSource).toContain('TERMINAL_RESERVATION_RETENTION_MS')
+    expect(postInternalSource).toContain('TERMINAL_RESERVATION_PAGE_SIZE')
+    expect(cronsSource).toContain('daily terminal reservation retirement')
+    vi.useRealTimers()
+  })
+
+  it('handles terminal retention cutoffs and legacy terminal rows without losing them forever', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-08-10T01:00:00.000Z').getTime()
+    const retention = 7 * 24 * 60 * 60 * 1_000
+    vi.setSystemTime(now)
+    const t = makePostTest()
+    const ids = await t.run(async (ctx) => ({
+      before: await ctx.db.insert('postUploadReservations', {
+        tokenHash: 'cutoff-before',
+        deviceKeyHash: 'cutoff-device-before',
+        state: 'expired',
+        expiresAt: now - retention - 1,
+        terminalAt: now - retention - 1,
+        createdAt: 1,
+      }),
+      exact: await ctx.db.insert('postUploadReservations', {
+        tokenHash: 'cutoff-exact',
+        deviceKeyHash: 'cutoff-device-exact',
+        state: 'expired',
+        expiresAt: now - retention,
+        terminalAt: now - retention,
+        createdAt: 1,
+      }),
+      after: await ctx.db.insert('postUploadReservations', {
+        tokenHash: 'cutoff-after',
+        deviceKeyHash: 'cutoff-device-after',
+        state: 'expired',
+        expiresAt: now - retention + 1,
+        terminalAt: now - retention + 1,
+        createdAt: 1,
+      }),
+      legacy: await ctx.db.insert('postUploadReservations', {
+        tokenHash: 'legacy-terminal',
+        deviceKeyHash: 'legacy-device',
+        state: 'expired',
+        expiresAt: now - retention - 2,
+        createdAt: 1,
+      }),
+    }))
+
+    await t.mutation(postInternalApi.retireTerminalReservations, {})
+    await t.finishInProgressScheduledFunctions()
+
+    const first = await t.run(async (ctx) => ({
+      before: await ctx.db.get(ids.before),
+      exact: await ctx.db.get(ids.exact),
+      after: await ctx.db.get(ids.after),
+      legacy: await ctx.db.get(ids.legacy),
+    }))
+    expect(first.before).toBeNull()
+    expect(first.exact).not.toBeNull()
+    expect(first.after).not.toBeNull()
+    expect(first.legacy).toMatchObject({
+      terminalAt: now - retention - 2,
+    })
+
+    await t.mutation(postInternalApi.retireTerminalReservations, {})
+    const second = await t.run((ctx) => ctx.db.get(ids.legacy))
+    expect(second).toBeNull()
     vi.useRealTimers()
   })
 
