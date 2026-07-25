@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: false,
-    include: ['src/**/*.test.ts', 'convex/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'convex/**/*.test.ts'],
     passWithNoTests: true,
   },
 })
