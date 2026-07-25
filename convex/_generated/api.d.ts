@@ -8,6 +8,12 @@
  * @module
  */
 
+import type * as adminAuth from "../adminAuth.js";
+import type * as adminInternal from "../adminInternal.js";
+import type * as adminModel from "../adminModel.js";
+import type * as adminRateLimits from "../adminRateLimits.js";
+import type * as adminSecurity from "../adminSecurity.js";
+import type * as adminTest from "../adminTest.js";
 import type * as crons from "../crons.js";
 import type * as postImageDecoder from "../postImageDecoder.js";
 import type * as postImageDecoderLib from "../postImageDecoderLib.js";
@@ -37,6 +43,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  adminAuth: typeof adminAuth;
+  adminInternal: typeof adminInternal;
+  adminModel: typeof adminModel;
+  adminRateLimits: typeof adminRateLimits;
+  adminSecurity: typeof adminSecurity;
+  adminTest: typeof adminTest;
   crons: typeof crons;
   postImageDecoder: typeof postImageDecoder;
   postImageDecoderLib: typeof postImageDecoderLib;

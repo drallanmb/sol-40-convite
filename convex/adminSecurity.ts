@@ -28,7 +28,7 @@ export function validateAdminToken(token: string) {
   return (
     token.length === Math.ceil((ADMIN_CAPABILITY_BYTE_LENGTH * 8) / 6) &&
     ADMIN_CAPABILITY_PATTERN.test(token) &&
-    CANONICAL_LAST_CHARACTERS.includes(token.at(-1) ?? '')
+    CANONICAL_LAST_CHARACTERS.includes(token.charAt(token.length - 1))
   )
 }
 
