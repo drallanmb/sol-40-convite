@@ -1,7 +1,17 @@
+import { Component, useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useQuery } from 'convex/react'
+import type { PublicWine } from '../../convex/wineModel'
+import { api } from '../../convex/_generated/api'
+import WineCatalog from '../components/gifts/WineCatalog'
 import Shell from '../components/layout/Shell'
 import { GIFT_BANDS, GIFTS_COPY, GIFTS_NAV_LINKS } from '../content/gifts'
+import useReducedMotion from '../hooks/useReducedMotion'
+import { productCodeFromWineHash, wineDomId } from '../lib/wineDeepLink'
 
-function BandShortcuts() {
+function BandShortcuts({ visible }: { visible: boolean }) {
+  if (!visible) return null
+
   return (
     <nav aria-label={GIFTS_COPY.shortcutsLabel} className="mt-8">
       <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
@@ -23,38 +33,175 @@ function BandShortcuts() {
   )
 }
 
+function PresentesScaffold({
+  children,
+  showShortcuts,
+}: {
+  children: ReactNode
+  showShortcuts: boolean
+}) {
+  return (
+    <div className="min-w-0 overflow-x-clip bg-cellar text-cream">
+      <section className="relative isolate min-h-[360px] overflow-hidden px-6 pb-12 pt-16 sm:px-8 lg:min-h-[420px] lg:px-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-peach opacity-[.18] sm:-right-16 sm:-top-24 sm:h-60 sm:w-60"
+        />
+        <div className="relative mx-auto max-w-[1320px]">
+          <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
+            {GIFTS_COPY.page.kicker}
+          </p>
+          <h1 className="mt-4 max-w-[62ch] font-serif text-[48px] font-normal leading-[.95] tracking-display text-cream">
+            {GIFTS_COPY.page.headingLead}
+            <em className="font-normal text-peach">
+              {GIFTS_COPY.page.headingEmphasis}
+            </em>
+          </h1>
+          <p className="mt-6 max-w-[62ch] text-[16px] leading-[1.62] text-cellar-muted">
+            {GIFTS_COPY.page.support}
+          </p>
+          <aside className="mt-8 max-w-[62ch] border-l border-cellar-line pl-4 text-[16px] leading-[1.62] text-cellar-muted">
+            {GIFTS_COPY.page.operationalNote}
+          </aside>
+          <BandShortcuts visible={showShortcuts} />
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-[1320px] px-6 py-16 sm:px-8 lg:px-16">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const CATEGORIES = new Set(['ate-200', '200-350', '350-500'])
+const TONES = new Set(['rubi', 'dourado', 'rose', 'verde'])
+const STATUSES = new Set(['available', 'gifted'])
+
+function isDisplayWine(value: unknown): value is PublicWine {
+  if (!value || typeof value !== 'object') return false
+  const wine = value as Partial<Record<keyof PublicWine, unknown>>
+  return (
+    typeof wine.productCode === 'string' &&
+    wine.productCode.length > 0 &&
+    typeof wine.name === 'string' &&
+    wine.name.length > 0 &&
+    typeof wine.producer === 'string' &&
+    wine.producer.length > 0 &&
+    typeof wine.description === 'string' &&
+    wine.description.length > 0 &&
+    typeof wine.imageUrl === 'string' &&
+    wine.imageUrl.length > 0 &&
+    typeof wine.priceCents === 'number' &&
+    Number.isSafeInteger(wine.priceCents) &&
+    wine.priceCents > 0 &&
+    typeof wine.category === 'string' &&
+    CATEGORIES.has(wine.category) &&
+    typeof wine.tone === 'string' &&
+    TONES.has(wine.tone) &&
+    typeof wine.status === 'string' &&
+    STATUSES.has(wine.status)
+  )
+}
+
+function CatalogQuery() {
+  const catalog = useQuery(api.wines.listCatalog)
+  const catalogReady = catalog !== undefined
+  const reducedMotion = useReducedMotion()
+  const [selectedCode, setSelectedCode] = useState<string | null>(null)
+
+  const applyCurrentHash = useCallback(() => {
+    const productCode = productCodeFromWineHash(window.location.hash)
+    if (!productCode) {
+      setSelectedCode(null)
+      return
+    }
+
+    const target = document.getElementById(wineDomId(productCode))
+    if (!target) {
+      setSelectedCode(null)
+      return
+    }
+
+    setSelectedCode(productCode)
+    target.scrollIntoView({
+      block: 'center',
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    })
+    target.focus({ preventScroll: true })
+  }, [reducedMotion])
+
+  useEffect(() => {
+    if (!catalogReady) return
+
+    applyCurrentHash()
+    window.addEventListener('hashchange', applyCurrentHash)
+    window.addEventListener('popstate', applyCurrentHash)
+    return () => {
+      window.removeEventListener('hashchange', applyCurrentHash)
+      window.removeEventListener('popstate', applyCurrentHash)
+    }
+  }, [applyCurrentHash, catalogReady])
+
+  if (catalog === undefined) {
+    return (
+      <PresentesScaffold showShortcuts>
+        <WineCatalog state="loading" />
+      </PresentesScaffold>
+    )
+  }
+
+  const validWines = (catalog as readonly unknown[]).filter(isDisplayWine)
+  const partial = validWines.length !== catalog.length
+
+  return (
+    <PresentesScaffold showShortcuts={validWines.length > 0}>
+      <WineCatalog
+        state="ready"
+        wines={validWines}
+        partial={partial}
+        selectedCode={selectedCode}
+      />
+    </PresentesScaffold>
+  )
+}
+
+type CatalogBoundaryState = {
+  failed: boolean
+  attempt: number
+}
+
+class CatalogBoundary extends Component<object, CatalogBoundaryState> {
+  state: CatalogBoundaryState = { failed: false, attempt: 0 }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  retry = () => {
+    this.setState((state) => ({
+      failed: false,
+      attempt: state.attempt + 1,
+    }))
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <PresentesScaffold showShortcuts>
+          <WineCatalog state="error" onRetry={this.retry} />
+        </PresentesScaffold>
+      )
+    }
+
+    return <CatalogQuery key={this.state.attempt} />
+  }
+}
+
 export default function Presentes() {
   return (
     <Shell navLinks={GIFTS_NAV_LINKS} wordmarkHref="/">
-      <div className="min-w-0 overflow-x-clip bg-cellar text-cream">
-        <section className="relative isolate min-h-[360px] overflow-hidden px-6 pb-12 pt-16 sm:px-8 lg:min-h-[420px] lg:px-16">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-peach opacity-[.18] sm:-right-16 sm:-top-24 sm:h-60 sm:w-60"
-          />
-          <div className="relative mx-auto max-w-[1320px]">
-            <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
-              {GIFTS_COPY.page.kicker}
-            </p>
-            <h1 className="mt-4 max-w-[62ch] font-serif text-[48px] font-normal leading-[.95] tracking-display text-cream">
-              {GIFTS_COPY.page.headingLead}
-              <em className="font-normal text-peach">{GIFTS_COPY.page.headingEmphasis}</em>
-            </h1>
-            <p className="mt-6 max-w-[62ch] text-[16px] leading-[1.62] text-cellar-muted">
-              {GIFTS_COPY.page.support}
-            </p>
-            <aside className="mt-8 max-w-[62ch] border-l border-cellar-line pl-4 text-[16px] leading-[1.62] text-cellar-muted">
-              {GIFTS_COPY.page.operationalNote}
-            </aside>
-            <BandShortcuts />
-          </div>
-        </section>
-
-        <div
-          aria-label="Carta de vinhos"
-          className="mx-auto max-w-[1320px] px-6 py-16 sm:px-8 lg:px-16"
-        />
-      </div>
+      <CatalogBoundary />
     </Shell>
   )
 }

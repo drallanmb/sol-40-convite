@@ -151,6 +151,7 @@ body {
 }
 
 .gift-shortcuts {
+  scroll-snap-type: x mandatory;
   scrollbar-color: var(--color-cellar-line) transparent;
   scrollbar-width: thin;
 }
@@ -163,6 +164,11 @@ body {
   outline: 3px solid var(--color-peach);
   outline-offset: 6px;
   transition-duration: var(--duration-medium);
+}
+
+.wine-band,
+.wine-card {
+  scroll-margin-top: calc(72px + 24px);
 }
 
 @media (hover: hover) and (pointer: fine) {
