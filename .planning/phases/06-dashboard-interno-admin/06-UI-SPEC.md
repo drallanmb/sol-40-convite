@@ -240,7 +240,8 @@ Cards/segments have one accessible link target, visible focus around the whole s
 ### Overview states
 
 - Loading: skeletons preserve the exact final layout; labels may remain visible but no fake counts.
-- All zeros with no guests: explain that no families have been created and link `Adicionar primeira família`.
+- `familyCount === 0`: explain that no families have been created and link `Adicionar primeira família`.
+- `familyCount > 0` with all attendance counts at zero: say `Nenhuma pessoa cadastrada nos convites` and link `Ver famílias`; never infer this state from attendance sums or claim that no family exists.
 - Zero pending guests: show `Todos responderam` while the Confirmed and Refused totals remain available.
 - Zero moderation queue: show `Nenhuma memória aguardando revisão`.
 - No gifted wines: show `Nenhum vinho marcado como presenteado`.

@@ -230,13 +230,14 @@ Use one protected query returning a compact snapshot:
 
 ```ts
 {
+  familyCount,
   attendance: { yes, no, pending, total },
   pendingMemories,
   giftedWines
 }
 ```
 
-Counts are by `rsvpGuests`, not families. For this event-sized dataset, bounded `collect()` and in-memory counting are reasonable and simpler than denormalized counter documents. `posts.by_status` can count pending rows; 37 wines are fixed and cheap to scan. If scale grows materially, add `rsvpGuests.by_attendance` and `wines.by_status`; do not add indexes speculatively merely to count dozens/hundreds of rows.
+Attendance counts are by `rsvpGuests`, not families, while `familyCount` is independently counted from `rsvps`. The protected DTO needs both because an attendance total of zero cannot distinguish no families from one or more valid zero-person families. Overview no-family copy/action must therefore branch on `familyCount`, never on the sum of attendance states. For this event-sized dataset, bounded `collect()` and in-memory counting are reasonable and simpler than denormalized counter documents. `posts.by_status` can count pending rows; 37 wines are fixed and cheap to scan. If scale grows materially, add `rsvpGuests.by_attendance` and `wines.by_status`; do not add indexes speculatively merely to count dozens/hundreds of rows.
 
 Convex `useQuery` subscriptions update automatically when a read document/range changes. Do not add polling, manual cache invalidation or a second client state copy. Whole-card links should carry the relevant query parameter.
 
@@ -278,6 +279,8 @@ At likely event scale, one protected list followed by client-side accent/case/di
 
 Every mutation should accept current `updatedAt`/expected values where an open editor could be stale. Return `conflict` instead of silently replacing a newer edit from the other owner. Patch `rsvps.updatedAt` when a child changes so the family has one revision signal.
 
+Extract one shared pure `nextRsvpUpdatedAt(current, now) = Math.max(now, current + 1)` helper and use it for every production write to an existing RSVP row. This includes public `convex/rsvps.ts::saveResponses`, which currently writes raw `Date.now()`, and all admin family/person writers. Otherwise equal or backward wall clocks can keep/move the revision backward and allow a stale admin draft to overwrite a later public response. Writer-parity tests must cover public and admin writes under equal/backward clocks, plus an admin-at-A → public-save-to-B → stale-admin-at-A conflict that preserves B.
+
 ## Moderation
 
 `posts.by_status` already supports tabs. For pending, query `eq("pendente").order("asc")`; Convex index order includes creation-time tie-breaking, and `createdAt` can be returned for display. Generate image URLs only after the admin guard passes. Keep a finite `.take()`/pagination boundary; an initial 100 is consistent with the public gallery and enough for v1, while pagination is preferable if the queue can exceed that.
@@ -310,16 +313,18 @@ The initial action returns the exact post-action `(status, moderatedAt)` plus pr
 
 Create a protected projection that includes `giftedBy`/`giftedAt`, while the public projections remain unchanged. Extract the gift-state normalization/assertion currently embedded in `wineInternal.ts` so both internal smoke tooling and admin mutation share it.
 
-`markGifted({token, wineId/productCode, giftedBy, expectedUpdatedAt})` trims/validates the name, stamps `giftedAt` and `updatedAt` on the server, and atomically writes all gifted fields. `markAvailable` validates revision/status and atomically writes:
+`markGifted({token, wineId/productCode, giftedBy, expectedUpdatedAt})` trims/validates the name, stamps `giftedAt` on the server, and atomically writes all gifted fields. `makeAvailable` validates revision/status and atomically writes:
 
 ```ts
 {
   status: "available",
   giftedBy: undefined,
   giftedAt: undefined,
-  updatedAt: now,
+  updatedAt: Math.max(now, current.updatedAt + 1),
 }
 ```
+
+Use one shared `nextWineUpdatedAt(current, now) = Math.max(now, current.updatedAt + 1)` helper for every writer of a wine row. This includes `markGifted`, `makeAvailable`, `setWineGiftStateForSmoke`, and the commercial-field patch path in `ensureWineCatalog`; raw `Date.now()` patches there can otherwise leave the revision equal or move it backward. Writer-parity tests must cover `ensureWineCatalog` with equal and backward wall-clock values as well as the gift transitions.
 
 Never allow:
 
@@ -399,8 +404,8 @@ The public catalog already reads `status`, so these writes automatically update 
 | ADMIN-01, D-01/D-02 | wrong password rejected; strong valid token creates hash-only record; `now < expiresAt`; exact boundary invalid; logout deletion; expiry internal mutation idempotent; login rate-limit | close/reopen browser remains logged in; scheduled expiry returns to login |
 | D-03/D-04 | session state reducer clears token/data and preserves only URL; logout mutation required before success | expire/revoke while a protected tab is open; confirm same subroute after login; logout placement |
 | ADMIN-02, D-06/D-10/D-11 | route helpers/deep-link parameters; build | desktop sidebar; mobile four-item bar; focus/44px/safe area; badges |
-| ADMIN-03, D-09/D-25 | overview query rejects invalid token; exact counts by person/status | two tabs: edit RSVP/moderate/gift in one, see overview/badge update in other |
-| ADMIN-04, D-13–D-18 | projection isolation; normalized unique phone; create/add/edit; by-rsvp revocation; person delete; family cascade; stale revision conflict | search accent/case/partial phone; filter retains all family members; confirmations |
+| ADMIN-03, D-09/D-25 | overview query rejects invalid token; exact independent familyCount plus counts by person/status; 0 families differs from 1 zero-person family | two tabs: edit RSVP/moderate/gift in one, see overview/badge update in other |
+| ADMIN-04, D-13–D-18 | projection isolation; normalized unique phone; create/add/edit; by-rsvp revocation; person delete; family cascade; shared public/admin monotonic revision under equal/backward clocks; stale-admin-vs-public-save conflict | search accent/case/partial phone; filter retains all family members; confirmations |
 | ADMIN-05, D-19–D-21 | status ordering; only legal transitions; timestamps; undo succeeds only with matching precondition; concurrent change wins | full image/text card; tab movement; toast duration and conflict copy; public album adds/removes reactively |
 | ADMIN-06, D-22–D-24 | required trimmed presenter; server time; mark invariant; unmark clears both fields; stale revision conflict | search/tabs/faixas; confirmation before unmark; public wine status updates |
 | No pre-auth exposure | call every admin query/mutation with missing/malformed/expired/revoked token and assert no DTO/write; public APIs unchanged | inspect Network/WebSocket before login: only session-status request, no overview/family/post/wine payload |
@@ -424,6 +429,7 @@ Queries must return only the shared invalid-session envelope (or throw a deliber
 
 - Create one post, read revision A, apply A→B, then apply a second valid B→C. Attempt undo using expected B revision from the first caller; assert `conflict` and C remains.
 - Read family/wine at revision A in two simulated owners; first update succeeds and bumps revision; second stale update returns `conflict`.
+- Freeze or move the wall clock backward and prove public `saveResponses` and every admin RSVP writer still produce exactly `current + 1`; then save publicly after an admin read and prove the stale admin command conflicts without replacing the public response.
 - Run equivalent-phone check+insert/update concurrently where possible; Convex serializable OCC should leave one logical phone owner.
 
 ### Commands

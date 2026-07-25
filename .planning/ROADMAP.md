@@ -170,12 +170,24 @@ Plans:
   4. O dono aprova/oculta posts do mural na fila de moderação
   5. O dono marca vinhos como presenteados
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 06-01: Auth do dono (senha compartilhada) + shell `/admin` (sidebar/bottom bar) + Visão geral ao vivo
-- [ ] 06-02: Convidados + Moderação + Presentes
+- [ ] 06-01: Auth do dono — senha compartilhada, sessão opaca revogável de 7 dias e gate cliente fail-closed
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-02: Shell `/admin` responsivo + navegação canônica + Visão geral e badges reativos
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06-03: Operação de convidados por família — busca/filtros, criação manual, edição, remoções, conflitos e revogação RSVP
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 06-04: Moderação e Presentes — filas/tabs, transições e undo condicionais, presentes atômicos e reatividade pública
 
 ### Phase 7: Endurecimento & Lançamento
 
@@ -208,5 +220,5 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 3. RSVP | 5/5 | Complete    | 2026-07-24 |
 | 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
-| 6. Dashboard Interno (/admin) | 0/2 | Not started | - |
+| 6. Dashboard Interno (/admin) | 0/4 | Not started | - |
 | 7. Endurecimento & Lançamento | 0/2 | Not started | - |
