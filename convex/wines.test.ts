@@ -287,6 +287,12 @@ describe('wine smoke seam', () => {
         state: { status: 'available' },
       }),
     ).rejects.toThrow(/não encontrado/i)
+    await expect(
+      t.mutation(wineInternal.setWineGiftStateForSmoke, {
+        productCode: '39778',
+        state: { status: 'reserved' },
+      } as never),
+    ).rejects.toThrow()
 
     await t.run((ctx) =>
       ctx.db.insert('wines', {
