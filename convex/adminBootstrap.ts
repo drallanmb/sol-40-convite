@@ -134,6 +134,69 @@ export const finishBootstrap = internalMutation({
   },
 })
 
+export const regenerateBootstrapActivation = internalMutation({
+  args: {
+    tokenHash: v.string(),
+    now: v.number(),
+  },
+  returns: v.union(
+    v.object({ kind: v.literal('created') }),
+    v.object({ kind: v.literal('unavailable') }),
+  ),
+  handler: async (ctx, args) => {
+    const configs = await ctx.db
+      .query('adminAuthConfig')
+      .withIndex('by_key', (query) => query.eq('key', 'primary'))
+      .take(2)
+    const config = configs.length === 1 ? configs[0] : null
+    if (
+      config === null ||
+      config.bootstrapCompletedAt !== undefined ||
+      config.ownerAccountId === undefined
+    ) {
+      return { kind: 'unavailable' } as const
+    }
+    const owner = await ctx.db.get(config.ownerAccountId)
+    if (
+      owner === null ||
+      owner.role !== 'owner' ||
+      owner.state !== 'pending'
+    ) {
+      return { kind: 'unavailable' } as const
+    }
+    const links = await ctx.db
+      .query('adminAccessLinks')
+      .withIndex('by_account_purpose', (query) =>
+        query.eq('accountId', owner._id).eq('purpose', 'activation'),
+      )
+      .collect()
+    for (const link of links) {
+      if (link.consumedAt === undefined && link.revokedAt === undefined) {
+        await ctx.db.patch(link._id, { revokedAt: args.now })
+      }
+    }
+    await ctx.db.insert('adminAccessLinks', {
+      accountId: owner._id,
+      purpose: 'activation',
+      tokenHash: args.tokenHash,
+      credentialVersion: owner.credentialVersion,
+      createdAt: args.now,
+      expiresAt: args.now + ADMIN_ACCESS_LINK_TTL_MS,
+    })
+    await appendAuditEvent(ctx, {
+      actorKind: 'system',
+      subjectAccountId: owner._id,
+      area: 'accounts',
+      action: 'access_link_generated',
+      targetType: 'adminAccount',
+      targetId: owner._id,
+      targetLabel: owner.displayName,
+      occurredAt: args.now,
+    })
+    return { kind: 'created' } as const
+  },
+})
+
 async function deleteAccountSessions(
   ctx: MutationCtx,
   accountId: Id<'adminAccounts'>,

@@ -8,10 +8,18 @@
  * @module
  */
 
+import type * as adminAccessLinkActions from "../adminAccessLinkActions.js";
+import type * as adminAccessLinks from "../adminAccessLinks.js";
+import type * as adminAccountModel from "../adminAccountModel.js";
+import type * as adminAuditModel from "../adminAuditModel.js";
 import type * as adminAuth from "../adminAuth.js";
+import type * as adminAuthActions from "../adminAuthActions.js";
+import type * as adminBootstrap from "../adminBootstrap.js";
 import type * as adminInternal from "../adminInternal.js";
 import type * as adminModel from "../adminModel.js";
 import type * as adminOverview from "../adminOverview.js";
+import type * as adminPassword from "../adminPassword.js";
+import type * as adminPasswordActions from "../adminPasswordActions.js";
 import type * as adminPosts from "../adminPosts.js";
 import type * as adminRateLimits from "../adminRateLimits.js";
 import type * as adminRsvps from "../adminRsvps.js";
@@ -48,10 +56,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  adminAccessLinkActions: typeof adminAccessLinkActions;
+  adminAccessLinks: typeof adminAccessLinks;
+  adminAccountModel: typeof adminAccountModel;
+  adminAuditModel: typeof adminAuditModel;
   adminAuth: typeof adminAuth;
+  adminAuthActions: typeof adminAuthActions;
+  adminBootstrap: typeof adminBootstrap;
   adminInternal: typeof adminInternal;
   adminModel: typeof adminModel;
   adminOverview: typeof adminOverview;
+  adminPassword: typeof adminPassword;
+  adminPasswordActions: typeof adminPasswordActions;
   adminPosts: typeof adminPosts;
   adminRateLimits: typeof adminRateLimits;
   adminRsvps: typeof adminRsvps;

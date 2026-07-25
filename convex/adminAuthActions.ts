@@ -5,9 +5,8 @@ import {
   randomBytes,
   timingSafeEqual,
 } from 'node:crypto'
-import type { FunctionReference } from 'convex/server'
+import { makeFunctionReference } from 'convex/server'
 import { v } from 'convex/values'
-import { internal } from './_generated/api'
 import { action } from './_generated/server'
 import { BOOTSTRAP_OWNER_EMAIL } from './adminBootstrap'
 
@@ -15,27 +14,40 @@ declare const process: {
   env: Record<string, string | undefined>
 }
 
-const bootstrapApi = (internal as unknown as {
-  adminBootstrap: {
-    consumeMasterAttempt: FunctionReference<'mutation', 'internal', {
+const consumeMasterAttempt = makeFunctionReference<
+  'mutation',
+  {
       operation: 'bootstrap' | 'recovery'
-    }, {
+  },
+  {
       kind: 'allowed'
     } | {
       kind: 'rate_limited'
       retryAfterSeconds: number
-    }>
-    finishBootstrap: FunctionReference<'mutation', 'internal', {
+  }
+>('adminBootstrap:consumeMasterAttempt')
+const finishBootstrap = makeFunctionReference<
+  'mutation',
+  {
       email: string
       tokenHash: string
       now: number
-    }, { kind: 'created' | 'pending' | 'unavailable' }>
-    finishMasterRecovery: FunctionReference<'mutation', 'internal', {
+  },
+  { kind: 'created' | 'pending' | 'unavailable' }
+>('adminBootstrap:finishBootstrap')
+const finishMasterRecovery = makeFunctionReference<
+  'mutation',
+  {
       tokenHash: string
       now: number
-    }, { kind: 'created' | 'unavailable' }>
-  }
-}).adminBootstrap
+  },
+  { kind: 'created' | 'unavailable' }
+>('adminBootstrap:finishMasterRecovery')
+const regenerateBootstrapActivation = makeFunctionReference<
+  'mutation',
+  { tokenHash: string; now: number },
+  { kind: 'created' | 'unavailable' }
+>('adminBootstrap:regenerateBootstrapActivation')
 
 function digest(value: string) {
   return createHash('sha256').update(value, 'utf8').digest()
@@ -83,7 +95,7 @@ export const bootstrapOwner = action({
   ),
   handler: async (ctx, args) => {
     const rateLimit = await ctx.runMutation(
-      bootstrapApi.consumeMasterAttempt,
+      consumeMasterAttempt,
       { operation: 'bootstrap' },
     )
     if (rateLimit.kind === 'rate_limited') return rateLimit
@@ -95,7 +107,7 @@ export const bootstrapOwner = action({
       return { kind: 'invalid_credentials' } as const
     }
     const capability = createCapability()
-    const result = await ctx.runMutation(bootstrapApi.finishBootstrap, {
+    const result = await ctx.runMutation(finishBootstrap, {
       email: BOOTSTRAP_OWNER_EMAIL,
       tokenHash: capability.tokenHash,
       now: Date.now(),
@@ -120,7 +132,7 @@ export const recoverOwner = action({
   ),
   handler: async (ctx, args) => {
     const rateLimit = await ctx.runMutation(
-      bootstrapApi.consumeMasterAttempt,
+      consumeMasterAttempt,
       { operation: 'recovery' },
     )
     if (rateLimit.kind === 'rate_limited') return rateLimit
@@ -129,12 +141,41 @@ export const recoverOwner = action({
     }
     const capability = createCapability()
     const result = await ctx.runMutation(
-      bootstrapApi.finishMasterRecovery,
+      finishMasterRecovery,
       {
         tokenHash: capability.tokenHash,
         now: Date.now(),
       },
     )
+    return result.kind === 'created'
+      ? ({ kind: 'created', token: capability.token } as const)
+      : ({ kind: 'unavailable' } as const)
+  },
+})
+
+export const regenerateOwnerActivation = action({
+  args: {
+    masterPassword: v.string(),
+  },
+  returns: v.union(
+    v.object({ kind: v.literal('created'), token: v.string() }),
+    v.object({ kind: v.literal('unavailable') }),
+    v.object({ kind: v.literal('invalid_credentials') }),
+    rateLimitedValidator,
+  ),
+  handler: async (ctx, args) => {
+    const rateLimit = await ctx.runMutation(consumeMasterAttempt, {
+      operation: 'bootstrap',
+    })
+    if (rateLimit.kind === 'rate_limited') return rateLimit
+    if (!validMasterPassword(args.masterPassword)) {
+      return { kind: 'invalid_credentials' } as const
+    }
+    const capability = createCapability()
+    const result = await ctx.runMutation(regenerateBootstrapActivation, {
+      tokenHash: capability.tokenHash,
+      now: Date.now(),
+    })
     return result.kind === 'created'
       ? ({ kind: 'created', token: capability.token } as const)
       : ({ kind: 'unavailable' } as const)

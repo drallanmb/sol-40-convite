@@ -4,7 +4,7 @@ export const ADMIN_PASSWORD_MAX_CODE_POINTS = 128
 export const ADMIN_SCRYPT_PARAMETERS = {
   version: 1,
   ln: 17,
-  N: 2 ** 17,
+  N: 2 ** 17 as 131072,
   r: 8,
   p: 1,
   saltBytes: 16,
@@ -97,8 +97,8 @@ export function parsePasswordEnvelope(
   const match = ENVELOPE_PATTERN.exec(envelope)
   if (
     match === null ||
-    !SALT_LAST_CHARACTERS.includes(match[1].at(-1) ?? '') ||
-    !HASH_LAST_CHARACTERS.includes(match[2].at(-1) ?? '')
+    !SALT_LAST_CHARACTERS.includes(match[1].charAt(match[1].length - 1)) ||
+    !HASH_LAST_CHARACTERS.includes(match[2].charAt(match[2].length - 1))
   ) {
     return null
   }

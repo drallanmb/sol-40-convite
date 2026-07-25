@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
+import { useLocation } from 'react-router'
 import { api } from '../../convex/_generated/api'
+import AdminAccessLink from '../components/admin/AdminAccessLink'
 import AdminLogin from '../components/admin/AdminLogin'
+import AdminSetup from '../components/admin/AdminSetup'
 import AdminShell from '../components/admin/AdminShell'
 import { ADMIN_COPY } from '../content/admin'
 import {
@@ -39,7 +42,7 @@ function applyEffects(effects: AdminSessionEffect[]) {
   }
 }
 
-function Admin() {
+function AdminSessionGate() {
   const [session, setSession] = useState<AdminSessionState>(initialSessionState)
   const sessionRef = useRef(session)
   const login = useMutation(api.adminAuth.login)
@@ -227,6 +230,40 @@ function Admin() {
       token={session.token}
     />
   )
+}
+
+function Admin() {
+  const location = useLocation()
+  const bootstrapStatus = useQuery(api.adminBootstrap.getBootstrapStatus)
+
+  if (location.pathname === '/admin/ativar') {
+    return <AdminAccessLink purpose="activation" />
+  }
+  if (location.pathname === '/admin/redefinir') {
+    return <AdminAccessLink purpose="reset" />
+  }
+  if (location.pathname === '/admin/configurar') {
+    return (
+      <AdminSetup
+        mode="bootstrap"
+        available={
+          bootstrapStatus?.kind === 'available' ||
+          bootstrapStatus?.kind === 'pending'
+        }
+        bootstrapPending={bootstrapStatus?.kind === 'pending'}
+      />
+    )
+  }
+  if (location.pathname === '/admin/recuperar-proprietario') {
+    return (
+      <AdminSetup
+        mode="recovery"
+        available={bootstrapStatus?.kind === 'complete'}
+      />
+    )
+  }
+
+  return <AdminSessionGate />
 }
 
 export default Admin

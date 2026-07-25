@@ -2,7 +2,6 @@ import { v } from 'convex/values'
 import {
   internalMutation,
   internalQuery,
-  mutation,
   query,
   type MutationCtx,
 } from './_generated/server'
@@ -264,10 +263,4 @@ export const finishAccessLink = internalMutation({
     })
     return { kind: 'completed' } as const
   },
-})
-
-export const revokeAccessLink = mutation({
-  args: { token: v.string() },
-  returns: v.object({ kind: v.literal('invalid') }),
-  handler: async () => ({ kind: 'invalid' } as const),
 })

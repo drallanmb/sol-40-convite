@@ -1,27 +1,31 @@
 "use node"
 
 import { createHash } from 'node:crypto'
-import type { FunctionReference } from 'convex/server'
+import { makeFunctionReference } from 'convex/server'
 import { v } from 'convex/values'
-import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { action, internalAction } from './_generated/server'
 import { adminAccessPurposeValidator } from './adminAccessLinks'
 import { validateAdminToken } from './adminSecurity'
 
-const accessLinksApi = (internal as unknown as {
-  adminAccessLinks: {
-    prepareAccessLink: FunctionReference<'mutation', 'internal', {
+const prepareAccessLink = makeFunctionReference<
+  'mutation',
+  {
       accountId: Id<'adminAccounts'>
       purpose: 'activation' | 'reset'
       tokenHash: string
       now: number
-    }, { kind: 'created' | 'invalid' }>
-    readAccessLinkSnapshot: FunctionReference<'query', 'internal', {
+  },
+  { kind: 'created' | 'invalid' }
+>('adminAccessLinks:prepareAccessLink')
+const readAccessLinkSnapshot = makeFunctionReference<
+  'query',
+  {
       tokenHash: string
       purpose: 'activation' | 'reset'
       now: number
-    }, {
+  },
+  {
       kind: 'invalid'
     } | {
       kind: 'ready'
@@ -30,32 +34,28 @@ const accessLinksApi = (internal as unknown as {
       credentialVersion: number
       email: string
       displayName: string
-    }>
-    finishAccessLink: FunctionReference<'mutation', 'internal', {
+  }
+>('adminAccessLinks:readAccessLinkSnapshot')
+const finishAccessLink = makeFunctionReference<
+  'mutation',
+  {
       linkId: Id<'adminAccessLinks'>
       tokenHash: string
       purpose: 'activation' | 'reset'
       expectedCredentialVersion: number
       passwordHash: string
       now: number
-    }, { kind: 'completed' | 'invalid' }>
-  }
-  adminPasswordActions: {
-    hashAdminPassword: FunctionReference<'action', 'internal', {
+  },
+  { kind: 'completed' | 'invalid' }
+>('adminAccessLinks:finishAccessLink')
+const hashAdminPassword = makeFunctionReference<
+  'action',
+  {
       password: string
       context?: { email?: string; displayName?: string }
-    }, { kind: 'hashed'; envelope: string } | { kind: 'invalid_password' }>
-  }
-}).adminAccessLinks
-
-const passwordApi = (internal as unknown as {
-  adminPasswordActions: {
-    hashAdminPassword: FunctionReference<'action', 'internal', {
-      password: string
-      context?: { email?: string; displayName?: string }
-    }, { kind: 'hashed'; envelope: string } | { kind: 'invalid_password' }>
-  }
-}).adminPasswordActions
+  },
+  { kind: 'hashed'; envelope: string } | { kind: 'invalid_password' }
+>('adminPasswordActions:hashAdminPassword')
 
 function tokenHash(token: string) {
   return createHash('sha256').update(token, 'utf8').digest('hex')
@@ -73,7 +73,7 @@ export const createAccessLink = internalAction({
   ),
   handler: async (ctx, args) => {
     if (!validateAdminToken(args.token)) return { kind: 'invalid' } as const
-    return ctx.runMutation(accessLinksApi.prepareAccessLink, {
+    return ctx.runMutation(prepareAccessLink, {
       accountId: args.accountId,
       purpose: args.purpose,
       tokenHash: tokenHash(args.token),
@@ -96,13 +96,13 @@ export const consumeAccessLink = action({
   handler: async (ctx, args) => {
     if (!validateAdminToken(args.token)) return { kind: 'invalid' } as const
     const hash = tokenHash(args.token)
-    const snapshot = await ctx.runQuery(accessLinksApi.readAccessLinkSnapshot, {
+    const snapshot = await ctx.runQuery(readAccessLinkSnapshot, {
       tokenHash: hash,
       purpose: args.purpose,
       now: Date.now(),
     })
     if (snapshot.kind !== 'ready') return { kind: 'invalid' } as const
-    const password = await ctx.runAction(passwordApi.hashAdminPassword, {
+    const password = await ctx.runAction(hashAdminPassword, {
       password: args.password,
       context: {
         email: snapshot.email,
@@ -112,7 +112,7 @@ export const consumeAccessLink = action({
     if (password.kind !== 'hashed') {
       return { kind: 'invalid_password' } as const
     }
-    return ctx.runMutation(accessLinksApi.finishAccessLink, {
+    return ctx.runMutation(finishAccessLink, {
       linkId: snapshot.linkId,
       tokenHash: hash,
       purpose: args.purpose,

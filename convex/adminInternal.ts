@@ -1,6 +1,5 @@
 import { v } from 'convex/values'
-import type { FunctionReference } from 'convex/server'
-import { internal } from './_generated/api'
+import { makeFunctionReference } from 'convex/server'
 import type { Id } from './_generated/dataModel'
 import { internalMutation, type MutationCtx } from './_generated/server'
 
@@ -35,16 +34,11 @@ export const expireAdminSession = internalMutation({
   handler: expireAdminSessionRecord,
 })
 
-const purgeLegacyRef = (internal as unknown as {
-  adminInternal: {
-    purgeLegacyAdminSessions: FunctionReference<
-      'mutation',
-      'internal',
-      { cursor?: string },
-      unknown
-    >
-  }
-}).adminInternal.purgeLegacyAdminSessions
+const purgeLegacyRef = makeFunctionReference<
+  'mutation',
+  { cursor?: string },
+  unknown
+>('adminInternal:purgeLegacyAdminSessions')
 
 export const purgeLegacyAdminSessions = internalMutation({
   args: { cursor: v.optional(v.string()) },

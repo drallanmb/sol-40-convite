@@ -117,6 +117,23 @@ export function generateAdminCapability(
   return encodeBase64Url(bytes)
 }
 
+export function takeAdminAccessTokenFromUrl(
+  href: string,
+  replaceUrl: (safeUrl: string) => void,
+) {
+  let url: URL
+  try {
+    url = new URL(href)
+  } catch {
+    return null
+  }
+  const candidate = url.searchParams.get('token')
+  replaceUrl(`${url.pathname}${url.hash}`)
+  return candidate !== null && isAdminCapability(candidate)
+    ? candidate
+    : null
+}
+
 function isOptionalFiniteExpiry(value: unknown) {
   return (
     value === undefined ||
