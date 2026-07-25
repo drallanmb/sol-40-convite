@@ -167,6 +167,7 @@ status: complete
 12. **Real decoder RED: executable JPEG/WebP/PNG bypass and bomb regressions** — `1f7bdca`
 13. **Real decoder GREEN: bounded Convex Node pixel materialization** — `08fefe0`
 14. **Build fixture follow-up: ArrayBuffer-safe adversarial PNG typing** — `118ad36`
+15. **Preflight cleanup: remove handcrafted JPEG/WebP bitstream parsers from the acceptance path** — `6039ebb`
 
 ## Files Created/Modified
 
@@ -215,7 +216,7 @@ status: complete
 - `npx convex dev --once` — **passed twice**, including server installation of external sharp and publication of the Node decoder action.
 - Secret/raw-HTML/log source prohibition scan — **passed**.
 - Indexed-source prohibition scan — **passed**, with no tokenHash table filter.
-- Phase 5 commit-range `git diff --check` and all fourteen implementation/test commit checks — **passed**.
+- Phase 5 commit-range `git diff --check` and all fifteen implementation/test commit checks — **passed**.
 
 ## Phase 4 Preservation
 
@@ -257,7 +258,7 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - All declared production/test artifacts exist.
-- Fourteen implementation/test commits matching this gap closure exist, including RED then GREEN ordering for the final real-decoder bypasses.
+- Fifteen implementation/test commits matching this gap closure exist, including RED then GREEN ordering for the final real-decoder bypasses.
 - Every task acceptance command, focused suite, full suite, build, Convex runtime, source scan, and scoped diff check passed.
 - Phase 4 dirty planning files remain unstaged and byte-preserved by this executor.
 - Manual browser/device UAT remains classified as pending.
