@@ -88,6 +88,21 @@ export default defineSchema({
     bootstrapCompletedAt: v.optional(v.number()),
   }).index('by_key', ['key']),
 
+  adminAccessLinks: defineTable({
+    accountId: v.id('adminAccounts'),
+    purpose: v.union(v.literal('activation'), v.literal('reset')),
+    tokenHash: v.string(),
+    credentialVersion: v.number(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    consumedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index('by_token_hash', ['tokenHash'])
+    .index('by_account', ['accountId'])
+    .index('by_account_purpose', ['accountId', 'purpose'])
+    .index('by_expires_at', ['expiresAt']),
+
   adminAuditEvents: defineTable({
     actorKind: adminAuditActorKindValidator,
     actorAccountId: v.optional(v.id('adminAccounts')),

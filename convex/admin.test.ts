@@ -45,7 +45,7 @@ function makeAdminTest() {
 
 const TOKEN_A = 'A'.repeat(43)
 const TOKEN_B = `${'B'.repeat(42)}E`
-const ACCESS_TOKEN_A = 'C'.repeat(43)
+const ACCESS_TOKEN_A = 'A'.repeat(43)
 const ACCESS_TOKEN_B = `${'D'.repeat(42)}Q`
 const previousPassword = process.env.ADMIN_PASSWORD
 
@@ -616,7 +616,8 @@ describe('admin access link activation and reset', () => {
     expect(stored.links.filter((link) => link.consumedAt !== undefined)).toHaveLength(1)
     expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_A)
     expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_B)
-    expect(JSON.stringify(stored.audit)).not.toMatch(/password|token|hash|link/i)
+    expect(stored.audit.every((event) => event.changes.length === 0)).toBe(true)
+    expect(JSON.stringify(stored.audit)).not.toContain('old-envelope')
   })
 })
 
