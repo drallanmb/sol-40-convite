@@ -12,9 +12,10 @@ Os convidados confirmam presença e escolhem presente **sem atrito**, e os donos
 
 ## Current State
 
-Fases 1–6 concluídas e verificadas. Convite, RSVP, carta de 37 vinhos, mural
-moderado e dashboard interno estão implementados e integrados de forma reativa.
-O projeto segue para endurecimento, checklist dos donos e lançamento.
+O site está publicado em `https://www.sol40.com.br`, com Vercel/Convex
+Production isolados, backup externo e domínio/rollback verificados. A Fase 7
+mantém dois follow-ups independentes: lista real de convidados e matriz em
+aparelhos físicos. A Fase 8 foi adicionada para contas individuais de gestores.
 
 ## Requirements
 
@@ -32,6 +33,7 @@ O projeto segue para endurecimento, checklist dos donos e lançamento.
 <!-- Escopo v1. Hipóteses até serem entregues e validadas. -->
 
 - [ ] **Lançamento** — testes reais, acessibilidade AA, checklist dos donos, domínio e deploy de produção
+- [ ] **Gestão de gestores pós-lançamento** — admin proprietário, contas e sessões individuais, papéis, revogação, redefinição de senha e auditoria
 
 ### Out of Scope
 
@@ -43,7 +45,6 @@ O projeto segue para endurecimento, checklist dos donos e lançamento.
 - **Venda / checkout de vinhos no site** — intencional: a venda é externa, pelo WhatsApp do vendedor ("Mistral")
 - **Login individual de convidado / contas nomeadas** — over-engineered para uma festa de uma noite; RSVP é público
 - **Reserva de vinho com expiração de 48h e teto anônimo** — simplificado para marcação manual de "presenteado" no dashboard
-- **Auth de dois níveis (dono + moderadora, senha + código colável)** — v1 usa senha única dos donos
 
 ## Context
 
@@ -70,7 +71,8 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 | RSVP público sem login | Festa de uma noite não justifica contas individuais; capability efêmera escopa uma família | ✓ Good — validado na Fase 3 |
 | Presente = redirect WhatsApp (sem checkout) | Venda é externa, pelo vendedor "Mistral" | ✓ Good — validado na Fase 4 |
 | Mural com moderação antes de publicar | Evitar conteúdo indevido no álbum/telão público | ✓ Good — projeção pública permanece approved-only |
-| Dashboard com senha única dos donos | 2 donos; contas nomeadas já foram descartadas no projeto antigo | ✓ Good — capability opaca hash-only com expiração absoluta de 7 dias |
+| Dashboard com senha única dos donos | Permitiria lançar com superfície de autenticação pequena | ✓ Good para o lançamento; senha-mestra passa a ser acesso do proprietário/recuperação quando a Fase 8 for entregue |
+| Gestores com contas individuais | A senha administrativa precisará ser compartilhada; contas próprias permitem revogação, papéis e auditoria sem divulgar a senha-mestra | → Phase 8 pós-lançamento |
 | Telão + Instagram → v2 | Reduz escopo v1 e evita custo externo (Apify) | — Pending |
 | Marcar "presenteado" manual (sem reserva 48h) | Simplicidade; a compra acontece fora do site | ✓ Modelo reativo validado na Fase 4; controle do dono segue para a Fase 6 |
 | Carta usa uma garrafa vetorial neutra e duas cores por vinho | Evita dependência de 37 fotos licenciadas sem perder diferenciação visual | ✓ Good — 37 paletas com proveniência privada e zero mídia remota |
@@ -93,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 after Phase 6 completion*
+*Last updated: 2026-07-25 after production launch and Phase 8 addition*

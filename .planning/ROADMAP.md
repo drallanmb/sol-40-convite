@@ -13,6 +13,7 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
 - [x] **Phase 5: Mural de Memórias + Moderação** - Envio de fotos/recados com fila de moderação (completed 2026-07-24)
 - [x] **Phase 6: Dashboard Interno (/admin)** - Painel dos donos: confirmações ao vivo, convidados, moderação, presentes (completed 2026-07-25)
 - [ ] **Phase 7: Endurecimento & Lançamento** - Rate-limit, testes em dispositivo real, checklist dos donos, deploy de produção
+- [ ] **Phase 8: Gestão de Gestores** - Contas individuais, permissões, revogação e auditoria pós-lançamento
 
 ## Phase Details
 
@@ -253,7 +254,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 são independentes após a 1 e podem ser paralelizadas).
+Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 (2–5 são independentes após a 1 e podem ser paralelizadas).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -264,3 +265,15 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
 | 6. Dashboard Interno (/admin) | 7/7 | Complete    | 2026-07-25 |
 | 7. Endurecimento & Lançamento | 4/6 | In Progress|  |
+| 8. Gestão de Gestores | 0/0 | Not planned |  |
+
+### Phase 8: Gestão de gestores — contas individuais, permissões e auditoria
+
+**Goal:** Permitir que o administrador proprietário gerencie gestores com credenciais, permissões e sessões individuais, sem compartilhar a senha-mestra.
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-discuss-phase 8 antes de planejar)

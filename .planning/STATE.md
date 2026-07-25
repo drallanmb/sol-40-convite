@@ -10,7 +10,7 @@ last_updated: "2026-07-25T13:17:42.219Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 07 execution started
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 6
   total_plans: 39
   completed_plans: 37
@@ -126,7 +126,13 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 
 ### Pending Todos
 
-None yet.
+- Phase 8: substituir o compartilhamento da senha-mestra por contas individuais
+  de gestores, com papéis, revogação, redefinição de senha e auditoria.
+
+### Roadmap Evolution
+
+- Phase 8 added: Gestão de gestores — contas individuais, permissões e
+  auditoria pós-lançamento.
 
 ### Blockers/Concerns
 
@@ -143,5 +149,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-07-25T13:17:08.515Z
-Stopped at: Completed 07-04-PLAN.md
+Stopped at: Phase 07 publicada; 07-05 aguarda CSV real e 07-06 aguarda aparelhos físicos
 Resume file: None
