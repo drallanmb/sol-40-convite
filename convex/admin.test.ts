@@ -10,6 +10,11 @@ import {
   appendAuditEvent,
   buildAuditChanges,
 } from './adminAuditModel'
+import {
+  needsPasswordRehash,
+  parsePasswordEnvelope,
+  validateAdminPassword,
+} from './adminPassword'
 import { ADMIN_SESSION_TTL_MS, isAdminSessionActive } from './adminModel'
 import { ADMIN_RATE_LIMITS } from './adminRateLimits'
 import {
@@ -148,6 +153,99 @@ describe('admin password comparison', () => {
     await expect(compareAdminPassword('xegredo', 'segredo')).resolves.toBe(false)
     await expect(compareAdminPassword('segredx', 'segredo')).resolves.toBe(false)
     await expect(compareAdminPassword('qualquer', undefined)).resolves.toBe(false)
+  })
+})
+
+describe('admin password policy and scrypt envelope', () => {
+  it('normalizes Unicode and accepts long passphrases with spaces', () => {
+    const decomposed = 'Cafe\u0301 com sol, vento e mar!'
+    const validation = validateAdminPassword(decomposed)
+
+    expect(validation).toEqual({
+      kind: 'valid',
+      password: decomposed.normalize('NFC'),
+    })
+    expect(
+      Array.from(validation.kind === 'valid' ? validation.password : ''),
+    ).toHaveLength(26)
+  })
+
+  it('rejects short, oversized and contextual common passwords', () => {
+    expect(validateAdminPassword('curta demais')).toMatchObject({
+      kind: 'invalid',
+    })
+    expect(validateAdminPassword('a'.repeat(129))).toMatchObject({
+      kind: 'invalid',
+    })
+    expect(
+      validateAdminPassword('Minha senha Allan 2026!', {
+        email: 'allan@example.com',
+        displayName: 'Allan',
+      }),
+    ).toMatchObject({ kind: 'invalid' })
+  })
+
+  it('hashes with random salts and verifies without returning the envelope', async () => {
+    const t = makeAdminTest()
+    const password = 'Brisa dourada sobre o mar 2026'
+    const first = await t.action(
+      internal.adminPasswordActions.hashAdminPassword,
+      { password },
+    )
+    const second = await t.action(
+      internal.adminPasswordActions.hashAdminPassword,
+      { password },
+    )
+    expect(first.kind).toBe('hashed')
+    expect(second.kind).toBe('hashed')
+    if (first.kind !== 'hashed' || second.kind !== 'hashed') return
+
+    expect(first.envelope).not.toBe(second.envelope)
+    expect(first.envelope).not.toContain(password)
+    expect(parsePasswordEnvelope(first.envelope)).toMatchObject({
+      version: 1,
+      ln: 17,
+      r: 8,
+      p: 1,
+    })
+    expect(needsPasswordRehash(first.envelope)).toBe(false)
+
+    const correct = await t.action(
+      internal.adminPasswordActions.verifyAdminPassword,
+      { password, envelope: first.envelope },
+    )
+    const incorrect = await t.action(
+      internal.adminPasswordActions.verifyAdminPassword,
+      { password: `${password}!`, envelope: first.envelope },
+    )
+    expect(correct).toEqual({ kind: 'verified', valid: true, rehash: false })
+    expect(incorrect).toEqual({
+      kind: 'verified',
+      valid: false,
+      rehash: false,
+    })
+    expect(JSON.stringify(correct)).not.toContain(first.envelope)
+  })
+
+  it('rejects malformed or abusive envelopes before invoking scrypt', async () => {
+    const malformed = [
+      '$scrypt$v=2$ln=17,r=8,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      '$scrypt$v=1$ln=20,r=8,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      '$scrypt$v=1$ln=17,r=8,p=1$not+base64$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      '$scrypt$v=1$ln=17,r=8,p=1$AAAAAAAAAAAAAAAAAAAAAA$short',
+    ]
+    for (const envelope of malformed) {
+      expect(parsePasswordEnvelope(envelope)).toBeNull()
+      expect(needsPasswordRehash(envelope)).toBe(true)
+    }
+
+    const t = makeAdminTest()
+    await expect(
+      t.action(internal.adminPasswordActions.verifyAdminPassword, {
+        password: 'Brisa dourada sobre o mar 2026',
+        envelope: malformed[1],
+      }),
+    ).resolves.toEqual({ kind: 'invalid_envelope' })
   })
 })
 
