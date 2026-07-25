@@ -46,6 +46,11 @@ class MemoryStorage implements Storage {
 }
 
 const TOKEN_A = 'A'.repeat(43)
+const PRINCIPAL = {
+  id: 'account-1',
+  displayName: 'Allan',
+  role: 'owner' as const,
+}
 
 function checking(sequence = 1): AdminSessionState {
   return { kind: 'checking', sequence, token: TOKEN_A }
@@ -163,6 +168,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       token: TOKEN_A,
       expiresAt: 10_000,
       now: 9_999,
+      principal: PRINCIPAL,
     })
 
     expect(transition.state).toEqual({
@@ -170,6 +176,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       sequence: 1,
       token: TOKEN_A,
       expiresAt: 10_000,
+      principal: PRINCIPAL,
     })
     expect(transition.effects).toEqual([
       {
@@ -185,6 +192,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       sequence: 3,
       token: TOKEN_A,
       expiresAt: 10_000,
+      principal: PRINCIPAL,
     }
     const transition = reduceAdminSession(authenticated, {
       type: 'deadline-reached',
@@ -213,6 +221,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       sequence: 4,
       token: TOKEN_A,
       expiresAt: 10_000,
+      principal: PRINCIPAL,
     }
     for (const action of [
       { type: 'session-revoked', sequence: 4 } as const,
@@ -241,6 +250,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       sequence: 1,
       token: TOKEN_A,
       expiresAt: 10_000,
+      principal: PRINCIPAL,
     }
     const loggingOut = reduceAdminSession(authenticated, {
       type: 'logout-started',
@@ -252,6 +262,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       token: TOKEN_A,
       expiresAt: 10_000,
       now: 2_000,
+      principal: PRINCIPAL,
     })
 
     expect(stale.state).toEqual(loggingOut)
@@ -264,6 +275,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       sequence: 2,
       token: TOKEN_A,
       expiresAt: 10_000,
+      principal: PRINCIPAL,
     }
     const transition = reduceAdminSession(loggingOut, {
       type: 'logout-failed',
@@ -315,6 +327,7 @@ describe('admin session reducer fail-closed lifecycle', () => {
       token: TOKEN_A,
       expiresAt: 10_000,
       now: 1_000,
+      principal: PRINCIPAL,
     })
     const serialized = JSON.stringify(transition)
 
@@ -323,5 +336,35 @@ describe('admin session reducer fail-closed lifecycle', () => {
     expect(serialized).not.toContain('password')
     expect(serialized).not.toContain('draft')
     expect(serialized).not.toContain('family')
+  })
+
+  it('cannot resurrect principal or drafts from a late status after revocation', () => {
+    const authenticated: AdminSessionState = {
+      kind: 'authenticated',
+      sequence: 7,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+      principal: PRINCIPAL,
+    }
+    const revoked = reduceAdminSession(authenticated, {
+      type: 'session-revoked',
+      sequence: 7,
+    })
+    const late = reduceAdminSession(revoked.state, {
+      type: 'status-valid',
+      sequence: 7,
+      token: TOKEN_A,
+      expiresAt: 10_000,
+      now: 2_000,
+      principal: PRINCIPAL,
+    })
+
+    expect(revoked.state).toEqual({
+      kind: 'anonymous',
+      sequence: 8,
+      notice: 'revoked',
+    })
+    expect(late.state).toEqual(revoked.state)
+    expect(JSON.stringify(late)).not.toContain('Allan')
   })
 })
