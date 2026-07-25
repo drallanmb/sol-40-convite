@@ -1463,6 +1463,122 @@ describe('post storage expiry and orphan cleanup', () => {
     vi.useRealTimers()
   })
 
+  it('excludes 51 active rows without terminalAt from numeric retirement pages', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-08-10T01:00:00.000Z').getTime()
+    vi.setSystemTime(now)
+    const t = makePostTest()
+    const oldTerminalAt = now - 8 * 24 * 60 * 60 * 1_000
+    const deletableId = await t.run(async (ctx) => {
+      for (let index = 0; index < 51; index += 1) {
+        await ctx.db.insert('postUploadReservations', {
+          tokenHash: `active-no-terminal-${index}`,
+          deviceKeyHash: `active-device-${index}`,
+          state: index % 2 === 0 ? 'awaiting_upload' : 'processing',
+          expiresAt: now + 24 * 60 * 60 * 1_000,
+          createdAt: now - index,
+        })
+      }
+      return ctx.db.insert('postUploadReservations', {
+        tokenHash: 'numeric-terminal',
+        deviceKeyHash: 'numeric-terminal-device',
+        state: 'expired',
+        expiresAt: oldTerminalAt,
+        terminalAt: oldTerminalAt,
+        createdAt: oldTerminalAt,
+      })
+    })
+
+    await expect(
+      t.mutation(postInternalApi.retireTerminalReservations, {}),
+    ).resolves.toMatchObject({ scanned: 1, deleted: 1, done: true })
+    await expect(t.run((ctx) => ctx.db.get(deletableId))).resolves.toBeNull()
+    const active = await t.run((ctx) =>
+      ctx.db
+        .query('postUploadReservations')
+        .collect(),
+    )
+    expect(active).toHaveLength(51)
+    expect(active.every((row) => row.terminalAt === undefined)).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('advances past a full page of terminal rows with invalid ownership instead of rescanning it', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-08-10T01:00:00.000Z').getTime()
+    const oldTerminalAt = now - 8 * 24 * 60 * 60 * 1_000
+    vi.setSystemTime(now)
+    const t = makePostTest()
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 51; index += 1) {
+        await ctx.db.insert('postUploadReservations', {
+          tokenHash: `invalid-owner-${index}`,
+          deviceKeyHash: `invalid-owner-device-${index}`,
+          state: 'accepted',
+          expiresAt: oldTerminalAt,
+          terminalAt: oldTerminalAt,
+          createdAt: oldTerminalAt - index,
+        })
+      }
+    })
+
+    const first = await t.mutation(
+      postInternalApi.retireTerminalReservations,
+      {},
+    )
+    expect(first).toMatchObject({
+      scanned: 50,
+      deleted: 0,
+      done: false,
+      nextCursor: expect.any(String),
+    })
+    expect(postInternalSource).toContain('.paginate({')
+    expect(postInternalSource).toContain('cursor: args.cursor ?? null')
+    vi.useRealTimers()
+  })
+
+  it('migrates 51 legacy terminal rows through bounded monotonic pages', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-08-10T01:00:00.000Z').getTime()
+    const oldTerminalAt = now - 8 * 24 * 60 * 60 * 1_000
+    vi.setSystemTime(now)
+    const t = makePostTest()
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 51; index += 1) {
+        await ctx.db.insert('postUploadReservations', {
+          tokenHash: `legacy-terminal-page-${index}`,
+          deviceKeyHash: `legacy-terminal-device-${index}`,
+          state: index % 2 === 0 ? 'rejected' : 'expired',
+          expiresAt: oldTerminalAt - index,
+          createdAt: oldTerminalAt - index - 1,
+        })
+      }
+    })
+
+    const first = await t.mutation(
+      postInternalApi.migrateLegacyTerminalReservations,
+      {},
+    )
+    expect(first).toMatchObject({
+      scanned: expect.any(Number),
+      migrated: expect.any(Number),
+      done: false,
+      nextCursor: expect.any(String),
+    })
+    vi.advanceTimersByTime(0)
+    await t.finishInProgressScheduledFunctions()
+
+    const rows = await t.run((ctx) =>
+      ctx.db.query('postUploadReservations').collect(),
+    )
+    expect(rows).toHaveLength(51)
+    expect(rows.every((row) => typeof row.terminalAt === 'number')).toBe(true)
+    expect(postInternalSource).toContain(
+      'migrateLegacyTerminalReservations',
+    )
+    vi.useRealTimers()
+  })
+
   it('deletes only old unowned storage and preserves young, post-owned, and reservation-owned blobs', async () => {
     vi.useFakeTimers()
     const now = new Date('2026-07-27T01:00:00.000Z').getTime()
