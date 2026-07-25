@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "audit:wine-assets": "node scripts/audit-wine-assets.mjs"
   },
   "dependencies": {
     "@convex-dev/rate-limiter": "0.3.2",
