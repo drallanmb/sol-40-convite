@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateRsvpCapability } from '../src/lib/rsvpSession'
 import { api, components, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
-import { insertInvitation } from './rsvpInternal'
+import {
+  expireRsvpSessionRecord,
+  insertInvitation,
+} from './rsvpInternal'
 import { RSVP_SESSION_TTL_MS } from './rsvpModel'
 import { RSVP_RATE_LIMITS, rsvpRateLimiter } from './rsvpRateLimits'
 import {
@@ -13,6 +16,8 @@ import {
   hashLimiterKey,
   hashOpaqueToken,
   isSessionActive,
+  normalizeRsvpGeneration,
+  resolveActiveRsvpSession,
   toRetryAfterSeconds,
   validateOpaqueToken,
 } from './rsvpSecurity'
@@ -799,6 +804,110 @@ describe('unlock capability and privacy', () => {
 
     expect(beforeRead?.expiresAt).toBe(now + RSVP_SESSION_TTL_MS)
     expect(afterRead?.expiresAt).toBe(beforeRead?.expiresAt)
+  })
+
+  it('stores invitation generation, schedules one absolute expiry, and physically expires once', async () => {
+    vi.useFakeTimers()
+    const now = Date.UTC(2026, 7, 2, 10, 0, 0)
+    vi.setSystemTime(now)
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-5003',
+      displayName: 'Sessão Agendada',
+      guests: [{ name: 'Pessoa', attendance: 'pending' }],
+    })
+    await t.run((ctx) => ctx.db.patch(invitation.rsvpId, { generation: 3 }))
+    const token = opaqueToken(171)
+    const tokenHash = await hashOpaqueToken(token)
+
+    await expect(
+      t.mutation((ctx) => createRsvpSession(ctx, {
+        rsvpId: invitation.rsvpId,
+        token,
+        now,
+      })),
+    ).resolves.toEqual({ kind: 'created', tokenHash })
+
+    const snapshot = await t.run(async (ctx) => ({
+      session: await ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_token_hash', (query) => query.eq('tokenHash', tokenHash))
+        .unique(),
+      scheduled: await ctx.db.system.query('_scheduled_functions').collect(),
+    }))
+    expect(snapshot.session).toEqual(expect.objectContaining({
+      generation: 3,
+      expiresAt: now + RSVP_SESSION_TTL_MS,
+    }))
+    expect(snapshot.scheduled).toHaveLength(1)
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    await expect(t.query(api.rsvps.getCurrent, { token })).resolves.toBeNull()
+    expect(await t.run((ctx) => ctx.db.get(snapshot.session!._id))).toBeNull()
+  })
+
+  it('keeps expiry idempotent and ignores a mismatched expected boundary', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-5004',
+      displayName: 'Expiração Idempotente',
+      guests: [],
+    })
+    const token = opaqueToken(172)
+    const expiresAt = Date.now() + 60_000
+    await createTestSession(t, invitation.rsvpId, token, expiresAt)
+    const tokenHash = await hashOpaqueToken(token)
+    const session = await t.run((ctx) =>
+      ctx.db
+        .query('rsvpSessions')
+        .withIndex('by_token_hash', (query) => query.eq('tokenHash', tokenHash))
+        .unique(),
+    )
+    expect(session).not.toBeNull()
+    const sessionId = session!._id
+
+    await expect(
+      t.mutation((ctx) =>
+        expireRsvpSessionRecord(ctx, {
+          sessionId,
+          expectedExpiresAt: expiresAt + 1,
+        }),
+      ),
+    ).resolves.toEqual({ kind: 'ignored' })
+    await expect(
+      t.mutation((ctx) =>
+        expireRsvpSessionRecord(ctx, { sessionId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'expired' })
+    await expect(
+      t.mutation((ctx) =>
+        expireRsvpSessionRecord(ctx, { sessionId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'ignored' })
+  })
+
+  it('treats legacy generation omissions as zero and rejects stale generations', async () => {
+    const t = makeRsvpTest()
+    const invitation = await seedInvitation(t, {
+      phone: '(79) 99999-5005',
+      displayName: 'Geração',
+      guests: [],
+    })
+    const legacyToken = opaqueToken(173)
+    await createTestSession(t, invitation.rsvpId, legacyToken)
+    await expect(
+      t.query((ctx) => resolveActiveRsvpSession(ctx, legacyToken)),
+    ).resolves.not.toBeNull()
+
+    await t.run((ctx) => ctx.db.patch(invitation.rsvpId, { generation: 1 }))
+    await expect(
+      t.query((ctx) => resolveActiveRsvpSession(ctx, legacyToken)),
+    ).resolves.toBeNull()
+
+    expect(normalizeRsvpGeneration(undefined)).toBe(0)
+    expect(normalizeRsvpGeneration(2)).toBe(2)
+    expect(() => normalizeRsvpGeneration(-1)).toThrow(/generation/i)
+    expect(() => normalizeRsvpGeneration(1.5)).toThrow(/generation/i)
   })
 })
 
