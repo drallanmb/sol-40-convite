@@ -7,6 +7,8 @@ import {
   createMemoryState,
   memoryReducer,
   remainingMessageCharacters,
+  tickMemoryRetrySeconds,
+  toMemoryRetrySeconds,
   validateMemoryDraft,
   type MemoryPhoto,
   type MemoryState,
@@ -86,6 +88,13 @@ describe('memory draft validation and Unicode limits', () => {
       messageLength: 2,
       error: 'invalid_author',
     })
+  })
+
+  it('uses the server countdown as positive whole seconds and re-enables at zero', () => {
+    expect(toMemoryRetrySeconds(0)).toBe(1)
+    expect(toMemoryRetrySeconds(1.1)).toBe(2)
+    expect(tickMemoryRetrySeconds(1)).toBe(0)
+    expect(tickMemoryRetrySeconds(0)).toBe(0)
   })
 })
 

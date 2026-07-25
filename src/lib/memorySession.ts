@@ -43,20 +43,29 @@ export function createReservationCapability(fillRandom?: MemoryRandomFill) {
 }
 
 export function loadOrCreateMemoryDeviceKey(
-  storage: Storage = globalThis.localStorage,
+  storage?: Storage,
   createKey: () => string = createMemoryDeviceKey,
 ) {
   let storageAvailable = true
+  let resolvedStorage: Storage | undefined
   try {
-    const stored = storage.getItem(MEMORY_DEVICE_KEY_STORAGE_KEY)
-    if (stored !== null && isCanonicalMemoryKey(stored)) {
-      return stored
-    }
-    if (stored !== null) {
-      storage.removeItem(MEMORY_DEVICE_KEY_STORAGE_KEY)
-    }
+    resolvedStorage = storage ?? globalThis.localStorage
   } catch {
     storageAvailable = false
+  }
+
+  if (resolvedStorage) {
+    try {
+      const stored = resolvedStorage.getItem(MEMORY_DEVICE_KEY_STORAGE_KEY)
+      if (stored !== null && isCanonicalMemoryKey(stored)) {
+        return stored
+      }
+      if (stored !== null) {
+        resolvedStorage.removeItem(MEMORY_DEVICE_KEY_STORAGE_KEY)
+      }
+    } catch {
+      storageAvailable = false
+    }
   }
 
   if (!storageAvailable && inMemoryDeviceKey !== null) {
@@ -67,10 +76,12 @@ export function loadOrCreateMemoryDeviceKey(
   if (!isCanonicalMemoryKey(generated)) {
     throw new Error('Memory key factory returned a malformed key')
   }
-  try {
-    storage.setItem(MEMORY_DEVICE_KEY_STORAGE_KEY, generated)
-  } catch {
-    storageAvailable = false
+  if (resolvedStorage) {
+    try {
+      resolvedStorage.setItem(MEMORY_DEVICE_KEY_STORAGE_KEY, generated)
+    } catch {
+      storageAvailable = false
+    }
   }
   if (!storageAvailable) inMemoryDeviceKey = generated
   return generated

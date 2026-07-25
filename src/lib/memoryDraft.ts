@@ -44,6 +44,7 @@ export type MemoryErrorCode =
   | 'network_error'
   | 'upload_error'
   | 'validation_rejected'
+  | 'validation_delayed'
   | 'rate_limited'
   | 'expired_reservation'
   | 'storage_conflict'
@@ -124,6 +125,14 @@ export function countMemoryCodePoints(value: string) {
 
 export function remainingMessageCharacters(value: string) {
   return MESSAGE_MAX_LENGTH - countMemoryCodePoints(value)
+}
+
+export function toMemoryRetrySeconds(seconds: number) {
+  return Math.max(1, Math.ceil(seconds))
+}
+
+export function tickMemoryRetrySeconds(seconds: number) {
+  return Math.max(0, seconds - 1)
 }
 
 export function validateMemoryDraft(
@@ -295,7 +304,7 @@ export function memoryReducer(
               : {
                   retryAfterSeconds: Math.max(
                     1,
-                    Math.ceil(action.retryAfterSeconds),
+                    toMemoryRetrySeconds(action.retryAfterSeconds),
                   ),
                 }),
           },
