@@ -725,6 +725,90 @@ describe('admin audit filters, retention and redaction', () => {
   })
 })
 
+describe('admin auth audit, account audit, session audit and atomic writes', () => {
+  it('audits legacy login failure and success without persisting the master password or token', async () => {
+    const t = makeAdminTest()
+    await expect(
+      t.mutation(api.adminAuth.login, {
+        password: 'segredo incorreto',
+        token: TOKEN_A,
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+    await expect(
+      t.mutation(api.adminAuth.login, {
+        password: 'senha-de-teste-segura',
+        token: TOKEN_A,
+      }),
+    ).resolves.toMatchObject({ kind: 'authenticated' })
+
+    const stored = await t.run(async (ctx) => ({
+      sessions: await ctx.db.query('adminSessions').collect(),
+      audit: await ctx.db.query('adminAuditEvents').collect(),
+    }))
+    expect(stored.sessions).toHaveLength(1)
+    expect(stored.audit.map((event) => event.action)).toEqual([
+      'login_failed',
+      'login_succeeded',
+    ])
+    expect(stored.audit.every((event) => event.actorKind !== 'account')).toBe(
+      true,
+    )
+    expect(JSON.stringify(stored.audit)).not.toMatch(
+      /senha-de-teste-segura|segredo incorreto|A{20}/u,
+    )
+  })
+
+  it('summarizes account-wide reset revocation in the same commit and emits no success on conflict', async () => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
+    const managerId = await insertRoleSession(t, TOKEN_B, 'manager')
+    const manager = await t.run((ctx) => ctx.db.get(managerId))
+    if (!manager) throw new Error('manager missing')
+
+    await expect(
+      t.mutation(api.adminAccounts.generateManagedAccessLink, {
+        token: TOKEN_A,
+        accountId: managerId,
+        expectedUpdatedAt: manager.updatedAt + 1,
+        purpose: 'reset',
+        accessToken: ACCESS_TOKEN_A,
+      }),
+    ).resolves.toEqual({ kind: 'conflict' })
+    expect(
+      await t.run((ctx) => ctx.db.query('adminAuditEvents').collect()),
+    ).toEqual([])
+
+    await expect(
+      t.mutation(api.adminAccounts.generateManagedAccessLink, {
+        token: TOKEN_A,
+        accountId: managerId,
+        expectedUpdatedAt: manager.updatedAt,
+        purpose: 'reset',
+        accessToken: ACCESS_TOKEN_A,
+      }),
+    ).resolves.toMatchObject({ kind: 'created' })
+
+    const stored = await t.run(async (ctx) => ({
+      sessions: await ctx.db
+        .query('adminSessions')
+        .withIndex('by_account', (index) =>
+          index.eq('accountId', managerId),
+        )
+        .collect(),
+      audit: await ctx.db.query('adminAuditEvents').collect(),
+    }))
+    expect(stored.sessions).toEqual([])
+    expect(stored.audit.map((event) => event.action)).toEqual([
+      'sessions_revoked',
+      'access_link_generated',
+    ])
+    expect(stored.audit[0].changes).toEqual([
+      { field: 'sessionCount', before: 1, after: 0 },
+    ])
+    expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_A)
+  })
+})
+
 describe('admin access link activation and reset', () => {
   it('accepts a link at 72h-1ms, rejects it at 72h and permits only one consumption', async () => {
     vi.useFakeTimers()
