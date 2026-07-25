@@ -724,7 +724,7 @@ describe('admin csv import tracer', () => {
     await insertActiveAdminSession(t, TOKEN_B)
     await t.mutation(api.adminAuth.logout, { token: TOKEN_B })
 
-    for (const token of ['malformed', TOKEN_A, TOKEN_B]) {
+    for (const token of ['', 'malformed', TOKEN_A, TOKEN_B]) {
       await expect(
         t.mutation(api.adminRsvps.importFamilies, {
           token,

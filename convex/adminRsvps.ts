@@ -88,6 +88,58 @@ const removedValidator = v.union(
   v.object({ kind: v.literal('removed') }),
 )
 
+const importIgnoredCodeValidator = v.union(
+  v.literal('invalid_family'),
+  v.literal('invalid_phone'),
+  v.literal('invalid_guest'),
+  v.literal('existing_phone'),
+)
+
+const importFamilyGroupValidator = v.object({
+  sourceRows: v.array(v.number()),
+  displayName: v.string(),
+  phone: v.string(),
+  guests: v.array(
+    v.object({
+      sourceRow: v.number(),
+      name: v.string(),
+    }),
+  ),
+})
+
+const importFamiliesResultValidator = v.union(
+  unauthorizedValidator,
+  v.object({
+    kind: v.literal('ready'),
+    created: v.array(
+      v.object({
+        sourceRows: v.array(v.number()),
+        familyId: v.id('rsvps'),
+        displayName: v.string(),
+        people: v.number(),
+      }),
+    ),
+    ignored: v.array(
+      v.object({
+        sourceRows: v.array(v.number()),
+        code: importIgnoredCodeValidator,
+        message: v.string(),
+      }),
+    ),
+  }),
+)
+
+const IMPORT_MAX_FAMILIES = 25
+const IMPORT_MAX_PEOPLE = 100
+
+function isPositiveInteger(value: number) {
+  return Number.isSafeInteger(value) && value > 0
+}
+
+function collapseWhitespace(value: string) {
+  return value.trim().replace(/\s+/gu, ' ')
+}
+
 type ReadCtx = Pick<QueryCtx, 'db'>
 
 async function projectFamily(ctx: ReadCtx, family: Doc<'rsvps'>) {
@@ -212,6 +264,123 @@ export const createFamily = mutation({
         message: error instanceof Error ? error.message : 'Não foi possível criar a família.',
       } as const
     }
+  },
+})
+
+export const importFamilies = mutation({
+  args: {
+    token: v.string(),
+    groups: v.array(importFamilyGroupValidator),
+  },
+  returns: importFamiliesResultValidator,
+  handler: async (ctx, args) => {
+    if ((await authorize(ctx, args.token)).kind !== 'authorized') {
+      return { kind: 'unauthorized' } as const
+    }
+
+    if (args.groups.length > IMPORT_MAX_FAMILIES) {
+      throw new Error(`Cada lote aceita no máximo ${IMPORT_MAX_FAMILIES} famílias.`)
+    }
+    const people = args.groups.reduce(
+      (total, group) => total + group.guests.length,
+      0,
+    )
+    if (people > IMPORT_MAX_PEOPLE) {
+      throw new Error(`Cada lote aceita no máximo ${IMPORT_MAX_PEOPLE} pessoas.`)
+    }
+
+    const created: Array<{
+      sourceRows: number[]
+      familyId: Id<'rsvps'>
+      displayName: string
+      people: number
+    }> = []
+    const ignored: Array<{
+      sourceRows: number[]
+      code:
+        | 'invalid_family'
+        | 'invalid_phone'
+        | 'invalid_guest'
+        | 'existing_phone'
+      message: string
+    }> = []
+
+    for (const group of args.groups) {
+      const sourceRows = [...new Set(group.sourceRows)]
+      const displayName = collapseWhitespace(group.displayName)
+      if (
+        sourceRows.length === 0 ||
+        sourceRows.some((row) => !isPositiveInteger(row)) ||
+        !displayName ||
+        displayName.length > RSVP_DISPLAY_NAME_MAX_LENGTH
+      ) {
+        ignored.push({
+          sourceRows,
+          code: 'invalid_family',
+          message: 'Nome ou linhas da família inválidos.',
+        })
+        continue
+      }
+
+      const normalizedPhone = normalizePhone(group.phone)
+      if (normalizedPhone.kind === 'invalid') {
+        ignored.push({
+          sourceRows,
+          code: 'invalid_phone',
+          message: 'Telefone brasileiro inválido.',
+        })
+        continue
+      }
+
+      const guests = group.guests.map((guest) => ({
+        sourceRow: guest.sourceRow,
+        name: collapseWhitespace(guest.name),
+      }))
+      if (
+        guests.length === 0 ||
+        guests.length > MAX_RSVP_GUESTS ||
+        guests.some(
+          (guest) =>
+            !isPositiveInteger(guest.sourceRow) ||
+            !sourceRows.includes(guest.sourceRow) ||
+            !guest.name ||
+            guest.name.length > RSVP_GUEST_NAME_MAX_LENGTH,
+        )
+      ) {
+        ignored.push({
+          sourceRows,
+          code: 'invalid_guest',
+          message: 'Uma ou mais pessoas têm dados inválidos.',
+        })
+        continue
+      }
+
+      if (await findLogicalInvitation(ctx, normalizedPhone)) {
+        ignored.push({
+          sourceRows,
+          code: 'existing_phone',
+          message: 'Este telefone já pertence a uma família cadastrada.',
+        })
+        continue
+      }
+
+      const inserted = await insertInvitation(ctx, {
+        displayName,
+        phone: normalizedPhone.phone,
+        guests: guests.map((guest) => ({
+          name: guest.name,
+          attendance: 'pending' as const,
+        })),
+      })
+      created.push({
+        sourceRows,
+        familyId: inserted.rsvpId,
+        displayName,
+        people: guests.length,
+      })
+    }
+
+    return { kind: 'ready', created, ignored } as const
   },
 })
 

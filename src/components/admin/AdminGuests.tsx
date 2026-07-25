@@ -27,6 +27,7 @@ import Button from '../ui/Button'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
 import AdminConfirmDialog from './AdminConfirmDialog'
+import AdminGuestImport from './AdminGuestImport'
 
 type AdminFamily = Omit<AdminFamilySnapshot, 'id' | 'guests'> & {
   id: Id<'rsvps'>
@@ -387,7 +388,10 @@ export function AdminGuests({
     <section aria-labelledby="admin-page-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-[2rem] font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><p className="mt-2">{ADMIN_COPY.guests.subtitle}</p></div>
-        <Button variant="adminPrimary" onClick={() => { setCreateError(null); setCreateOpen(true) }}>Adicionar família</Button>
+        <div className="flex flex-wrap gap-3">
+          <AdminGuestImport token={token} onUnauthorized={onUnauthorized} />
+          <Button variant="adminPrimary" onClick={() => { setCreateError(null); setCreateOpen(true) }}>Adicionar família</Button>
+        </div>
       </div>
       {families.length > 0 ? (
         <div className="mt-6 grid gap-4">
