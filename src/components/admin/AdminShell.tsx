@@ -22,6 +22,7 @@ import {
 } from '../../content/admin'
 import Button from '../ui/Button'
 import AdminOverview from './AdminOverview'
+import AdminGuests from './AdminGuests'
 
 type AdminShellProps = {
   badges?: Partial<Record<AdminBadgeKind, number>>
@@ -318,12 +319,7 @@ export function AdminShell({
           />
           <Route
             path="convidados"
-            element={
-              <RoutePlaceholder
-                title={ADMIN_COPY.guests.title}
-                subtitle={ADMIN_COPY.guests.subtitle}
-              />
-            }
+            element={<AdminGuests token={token} onUnauthorized={onUnauthorized} />}
           />
           <Route
             path="moderacao"
