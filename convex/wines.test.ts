@@ -5,7 +5,11 @@ import type { FunctionReference } from 'convex/server'
 import { describe, expect, it } from 'vitest'
 import { api, internal } from './_generated/api'
 import { WINE_CATALOG, FEATURED_WINE_CODES } from './wineCatalog'
-import type { WineGiftState } from './wineModel'
+import {
+  WINE_CATEGORY_ORDER,
+  type PublicWine,
+  type WineGiftState,
+} from './wineModel'
 import { makeWineTest as makeWineTestHarness } from './wineTest'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
@@ -44,6 +48,25 @@ const wineInternal = (
     }
   }
 ).wineInternal
+
+const wineApi = (
+  api as unknown as {
+    wines: {
+      listCatalog: FunctionReference<
+        'query',
+        'public',
+        Record<string, never>,
+        PublicWine[]
+      >
+      listFeatured: FunctionReference<
+        'query',
+        'public',
+        Record<string, never>,
+        PublicWine[]
+      >
+    }
+  }
+).wines
 
 describe('catalog wines', () => {
   it('keeps the complete canonical catalog byte-for-byte', () => {
@@ -322,5 +345,70 @@ describe('wine functions are internal only', () => {
     expect(
       'wineInternal' in (api as unknown as Record<string, unknown>),
     ).toBe(false)
+  })
+})
+
+describe('wine public queries', () => {
+  it('returns 37 explicit public DTOs in category, price, and code order', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+
+    const result = await t.query(wineApi.listCatalog, {})
+    const expectedCodes = [...WINE_CATALOG]
+      .sort((left, right) => {
+        const categoryDelta =
+          WINE_CATEGORY_ORDER.indexOf(left.category) -
+          WINE_CATEGORY_ORDER.indexOf(right.category)
+        return (
+          categoryDelta ||
+          left.priceCents - right.priceCents ||
+          left.productCode.localeCompare(right.productCode)
+        )
+      })
+      .map((wine) => wine.productCode)
+
+    expect(result).toHaveLength(37)
+    expect(result.map((wine) => wine.productCode)).toEqual(expectedCodes)
+    expect(
+      Object.keys(result[0]).sort(),
+    ).toEqual([
+      'category',
+      'description',
+      'imageUrl',
+      'name',
+      'priceCents',
+      'producer',
+      'productCode',
+      'status',
+      'tone',
+    ])
+    expect(JSON.stringify(result)).not.toMatch(
+      /"_id"|"giftedBy"|"giftedAt"|"updatedAt"/u,
+    )
+  })
+
+  it('returns the fixed featured trio in tuple order and preserves gifted status', async () => {
+    const t = makeWineTest()
+    await t.mutation(wineInternal.ensureWineCatalog, {})
+    await t.mutation(wineInternal.setWineGiftStateForSmoke, {
+      productCode: FEATURED_WINE_CODES[1],
+      state: {
+        status: 'gifted',
+        giftedBy: 'Privado',
+        giftedAt: 40_000,
+      },
+    })
+
+    const result = await t.query(wineApi.listFeatured, {})
+
+    expect(result.map((wine) => wine.productCode)).toEqual(
+      FEATURED_WINE_CODES,
+    )
+    expect(result.map((wine) => wine.status)).toEqual([
+      'available',
+      'gifted',
+      'available',
+    ])
+    expect(JSON.stringify(result)).not.toContain('Privado')
   })
 })
