@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: Dashboard Interno (/admin
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-07-25T04:01:46.517Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-07-25T04:15:00.169Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 30
-  completed_plans: 27
+  completed_plans: 28
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-25)
 ## Current Position
 
 Phase: 06 (Dashboard Interno (/admin)) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-25 — Phase 06 execution started
 
-Progress: [████████████████████] 26/26 plans ([█████████░] 90%)
+Progress: [████████████████████] 26/26 plans ([█████████░] 93%)
 
 ## Performance Metrics
 
@@ -75,6 +75,7 @@ Progress: [████████████████████] 26/26 p
 | Phase 04 P03 | 6 min | 3 tasks | 7 files |
 | Phase 04 P04 | 5 min | 3 tasks | 5 files |
 | Phase 06 P01 | 5 min | 3 tasks | 11 files |
+| Phase 06 P02 | 12 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 06]: Sessões administrativas usam uma capability opaca por navegador, armazenada apenas por hash no servidor. — Mantém a senha compartilhada como credencial única sem criar identidades, papéis ou credenciais reutilizáveis.
 - [Phase 06]: A sessão administrativa expira absolutamente após sete dias e nunca renova por leitura. — Evita acesso indefinido e mantém o limite simples, revogável e verificável no servidor.
 - [Phase 06]: O cliente preserva somente o destino na URL e limpa dados protegidos em expiração, revogação, logout e remoção cross-tab. — Impede remontagem por respostas assíncronas antigas e vazamento de rascunhos ou DTOs no armazenamento.
+- [Phase 06]: Consultas protegidas do admin só montam abaixo do gate de sessão; adminOverview retorna unauthorized sem DTO. — Mantém o invariante de nenhuma consulta de domínio pré-auth e desmonta dados no mesmo render da perda de autorização.
+- [Phase 06]: familyCount vem diretamente de rsvps e permanece independente da soma de presenças. — Distingue zero famílias de uma família válida com zero pessoas e impede copy operacional falsa.
+- [Phase 06]: O foco admin mantém coral e usa anel externo plum nas superfícies claras. — Preserva a identidade existente e garante uma borda perceptível acima de 3:1.
 
 ### Pending Todos
 
@@ -147,6 +151,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T04:01:32.321Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-07-25T04:14:47.242Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
