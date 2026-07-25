@@ -112,6 +112,36 @@ async function insertActiveAdminAccount(
   return { accountId, password }
 }
 
+async function insertRoleSession(
+  t: ReturnType<typeof makeAdminTest>,
+  token: string,
+  role: 'owner' | 'manager' | 'seller',
+) {
+  const accountId = await t.run((ctx) =>
+    ctx.db.insert('adminAccounts', {
+      email: `${role}-${token.charAt(0).toLowerCase()}@example.com`,
+      displayName: role,
+      role,
+      state: 'active',
+      passwordHash: 'test-envelope',
+      credentialVersion: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      activatedAt: 1,
+    }),
+  )
+  await t.run(async (ctx) => {
+    await ctx.db.insert('adminSessions', {
+      tokenHash: await hashAdminToken(token),
+      accountId,
+      credentialVersion: 1,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
+    })
+  })
+  return accountId
+}
+
 async function insertOverviewWine(
   t: ReturnType<typeof makeAdminTest>,
   productCode: string,
@@ -805,6 +835,173 @@ describe('admin overview authorization matrix', () => {
     await expect(
       t.query(api.adminOverview.get, { token: TOKEN_B }),
     ).resolves.toEqual({ kind: 'unauthorized' })
+  })
+})
+
+describe('authorization matrix by public endpoint', () => {
+  it.each([
+    ['owner', TOKEN_A],
+    ['manager', TOKEN_B],
+  ] as const)('allows %s to read every operational area', async (role, token) => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, token, role)
+
+    await expect(t.query(api.adminOverview.get, { token })).resolves.toMatchObject({
+      kind: 'ready',
+    })
+    await expect(t.query(api.adminRsvps.listFamilies, { token })).resolves.toMatchObject({
+      kind: 'ready',
+    })
+    await expect(
+      t.query(api.adminPosts.listByStatus, { token, status: 'pendente' }),
+    ).resolves.toMatchObject({ kind: 'ready' })
+    await expect(t.query(api.adminWines.listAdmin, { token })).resolves.toMatchObject({
+      kind: 'ready',
+    })
+  })
+
+  it('allows seller gifts and returns forbidden from every other public endpoint before writes', async () => {
+    const t = makeAdminTest()
+    const sellerToken = TOKEN_A
+    await insertRoleSession(t, sellerToken, 'seller')
+    const family = await seedAdminFamily(t)
+    const [guestId] = family.guestIds
+    const postId = await t.run((ctx) =>
+      ctx.db.insert('posts', {
+        message: 'Protegida',
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: 1,
+        moderationRevision: 0,
+      }),
+    )
+    const wineId = await insertOverviewWine(t, 'seller-rbac', 'available')
+    const wine = await t.run((ctx) => ctx.db.get(wineId))
+    if (!wine) throw new Error('missing wine')
+    const before = await t.run(async (ctx) => ({
+      rsvps: await ctx.db.query('rsvps').collect(),
+      guests: await ctx.db.query('rsvpGuests').collect(),
+      posts: await ctx.db.query('posts').collect(),
+      wines: await ctx.db.query('wines').collect(),
+    }))
+
+    const deniedCalls = [
+      () => t.query(api.adminOverview.get, { token: sellerToken }),
+      () => t.query(api.adminRsvps.listFamilies, { token: sellerToken }),
+      () =>
+        t.mutation(api.adminRsvps.createFamily, {
+          token: sellerToken,
+          displayName: 'Não criar',
+          phone: '(79) 99999-8000',
+          guests: [],
+        }),
+      () =>
+        t.mutation(api.adminRsvps.importFamilies, {
+          token: sellerToken,
+          groups: [],
+        }),
+      () =>
+        t.mutation(api.adminRsvps.updateFamily, {
+          token: sellerToken,
+          familyId: family.rsvpId,
+          expectedUpdatedAt: family.updatedAt,
+          patch: { displayName: 'Não editar' },
+        }),
+      () =>
+        t.mutation(api.adminRsvps.addGuest, {
+          token: sellerToken,
+          familyId: family.rsvpId,
+          expectedUpdatedAt: family.updatedAt,
+          name: 'Não adicionar',
+          attendance: 'pending',
+        }),
+      () =>
+        t.mutation(api.adminRsvps.updateGuest, {
+          token: sellerToken,
+          familyId: family.rsvpId,
+          guestId,
+          expectedUpdatedAt: family.updatedAt,
+          patch: { name: 'Não editar' },
+        }),
+      () =>
+        t.mutation(api.adminRsvps.removeGuest, {
+          token: sellerToken,
+          familyId: family.rsvpId,
+          guestId,
+          expectedUpdatedAt: family.updatedAt,
+        }),
+      () =>
+        t.mutation(api.adminRsvps.removeFamily, {
+          token: sellerToken,
+          familyId: family.rsvpId,
+          expectedUpdatedAt: family.updatedAt,
+        }),
+      () =>
+        t.query(api.adminPosts.listByStatus, {
+          token: sellerToken,
+          status: 'pendente',
+        }),
+      () =>
+        t.mutation(api.adminPosts.transitionPost, {
+          token: sellerToken,
+          postId,
+          expectedStatus: 'pendente',
+          expectedRevision: 0,
+          targetStatus: 'aprovado',
+        }),
+      () =>
+        t.mutation(api.adminPosts.undoPost, {
+          token: sellerToken,
+          postId,
+          priorStatus: 'oculto',
+          expectedStatus: 'pendente',
+          expectedRevision: 0,
+        }),
+    ]
+    for (const call of deniedCalls) {
+      await expect(call()).resolves.toEqual({ kind: 'forbidden' })
+    }
+
+    await expect(
+      t.query(api.adminWines.listAdmin, { token: sellerToken }),
+    ).resolves.toMatchObject({ kind: 'ready' })
+    await expect(
+      t.mutation(api.adminWines.markGifted, {
+        token: sellerToken,
+        wineId,
+        expectedUpdatedAt: wine.updatedAt,
+        giftedBy: 'Convidada',
+      }),
+    ).resolves.toMatchObject({ kind: 'updated' })
+
+    const afterDenied = await t.run(async (ctx) => ({
+      rsvps: await ctx.db.query('rsvps').collect(),
+      guests: await ctx.db.query('rsvpGuests').collect(),
+      posts: await ctx.db.query('posts').collect(),
+    }))
+    expect(afterDenied).toEqual({
+      rsvps: before.rsvps,
+      guests: before.guests,
+      posts: before.posts,
+    })
+  })
+
+  it.each([
+    ['overview', (t: ReturnType<typeof makeAdminTest>) =>
+      t.query(api.adminOverview.get, { token: 'malformed' })],
+    ['rsvps', (t: ReturnType<typeof makeAdminTest>) =>
+      t.query(api.adminRsvps.listFamilies, { token: 'malformed' })],
+    ['moderation', (t: ReturnType<typeof makeAdminTest>) =>
+      t.query(api.adminPosts.listByStatus, {
+        token: 'malformed',
+        status: 'pendente',
+      })],
+    ['gifts', (t: ReturnType<typeof makeAdminTest>) =>
+      t.query(api.adminWines.listAdmin, { token: 'malformed' })],
+  ] as const)('returns unauthorized for invalid %s access', async (_area, call) => {
+    await expect(call(makeAdminTest())).resolves.toEqual({
+      kind: 'unauthorized',
+    })
   })
 })
 
