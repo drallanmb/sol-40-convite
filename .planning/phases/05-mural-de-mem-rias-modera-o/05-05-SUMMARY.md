@@ -2,21 +2,23 @@
 phase: 05-mural-de-mem-rias-modera-o
 plan: 05
 subsystem: upload-security
-tags: [convex, storage, rate-limit, jpeg, png, webp, react, retry, idempotency]
+tags: [convex, storage, rate-limit, jpeg, png, webp, fflate, react, retry, idempotency]
 
 requires:
   - phase: 05-mural-de-mem-rias-modera-o
     plan: 04
     provides: "Public memory album and resilient one-memory composer"
 provides:
-  - "Indexed bounded upload-capability collision lookup and seven-day terminal reservation retention"
-  - "Bounded structural JPEG, PNG, and WebP server validation"
+  - "Indexed bounded upload-capability collision lookup and cursor-safe seven-day terminal reservation retention"
+  - "Bounded JPEG/WebP bitstream validation and decoded PNG scanline validation"
   - "Fresh short-lived upload transport after every upload-stage failure"
   - "Immutable claim snapshots that preserve newer guest edits after ambiguous acceptance"
 affects: [06-admin-moderation, phase-5-verification, launch-uat]
 
 tech-stack:
-  added: []
+  added:
+    - "fflate 0.8.2 for bounded PNG zlib decoding"
+    - "jpeg-js 0.4.4 and @jsquash PNG/WebP decoders as independent test-only fixture verification"
   patterns:
     - "Anonymous capability lookup is index-backed and terminal capability rows retire in fixed-size internal pages."
     - "Server media acceptance validates bounded container/image structure after metadata checks."
@@ -35,14 +37,18 @@ key-files:
     - convex/crons.ts
     - convex/uploadValidation.ts
     - convex/uploadValidation.test.ts
+    - convex/tsconfig.json
+    - package.json
+    - package-lock.json
+    - src/test/imageFixtures.ts
     - src/lib/memoryDraft.ts
     - src/lib/memoryDraft.test.ts
     - src/components/memories/MemoryForm.tsx
 
 key-decisions:
-  - "Terminal upload reservations remain for seven days and retire in pages of 50; accepted media is retained only after post ownership is re-verified."
-  - "Legacy terminal rows derive terminalAt from expiresAt through a bounded compatibility path."
-  - "Structural validation remains dependency-free and bounded by the existing 5 MiB gate, with a sane 16384px dimension ceiling."
+  - "Terminal upload reservations remain for seven days and retire through an index range plus cursor pages of 50; accepted media is retained only after post ownership is re-verified."
+  - "Legacy terminal rows migrate through an independent bounded cursor sweep, so active or invalid-ownership rows cannot create zero-delay loops."
+  - "Structural validation stays bounded by the existing 5 MiB gate and a 32 MiB decoded PNG ceiling; real JPEG/PNG/WebP fixtures are independently decoded in tests."
   - "The immutable photo identity is the uploaded storage identity kept in component memory; the public confirmation renders only accepted author/message content."
 
 patterns-established:
@@ -131,6 +137,8 @@ status: complete
 
 - Closed WR-01 with `by_token_hash`, fixed-size terminal retention, safe accepted-media ownership checks, legacy migration, and large-history/cutoff/pagination tests.
 - Closed WR-04 with bounded JPEG marker/SOF/SOS/EOI parsing, PNG chunk/order/dimension/CRC validation, and coherent WebP RIFF/chunk/dimension validation.
+- Reclosed WR-04 after independent decoder review: real encoder fixtures now prove small and exact-5-MiB positives, JPEG requires DQT/DHT/component-coherent entropy, PNG IDAT is actually inflated and scanline-checked, and VP8X can no longer stand in for image data.
+- Closed reopened WR-05 by excluding non-terminal rows at the index range, carrying the pagination cursor past invalid ownership rows, and migrating legacy terminal rows in a separate bounded sweep.
 - Closed WR-02 by making every network, abort, HTTP, invalid-response, or thrown upload failure terminal for that URL; retry requests a new reservation and reuses the processed blob.
 - Closed WR-03 with immutable normalized claim snapshots and collision-safe fingerprints; accepted A never clears or masquerades as edited draft B.
 
@@ -142,16 +150,24 @@ status: complete
 4. **Task 2 GREEN: JPEG/PNG/WebP structural parsers** — `724289e`
 5. **Task 3 RED: fresh retry and immutable snapshot regressions** — `998eaf4`
 6. **Task 3 GREEN: snapshot-safe upload retry flow** — `0c7b7e4`
+7. **Retention liveness RED: active, invalid-ownership, and legacy page regressions** — `a71cb43`
+8. **Retention liveness GREEN: cursor-safe retirement and migration** — `0b981c3`
+9. **Image decodability RED: real encoder fixtures and independent decoders** — `6810fec`
+10. **Image decodability GREEN: bounded JPEG/PNG/WebP bitstream hardening** — `2dff1c5`
+11. **Convex runtime verification: production-only typecheck boundary** — `71bacde`
 
 ## Files Created/Modified
 
 - `convex/schema.ts` — adds capability, terminal-time, and legacy terminal-state indexes.
 - `convex/posts.ts` — uses indexed collision lookup and timestamps direct terminal transitions.
-- `convex/postInternal.ts` — records terminal time and retires safe candidates after seven days in pages of 50.
-- `convex/crons.ts` — appends daily terminal reservation retirement without replacing the storage sweep.
-- `convex/uploadValidation.ts` — dependency-free bounded structural parsers for the three supported formats.
-- `convex/uploadValidation.test.ts` — real structural fixtures plus malformed lengths, dimensions, ordering, CRC, padding, and terminator cases.
+- `convex/postInternal.ts` — records terminal time, migrates legacy rows, and retires safe candidates after seven days with cursor-forward pages of 50.
+- `convex/crons.ts` — appends separate daily legacy migration and terminal retirement jobs without replacing the storage sweep.
+- `convex/uploadValidation.ts` — bounded JPEG table/scan validation, decoded PNG IDAT validation, and VP8/VP8L/VP8X image-chunk validation.
+- `convex/uploadValidation.test.ts` — independent decoder evidence plus malformed tables, entropy, zlib data, image chunks, lengths, dimensions, CRC, padding, and terminator cases.
 - `convex/posts.test.ts` — large-history, retention, malformed-storage deletion, and immutable A/B backend regressions.
+- `src/test/imageFixtures.ts` — compact real encoder outputs plus format-valid exact-5-MiB padding helpers.
+- `convex/tsconfig.json` — keeps test-only Node/WASM decoder types outside the Convex production function typecheck.
+- `package.json` / `package-lock.json` — pin the PNG inflater and independent test decoders.
 - `src/lib/memoryUploadAttempt.ts` — dependency-injected one-URL-per-attempt upload orchestration.
 - `src/lib/memoryUploadAttempt.test.ts` — fresh-reservation traces for all four XHR error kinds.
 - `src/lib/memoryDraft.ts` — canonical snapshots, fingerprints, frozen claims, and edited-draft-aware acceptance.
@@ -166,39 +182,44 @@ status: complete
 | WR-02 | `runFreshMemoryUploadAttempt` owns exactly one reservation/URL. Tests trace two attempts for `network_error`, `aborted`, `http_error`, and `invalid_response`: two reservation calls, distinct URLs, the identical processed Blob. |
 | WR-03 | First claim freezes normalized author/message plus storage identity into a length-prefixed fingerprint. Reducer/backend tests prove lost response A, edit B, accepted A confirmation, persisted A, retained B, retained preview, and fresh transport readiness. |
 | WR-04 | Prefix-only data now fails. JPEG requires a sane SOF, non-empty scan, and EOI; PNG requires coherent CRC-checked IHDR/IDAT/IEND; WebP requires exact RIFF sizing, bounded padded chunks, and sane VP8/VP8L/VP8X dimensions. |
+| WR-04 reopened | Positive fixtures come from real encoders and decode through independent libraries at small and exact 5 MiB sizes. JPEG additionally requires valid quantization/Huffman tables and coherent scan components/markers; PNG IDAT must inflate to the exact bounded scanline shape; WebP requires one real VP8 or VP8L image chunk and rejects VP8X-only containers. |
+| WR-05 | The retirement query uses a numeric `terminalAt` index range and cursor pagination. Active/no-terminal rows never enter the page, invalid ownership rows advance the cursor, and legacy accepted/rejected/expired rows migrate in bounded pages before normal retirement. |
 
 ## Automated and Runtime Verification
 
 - Focused Phase 5 gap suite — **8 files, 164/164 passed**.
-- Full repository suite — **17 files, 369/369 passed**.
+- Reopened focused retention suite — **52/52 passed**.
+- Reopened focused image/retention suite — **2 files, 87/87 passed**.
+- Full repository suite — **17 files, 381/381 passed**.
 - Production build — **passed**.
-- `npx convex dev --once` — **passed**, including all three new reservation indexes and existing wine functions.
+- `npx convex dev --once` — **passed**, including cursor-safe retention functions, all reservation indexes, and existing wine functions.
 - Secret/raw-HTML/log source prohibition scan — **passed**.
 - Indexed-source prohibition scan — **passed**, with no tokenHash table filter.
-- Phase 5 commit-range `git diff --check` and all six commit checks — **passed**.
+- Phase 5 commit-range `git diff --check` and all eleven implementation/test commit checks — **passed**.
 
 ## Phase 4 Preservation
 
 - Phase 4 planning files changed externally during Task 3 and remained unstaged and untouched.
 - Schema, cron registration, generated declarations, package files, and status were re-read before shared edits/runtime generation.
 - No reset, stash, amend, checkout, broad add, or Phase 4 staging was used.
-- The global working-tree `git diff --check` currently reports only an external blank EOF line in `04-05-PLAN.md`; the complete Phase 5 commit range passes cleanly.
+- The global working-tree and complete Phase 5 commit range pass `git diff --check`.
 
 ## Decisions Made
 
 - Seven days balances bounded capability retention with enough time for delayed status recovery; deletion restores token reuse only after that documented window.
 - A 16,384px server dimension ceiling safely exceeds the 2,560px client output while rejecting attacker-declared impossible dimensions.
-- PNG CRCs are verified because chunk framing alone would still permit corrupted critical metadata/data to be treated as coherent.
+- PNG CRCs and inflated scanline shape are verified because chunk framing alone still permits corrupted or fake compressed image data.
+- Independent decoders are test-only; production adds only `fflate`, keeping Convex validation deterministic and bounded.
 - The client keeps storage identity only as internal snapshot identity and never renders or logs it; accepted confirmation exposes only human author/message content.
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+The independent review reopened WR-04 and identified WR-05 after the original plan completed. Both received new RED/GREEN commits and runtime verification without changing the manual-UAT boundary.
 
 ## Issues Encountered
 
 - Parallel Phase 4 work modified planning files while this plan ran. It did not overlap Phase 5 code and was preserved without staging or rewriting.
-- The final global `git diff --check` is red only for the external Phase 4 blank EOF line. A scoped check over every Phase 5 production/test commit and target path is green.
+- The independent review file remained externally dirty and unstaged; all scoped and global whitespace checks are green.
 
 ## User Setup Required
 
@@ -216,7 +237,7 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - All twelve declared production/test artifacts exist.
-- Six task commits matching `05-05` exist with RED then GREEN ordering for every task.
+- Eleven implementation/test commits matching this gap closure exist, including new RED then GREEN ordering for both reopened findings.
 - Every task acceptance command, focused suite, full suite, build, Convex runtime, source scan, and scoped diff check passed.
 - Phase 4 dirty planning files remain unstaged and byte-preserved by this executor.
 - Manual browser/device UAT remains classified as pending.
