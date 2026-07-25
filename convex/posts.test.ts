@@ -1246,6 +1246,7 @@ describe('post storage expiry and orphan cleanup', () => {
       {},
     )
     expect(first).toMatchObject({ scanned: 50, done: false })
+    vi.advanceTimersByTime(0)
     await t.finishInProgressScheduledFunctions()
 
     const snapshot = await t.run(async (ctx) => ({
@@ -1254,16 +1255,18 @@ describe('post storage expiry and orphan cleanup', () => {
       remainingPageRows: (
         await Promise.all(fixture.pageIds.map((id) => ctx.db.get(id)))
       ).filter(Boolean),
-      acceptedBlob: await ctx.storage.get(acceptedStorageId),
-      rejectedBlob: await ctx.storage.get(rejectedStorageId),
+      acceptedBlobExists:
+        (await ctx.storage.get(acceptedStorageId)) !== null,
+      rejectedBlobExists:
+        (await ctx.storage.get(rejectedStorageId)) !== null,
       posts: await ctx.db.query('posts').collect(),
     }))
 
     expect(snapshot.acceptedReservation).toBeNull()
     expect(snapshot.rejectedReservation).toBeNull()
     expect(snapshot.remainingPageRows).toHaveLength(0)
-    expect(snapshot.acceptedBlob).not.toBeNull()
-    expect(snapshot.rejectedBlob).toBeNull()
+    expect(snapshot.acceptedBlobExists).toBe(true)
+    expect(snapshot.rejectedBlobExists).toBe(false)
     expect(snapshot.posts).toHaveLength(1)
     await expect(
       t.mutation(postInternalApi.retireTerminalReservations, {}),

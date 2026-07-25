@@ -68,11 +68,15 @@ export default defineSchema({
     postId: v.optional(v.id('posts')),
     errorCode: v.optional(v.string()),
     expiresAt: v.number(),
+    terminalAt: v.optional(v.number()),
     validationRequestedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
+    .index('by_token_hash', ['tokenHash'])
     .index('by_storage_id', ['storageId'])
-    .index('by_expires_at', ['expiresAt']),
+    .index('by_expires_at', ['expiresAt'])
+    .index('by_terminal_at', ['terminalAt'])
+    .index('by_state_expires_at', ['state', 'expiresAt']),
 
   wines: defineTable({
     productCode: v.string(),

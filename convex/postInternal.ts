@@ -6,12 +6,15 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  type MutationCtx,
 } from './_generated/server'
 import { mediaTypeValidator } from './postModel'
 import { validateImageBytes } from './uploadValidation'
 
 const ORPHAN_STORAGE_AGE_MS = 24 * 60 * 60 * 1_000
 const ORPHAN_SWEEP_PAGE_SIZE = 50
+export const TERMINAL_RESERVATION_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000
+export const TERMINAL_RESERVATION_PAGE_SIZE = 50
 
 const postInternalApi = (internal as unknown as {
   postInternal: {
@@ -57,6 +60,12 @@ const postInternalApi = (internal as unknown as {
       'mutation',
       'internal',
       { cursor?: string },
+      unknown
+    >
+    retireTerminalReservations: FunctionReference<
+      'mutation',
+      'internal',
+      Record<string, never>,
       unknown
     >
   }
@@ -214,6 +223,7 @@ export const acceptPhoto = internalMutation({
     await ctx.db.patch(reservation._id, {
       state: 'accepted',
       postId,
+      terminalAt: Date.now(),
     })
     return { kind: 'accepted', postId } as const
   },
@@ -274,6 +284,7 @@ export const rejectPhoto = internalMutation({
     await ctx.db.patch(reservation._id, {
       state: 'rejected',
       errorCode: args.code,
+      terminalAt: Date.now(),
     })
     return { kind: 'rejected', code: args.code } as const
   },
@@ -335,8 +346,147 @@ export const expireReservation = internalMutation({
         }
       }
     }
-    await ctx.db.patch(reservation._id, { state: 'expired' })
+    await ctx.db.patch(reservation._id, {
+      state: 'expired',
+      terminalAt: Date.now(),
+    })
     return { kind: 'expired' } as const
+  },
+})
+
+const TERMINAL_STATES = ['accepted', 'rejected', 'expired'] as const
+
+async function deleteTerminalReservationIfSafe(
+  ctx: MutationCtx,
+  reservationId: Id<'postUploadReservations'>,
+  cutoff: number,
+) {
+  const reservation = await ctx.db.get(reservationId)
+  if (
+    !reservation ||
+    !TERMINAL_STATES.includes(
+      reservation.state as (typeof TERMINAL_STATES)[number],
+    ) ||
+    reservation.terminalAt === undefined ||
+    reservation.terminalAt >= cutoff
+  ) {
+    return false
+  }
+
+  if (reservation.state === 'accepted') {
+    if (
+      reservation.postId === undefined ||
+      reservation.storageId === undefined
+    ) {
+      return false
+    }
+    const post = await ctx.db.get(reservation.postId)
+    if (
+      !post ||
+      post.uploadReservationId !== reservation._id ||
+      post.storageId !== reservation.storageId
+    ) {
+      return false
+    }
+  } else if (reservation.storageId !== undefined) {
+    const postOwner = await ctx.db
+      .query('posts')
+      .withIndex('by_storage_id', (index) =>
+        index.eq('storageId', reservation.storageId),
+      )
+      .first()
+    if (postOwner) {
+      return false
+    }
+    const metadata = await ctx.db.system.get(
+      '_storage',
+      reservation.storageId,
+    )
+    if (metadata) {
+      await ctx.storage.delete(reservation.storageId)
+    }
+  }
+
+  await ctx.db.delete(reservation._id)
+  return true
+}
+
+export const retireTerminalReservations = internalMutation({
+  args: {},
+  returns: v.object({
+    scanned: v.number(),
+    deleted: v.number(),
+    migrated: v.number(),
+    done: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const cutoff = Date.now() - TERMINAL_RESERVATION_RETENTION_MS
+    const terminalCandidates = await ctx.db
+      .query('postUploadReservations')
+      .withIndex('by_terminal_at', (index) =>
+        index.lt('terminalAt', cutoff),
+      )
+      .order('asc')
+      .take(TERMINAL_RESERVATION_PAGE_SIZE)
+    let deleted = 0
+    for (const candidate of terminalCandidates) {
+      if (
+        await deleteTerminalReservationIfSafe(
+          ctx,
+          candidate._id,
+          cutoff,
+        )
+      ) {
+        deleted += 1
+      }
+    }
+
+    let migrated = 0
+    let legacyBudget = TERMINAL_RESERVATION_PAGE_SIZE
+    for (const state of TERMINAL_STATES) {
+      if (legacyBudget === 0) {
+        break
+      }
+      const candidates = await ctx.db
+        .query('postUploadReservations')
+        .withIndex('by_state_expires_at', (index) =>
+          index.eq('state', state).lt('expiresAt', cutoff),
+        )
+        .order('asc')
+        .take(legacyBudget)
+      legacyBudget -= candidates.length
+      for (const candidate of candidates) {
+        const current = await ctx.db.get(candidate._id)
+        if (
+          current &&
+          current.state === state &&
+          current.terminalAt === undefined
+        ) {
+          await ctx.db.patch(current._id, {
+            terminalAt: current.expiresAt,
+          })
+          migrated += 1
+        }
+      }
+    }
+
+    const done =
+      terminalCandidates.length < TERMINAL_RESERVATION_PAGE_SIZE &&
+      migrated === 0
+    if (!done) {
+      await ctx.scheduler.runAfter(
+        0,
+        postInternalApi.retireTerminalReservations,
+        {},
+      )
+    }
+
+    return {
+      scanned: terminalCandidates.length,
+      deleted,
+      migrated,
+      done,
+    }
   },
 })
 

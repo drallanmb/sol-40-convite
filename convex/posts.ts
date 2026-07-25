@@ -220,8 +220,8 @@ export const requestUpload = mutation({
     ])
     const tokenMatches = await ctx.db
       .query('postUploadReservations')
-      .filter((filter) => filter.eq(filter.field('tokenHash'), tokenHash))
-      .take(2)
+      .withIndex('by_token_hash', (index) => index.eq('tokenHash', tokenHash))
+      .take(1)
     if (tokenMatches.length > 0) {
       return { kind: 'token_conflict' } as const
     }
@@ -275,6 +275,7 @@ async function rejectClaimedStorage(
   await ctx.db.patch(reservationId, {
     state: 'rejected',
     errorCode: code,
+    terminalAt: Date.now(),
   })
   return { kind: 'rejected', code } as const
 }
@@ -319,7 +320,10 @@ export const submitPhotoMemory = mutation({
       Date.now() >= reservation.expiresAt
     ) {
       if (reservation.state !== 'expired') {
-        await ctx.db.patch(reservation._id, { state: 'expired' })
+        await ctx.db.patch(reservation._id, {
+          state: 'expired',
+          terminalAt: Date.now(),
+        })
       }
       return { kind: 'expired' } as const
     }
