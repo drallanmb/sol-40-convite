@@ -45,6 +45,8 @@ function makeAdminTest() {
 
 const TOKEN_A = 'A'.repeat(43)
 const TOKEN_B = `${'B'.repeat(42)}E`
+const ACCESS_TOKEN_A = 'C'.repeat(43)
+const ACCESS_TOKEN_B = `${'D'.repeat(42)}Q`
 const previousPassword = process.env.ADMIN_PASSWORD
 
 declare const process: {
@@ -486,6 +488,135 @@ describe('admin audit model', () => {
       ],
     })
     expect(JSON.stringify(event)).not.toMatch(/old-secret|new-secret/)
+  })
+})
+
+describe('admin access link activation and reset', () => {
+  it('accepts a link at 72h-1ms, rejects it at 72h and permits only one consumption', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000)
+    const t = makeAdminTest()
+    const accountId = await t.run((ctx) =>
+      ctx.db.insert('adminAccounts', {
+        email: 'gestora@example.com',
+        displayName: 'Gestora',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 0,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      }),
+    )
+    const created = await t.action(
+      internal.adminAccessLinkActions.createAccessLink,
+      { accountId, purpose: 'activation', token: ACCESS_TOKEN_A },
+    )
+    expect(created).toEqual({ kind: 'created' })
+
+    vi.setSystemTime(created.kind === 'created' ? 1_000 + 72 * 60 * 60 * 1_000 - 1 : 0)
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'valid' })
+
+    const [first, second] = await Promise.all([
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+        password: 'Brisa dourada sobre o mar 2026',
+      }),
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+        password: 'Brisa dourada sobre o mar 2026',
+      }),
+    ])
+    expect([first.kind, second.kind].sort()).toEqual(['completed', 'invalid'])
+
+    vi.setSystemTime(1_000)
+    await t.action(internal.adminAccessLinkActions.createAccessLink, {
+      accountId,
+      purpose: 'reset',
+      token: ACCESS_TOKEN_B,
+    })
+    vi.setSystemTime(1_000 + 72 * 60 * 60 * 1_000)
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_B,
+        purpose: 'reset',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+  })
+
+  it('regeneration revokes the prior purpose-bound link and reset leaves zero sessions', async () => {
+    const t = makeAdminTest()
+    const accountId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert('adminAccounts', {
+        email: 'gestora@example.com',
+        displayName: 'Gestora',
+        role: 'manager',
+        state: 'active',
+        passwordHash: 'old-envelope',
+        credentialVersion: 2,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+        activatedAt: 1_000,
+      })
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        accountId: id,
+        credentialVersion: 2,
+        createdAt: 1_000,
+        expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
+      })
+      return id
+    })
+
+    await t.action(internal.adminAccessLinkActions.createAccessLink, {
+      accountId,
+      purpose: 'reset',
+      token: ACCESS_TOKEN_A,
+    })
+    await t.action(internal.adminAccessLinkActions.createAccessLink, {
+      accountId,
+      purpose: 'reset',
+      token: ACCESS_TOKEN_B,
+    })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'reset',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_B,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+
+    await expect(
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: ACCESS_TOKEN_B,
+        purpose: 'reset',
+        password: 'Outra brisa dourada sobre o mar 2026',
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+
+    const stored = await t.run(async (ctx) => ({
+      account: await ctx.db.get(accountId),
+      links: await ctx.db.query('adminAccessLinks').collect(),
+      sessions: await ctx.db.query('adminSessions').collect(),
+      audit: await ctx.db.query('adminAuditEvents').collect(),
+    }))
+    expect(stored.account?.credentialVersion).toBe(3)
+    expect(stored.sessions).toEqual([])
+    expect(stored.links.filter((link) => link.consumedAt !== undefined)).toHaveLength(1)
+    expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_A)
+    expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_B)
+    expect(JSON.stringify(stored.audit)).not.toMatch(/password|token|hash|link/i)
   })
 })
 
