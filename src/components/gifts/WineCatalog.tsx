@@ -42,14 +42,16 @@ function CatalogSkeleton() {
               {band.heading}
             </h2>
           </div>
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-            {Array.from({ length: 3 }, (_, index) => (
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
               <div
                 key={index}
                 aria-hidden="true"
                 className={`min-h-[540px] border border-cellar-line bg-cellar-soft p-6 md:min-h-[580px] ${
                   index === 1 ? 'hidden md:block' : ''
-                } ${index === 2 ? 'hidden lg:block' : ''}`}
+                } ${index === 2 ? 'hidden lg:block' : ''} ${
+                  index === 3 ? 'hidden xl:block' : ''
+                }`}
               >
                 <div className="h-[264px] bg-cream/[.06]" />
                 <div className="mt-4 h-8 w-2/5 bg-cream/[.12]" />
@@ -69,12 +71,10 @@ function ReadyBand({
   category,
   wines,
   selectedCode,
-  eagerCodes,
 }: {
   category: WineCategory
   wines: readonly PublicWine[]
   selectedCode?: string | null
-  eagerCodes: ReadonlySet<string>
 }) {
   const band = GIFT_BANDS.find((candidate) => candidate.category === category)
   if (!band) return null
@@ -109,12 +109,11 @@ function ReadyBand({
           {GIFTS_COPY.empty.band}
         </p>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
           {bandWines.map((wine) => (
             <WineCard
               key={wine.productCode}
               wine={wine}
-              eagerImage={eagerCodes.has(wine.productCode)}
               selected={selectedCode === wine.productCode}
             />
           ))}
@@ -173,10 +172,6 @@ export function WineCatalog(props: WineCatalogProps) {
     )
   }
 
-  const eagerCodes = new Set(
-    props.wines.slice(0, 3).map((wine) => wine.productCode),
-  )
-
   return (
     <section aria-label="Carta de vinhos">
       {props.partial ? (
@@ -194,7 +189,6 @@ export function WineCatalog(props: WineCatalogProps) {
             category={band.category}
             wines={props.wines}
             selectedCode={props.selectedCode}
-            eagerCodes={eagerCodes}
           />
         ))}
       </div>

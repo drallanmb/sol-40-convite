@@ -35,14 +35,6 @@
   --color-cellar-line: rgba(255, 243, 223, 0.22);
   --color-cellar-muted: rgba(255, 243, 223, 0.78);
   --color-gifted: #b3c8b0;
-  --halo-rubi: #732d3f;
-  --halo-dourado: #f3a271;
-  --halo-rose: #d98479;
-  --halo-verde: #8aa085;
-  --color-halo-rubi: var(--halo-rubi);
-  --color-halo-dourado: var(--halo-dourado);
-  --color-halo-rose: var(--halo-rose);
-  --color-halo-verde: var(--halo-verde);
 
   /* RSVP: sem verde. Confirmado = sea, recusado = wine, pendente = marrom
      dedicado (#8a4a15 — o antigo #a45b20 reprovava contraste AA em texto
@@ -154,6 +146,14 @@ body {
   scroll-snap-type: x mandatory;
   scrollbar-color: var(--color-cellar-line) transparent;
   scrollbar-width: thin;
+}
+
+.wine-palette-halo {
+  background: linear-gradient(
+    90deg,
+    var(--wine-palette-primary) 0 50%,
+    var(--wine-palette-secondary) 50% 100%
+  );
 }
 
 .overflow-anywhere {

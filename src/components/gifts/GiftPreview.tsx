@@ -6,7 +6,7 @@ import type { PublicWine } from '../../../convex/wineModel'
 import { GIFTS_COPY } from '../../content/gifts'
 import { wineDomId } from '../../lib/wineDeepLink'
 import { formatBRL } from '../../lib/wineWhatsApp'
-import WineImage from './WineImage'
+import WineBottleVisual from './WineBottleVisual'
 
 const PREVIEW_COPY = {
   kicker: 'SUGESTÕES DE PRESENTE',
@@ -97,7 +97,7 @@ function PreviewCard({ wine }: { wine: PublicWine }) {
             : 'transition-transform duration-(--duration-fast) ease-out motion-safe:group-hover:-translate-y-1'
         }
       >
-        <WineImage wine={wine} eager />
+        <WineBottleVisual wine={wine} />
       </div>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">

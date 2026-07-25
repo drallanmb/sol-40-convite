@@ -7,17 +7,15 @@ import {
   buildWineWhatsAppUrl,
   formatBRL,
 } from '../../lib/wineWhatsApp'
-import WineImage from './WineImage'
+import WineBottleVisual from './WineBottleVisual'
 
 type WineCardProps = {
   wine: PublicWine
-  eagerImage?: boolean
   selected?: boolean
 }
 
 export function WineCard({
   wine,
-  eagerImage = false,
   selected = false,
 }: WineCardProps) {
   const articleRef = useRef<HTMLElement>(null)
@@ -70,7 +68,7 @@ export function WineCard({
       ) : null}
 
       <div className={gifted ? 'opacity-[.68] saturate-[.45]' : undefined}>
-        <WineImage wine={wine} eager={eagerImage} />
+        <WineBottleVisual wine={wine} />
       </div>
 
       <div className="mt-4 flex items-start justify-between gap-4">
