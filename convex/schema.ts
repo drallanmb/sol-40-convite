@@ -41,6 +41,14 @@ export default defineSchema({
     .index('by_token_hash', ['tokenHash'])
     .index('by_expires_at', ['expiresAt']),
 
+  adminSessions: defineTable({
+    tokenHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index('by_token_hash', ['tokenHash'])
+    .index('by_expires_at', ['expiresAt']),
+
   posts: defineTable({
     author: v.optional(v.string()),
     message: v.optional(v.string()),
