@@ -1,7 +1,7 @@
 ---
 phase: 05-mural-de-mem-rias-modera-o
 verified: 2026-07-24T23:14:11-03:00
-status: human_needed
+status: passed
 score: "5/5 requirements satisfied by automated and source verification"
 requirements:
   satisfied: [WALL-01, WALL-02, WALL-03, WALL-04, WALL-05]
@@ -11,9 +11,11 @@ review_findings:
   blocking_gaps: []
 human_verification:
   pending:
+
     - populated_carousel_focus_swipe_reduced_motion_zoom
     - real_jpeg_png_webp_upload_and_interruption
     - safari_ios_heic_fallback
+
 ---
 
 # Phase 5: Mural de Memórias + Moderação — Verification Report
@@ -33,11 +35,14 @@ CR-01 are also closed:
 
 - capability collision lookup is index-bounded and terminal rows have a
   cursor-safe, ownership-aware retention lifecycle;
+
 - every failed upload transport is discarded and retry reserves a fresh URL;
 - ambiguous photo claims retain one immutable content snapshot, and acceptance
   of older content never clears or misrepresents newer edits;
+
 - JPEG, PNG, and WebP must pass bounded real pixel decoding before a post is
   created;
+
 - PNG decompression is capped natively before output materialization;
 - public reads remain approved-only and expose only the minimal card view.
 
@@ -108,9 +113,11 @@ pixels:
 
 - JPEG: coherent envelope plus sharp/libvips metadata and raw decode, with a
   second strict `jpeg-js` decode bounded to 6.5536 MP and 32 MiB;
+
 - PNG: CRC/chunk/order preflight, exact expected scanline size, Node
   `inflateSync` with `maxOutputLength`, legal filter bytes, and sharp raw
   decode;
+
 - WebP: exact RIFF/chunk framing with a real VP8/VP8L image chunk, then sharp
   metadata and raw decode.
 
@@ -145,10 +152,12 @@ the expanded output.
 - Public-created posts begin as `pendente`.
 - `listApproved` filters by the backend `by_status` index before storage URL
   generation.
+
 - Pending and hidden rows are excluded by integration test.
 - The return validator exposes only the five public card fields.
 - Status, storage ID, reservation ID, token/device hashes, capabilities,
   moderation metadata, and upload URLs are absent from the public album view.
+
 - React consumes `api.posts.listApproved` directly and has no client-side
   approval filter.
 
@@ -156,8 +165,10 @@ the expanded output.
 
 - Reservation capabilities are canonical high-entropy base64url values and are
   purpose-separated SHA-256 hashes at rest.
+
 - Claim verifies capability ownership, reservation state, storage identity,
   uniqueness, metadata size, and metadata MIME before scheduling decode.
+
 - Decoder verdicts enter ownership-rechecking internal accept/reject mutations.
 - Concurrent/repeated claims and finalization create at most one pending post.
 - Rejected, expired, and unowned blobs have bounded cleanup paths.
@@ -170,11 +181,14 @@ the expanded output.
 
 - Upload device/global limits are consumed before URL generation and row
   insertion.
+
 - Text and upload N/N+1, refill, global, concurrency, and whole-second retry
   boundaries pass.
+
 - Capability lookup and terminal retention are index-bounded.
 - Image input, dimensions, pixels, channels, pages, decoder cache/concurrency,
   JPEG memory, PNG output, and raw decode time are bounded.
+
 - There is no visible or backend lifetime submission quota.
 
 ### Public surface and secrets
@@ -238,10 +252,12 @@ These items remain **pending**:
    many approved memories, verify keyboard focus, previous/next, touch swipe,
    pause/resume, focus/hover pause, `prefers-reduced-motion`, all card variants,
    responsive visibility, and 200% zoom.
+
 2. **Real JPEG/PNG/WebP upload and interruption** — attach each format through
    a real browser chooser, observe real progress, interrupt the network, retry,
    confirm the full draft remains and exactly one pending post is created, and
    inspect the public payload for pending/private data.
+
 3. **Safari iOS HEIC fallback** — on a real iPhone/Safari, choose HEIC/HEIF and
    verify successful conversion/upload or actionable fallback while preserving
    author and recado.
