@@ -219,13 +219,13 @@ Plans:
   3. Checklist dos donos concluído (domínio/origem canônica, senha forte e lista real importada/revisada, sem introduzir variável não consumida)
   4. O site está no ar em produção e verificado ao vivo
 
-**Plans**: 6 plans
+**Plans**: 1/6 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Importador CSV protegido: tracer vertical, pending-only, lotes, partial success e relatório sem overwrite
+- [x] 07-01-PLAN.md — Importador CSV protegido: tracer vertical, pending-only, lotes, partial success e relatório sem overwrite
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -263,4 +263,4 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 (2–5 
 | 4. Carta de Vinhos | 5/5 | Complete    | 2026-07-24 |
 | 5. Mural de Memórias + Moderação | 5/5 | Complete   | 2026-07-24 |
 | 6. Dashboard Interno (/admin) | 7/7 | Complete    | 2026-07-25 |
-| 7. Endurecimento & Lançamento | 0/6 | Planned | - |
+| 7. Endurecimento & Lançamento | 1/6 | In Progress|  |

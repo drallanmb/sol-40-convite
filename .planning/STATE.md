@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 7
-current_phase_name: Endurecimento & Lançamento
-status: ready_to_execute
-stopped_at: Phase 7 planned; ready to execute 07-01
-last_updated: "2026-07-25T07:15:00.000Z"
+current_phase: 07
+current_phase_name: endurecimento-lan-amento
+status: executing
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-07-25T11:28:00.821Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 7 planned in six plans; execution not started
+last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 39
-  completed_plans: 33
+  completed_plans: 34
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-25)
 
 **Core value:** Convidados confirmam presença e escolhem presente sem atrito; donos veem tudo ao vivo, sem trabalho manual.
-**Current focus:** Phase 7 — Endurecimento & Lançamento
+**Current focus:** Phase 07 — endurecimento-lan-amento
 
 ## Current Position
 
-Phase: 7 — Endurecimento & Lançamento
-Plan: 07-01 ready; none executed
-Status: Planned — ready to execute
-Last activity: 2026-07-25 — Phase 7 planned in six plans; execution not started
+Phase: 07 (endurecimento-lan-amento) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-07-25 — Phase 07 execution started
 
-Progress: [█████████████████░░░] 33/39 plans complete (Phase 6 verified; Phase 7 planned)
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [█████████████████░░░] 33/39 p
 | Phase 06 P01 | 5 min | 3 tasks | 11 files |
 | Phase 06 P02 | 12 min | 3 tasks | 15 files |
 | Phase 06 P05 | 6min | 2 tasks | 6 files |
+| Phase 07 P01 | 2h 21m | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase ?]: Per-session scheduled expiry is primary cleanup; the daily bounded sweep recovers historical or stranded RSVP session rows.
 - [Phase 06]: Revogação RSVP é lógica e imediata por geração; limpeza física usa comandos internos tipados e páginas limitadas.
 - [Phase 06]: Operações de convidados, moderação e presentes possuem ownership por registro para impedir duplicação e conclusões stale.
+- [Phase 07]: CSV bruto permanece local; somente grupos normalizados entram em lotes protegidos no Convex. — Preserva privacidade e obriga revalidação server-side antes de qualquer write.
+- [Phase 07]: LAUNCH-03 permanece pendente após 07-01. — O importador está pronto, mas domínio, senha de produção e lista real revisada pertencem aos planos posteriores.
 
 ### Pending Todos
 
@@ -158,6 +161,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-25T07:15:00.000Z
-Stopped at: Phase 7 planned; ready to execute 07-01
-Resume file: .planning/phases/07-endurecimento-lan-amento/07-01-PLAN.md
+Last session: 2026-07-25T11:27:55.256Z
+Stopped at: Completed 07-01-PLAN.md
+Resume file: None
