@@ -44,7 +44,7 @@ coverage:
     requirement: LAUNCH-04
     verification:
       - kind: integration
-        ref: "DNS_RESOLVER=1.1.1.1 VERCEL_APEX_TARGET=... VERCEL_WWW_TARGET=... node scripts/verify-release-domain.mjs"
+        ref: "VERCEL_APEX_TARGET=... VERCEL_WWW_TARGET=... node scripts/verify-release-domain.mjs"
         status: pass
       - kind: integration
         ref: "DNS_RESOLVER=8.8.8.8 VERCEL_APEX_TARGET=... VERCEL_WWW_TARGET=... node scripts/verify-release-domain.mjs"
@@ -77,7 +77,7 @@ coverage:
     human_judgment: true
     rationale: "A reassociação de aliases, o histórico de promoção e a permanência do artefato externo dependem de evidência autenticada de control-plane, não apenas de testes do repositório."
 
-duration: 15min
+duration: 18min
 completed: 2026-07-25
 status: complete
 ---
@@ -88,9 +88,9 @@ status: complete
 
 ## Performance
 
-- **Duration:** 15 min
+- **Duration:** 18 min
 - **Started:** 2026-07-25T12:59:53Z
-- **Completed:** 2026-07-25T13:15:52Z
+- **Completed:** 2026-07-25T13:18:33Z
 - **Tasks:** 2
 - **Files modified:** 4
 
@@ -106,10 +106,11 @@ Each task was committed atomically:
 
 1. **Task 1: Publicar domínio canônico e automatizar Gate D imediato** - `83eae06` (chore)
 2. **Task 2: Revalidar propagação e executar drill de rollback em camadas** - `c75a684` (chore)
+3. **Post-verification hardening: Tornar o resolvedor público padrão determinístico** - `1bd737d` (fix)
 
 ## Files Created/Modified
 
-- `scripts/verify-release-domain.mjs` - Valida NS, alvo DNS, TLS, status HTTP, cadeia de redirect e preservação de path/query; aceita resolvedor explícito.
+- `scripts/verify-release-domain.mjs` - Valida NS, alvo DNS, TLS, status HTTP, cadeia de redirect e preservação de path/query; usa `1.1.1.1` por padrão e aceita resolvedor explícito.
 - `.planning/phases/07-endurecimento-lan-amento/07-LAUNCH-CHECKLIST.md` - Fecha Gate D e mantém divulgação bloqueada pelo Gate E.
 - `.planning/phases/07-endurecimento-lan-amento/07-SMOKE.md` - Registra smokes imediato/pós-propagação e jornadas sem escrita.
 - `.planning/phases/07-endurecimento-lan-amento/07-ROLLBACK.md` - Registra alvos compatíveis, drill real e caminhos separados de recuperação.
@@ -123,11 +124,21 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Missing critical] Consulta pública independente do cache local**
+- **Found during:** Verificação final pós-commit
+- **Issue:** O DNS público e os dois resolvedores diretos estavam corretos, mas o cache local do macOS ainda devolvia `ENOTFOUND` para o CNAME de `www`, tornando o comando exato do plano não determinístico.
+- **Fix:** O verificador passou a usar `1.1.1.1` como resolvedor público padrão e manteve `DNS_RESOLVER` para o segundo passe com `8.8.8.8`.
+- **Files modified:** `scripts/verify-release-domain.mjs`
+- **Verification:** O comando do plano passou sem `DNS_RESOLVER`; o override `8.8.8.8` passou; valor inválido falhou fechado.
+- **Committed in:** `1bd737d`
+
+**Total deviations:** 1 auto-fixed (1 missing critical).
+**Impact on plan:** Fortalece a reprodutibilidade da verificação pública sem alterar DNS, domínio ou aplicação.
 
 ## Issues Encountered
 
-- O resolvedor local entrou brevemente em cache negativo durante a troca de aliases. Os resolvers autoritativos públicos continuaram corretos; após convergência, o verificador passou com `1.1.1.1` e `8.8.8.8`.
 - Não existia um segundo frontend Production compatível. Conforme previsto no plano, foi criado e validado um redeploy no-op antes do Instant Rollback.
 
 ## User Setup Required
