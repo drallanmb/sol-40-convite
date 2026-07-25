@@ -7,7 +7,7 @@ import {
 
 const encoder = new TextEncoder()
 
-function concat(...parts: Uint8Array[]) {
+function concat(...parts: Uint8Array<ArrayBufferLike>[]) {
   const result = new Uint8Array(
     parts.reduce((total, part) => total + part.byteLength, 0),
   )
@@ -36,7 +36,10 @@ function crc32(bytes: Uint8Array) {
   return (crc ^ 0xffffffff) >>> 0
 }
 
-function pngChunk(type: string, data = new Uint8Array()) {
+function pngChunk(
+  type: string,
+  data: Uint8Array<ArrayBufferLike> = new Uint8Array(),
+) {
   const typed = concat(encoder.encode(type), data)
   return concat(uint32(data.byteLength), typed, uint32(crc32(typed)))
 }
