@@ -6,8 +6,9 @@ import {
   type RefObject,
 } from 'react'
 import { useMutation } from 'convex/react'
+import { Link } from 'react-router'
 import { api } from '../../../convex/_generated/api'
-import { RSVP_COPY } from '../../content/event'
+import { GIFTS_RSVP_CALLOUT, RSVP_COPY } from '../../content/event'
 import {
   CONTACT_MAX_LENGTH,
   buildSparseCommand,
@@ -20,7 +21,7 @@ import {
   type RsvpAttendance,
   type RsvpFamilyView,
 } from '../../lib/rsvpDraft'
-import Button from '../ui/Button'
+import Button, { buttonClassName } from '../ui/Button'
 import Card from '../ui/Card'
 import Field from '../ui/Field'
 import Toast from '../ui/Toast'
@@ -72,6 +73,7 @@ export function FamilyForm({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [retryBlocked, setRetryBlocked] = useState(false)
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false)
+  const [hasSavedSuccessfully, setHasSavedSuccessfully] = useState(false)
   const busyRef = useRef(false)
   const retryTimerRef = useRef<number | null>(null)
   const toastTimerRef = useRef<number | null>(null)
@@ -185,6 +187,7 @@ export function FamilyForm({
           setDraft(createRsvpDraft(result.view))
           onViewChange(result.view)
           showSavedFeedback(result.view)
+          setHasSavedSuccessfully(true)
           break
         case 'rate_limited': {
           const seconds = Math.max(1, result.retryAfterSeconds)
@@ -370,6 +373,28 @@ export function FamilyForm({
               <p className="text-center text-small text-plum/80">
                 {RSVP_COPY.contact.hint}
               </p>
+
+              {hasSavedSuccessfully ? (
+                <aside className="grid gap-4 border border-sand bg-cream p-6 text-plum">
+                  <div className="grid gap-2">
+                    <h3 className="font-serif text-[28px] font-normal leading-[1.08] tracking-display">
+                      {GIFTS_RSVP_CALLOUT.heading}
+                    </h3>
+                    <p className="text-[16px] leading-[1.62]">
+                      {GIFTS_RSVP_CALLOUT.body}
+                    </p>
+                  </div>
+                  <Link
+                    to={GIFTS_RSVP_CALLOUT.href}
+                    className={buttonClassName(
+                      'rsvp',
+                      'w-full text-center motion-reduce:transform-none motion-reduce:transition-none',
+                    )}
+                  >
+                    {GIFTS_RSVP_CALLOUT.cta}
+                  </Link>
+                </aside>
+              ) : null}
             </div>
           </form>
         )}
