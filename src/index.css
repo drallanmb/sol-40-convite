@@ -165,6 +165,10 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.admin-dashboard :focus-visible {
+  box-shadow: 0 0 0 2px var(--color-plum);
+}
+
 .admin-main {
   padding-bottom: calc(64px + 24px + env(safe-area-inset-bottom));
 }

@@ -48,7 +48,7 @@ export function AdminLogin({
         : ADMIN_COPY.login.description
 
   return (
-    <main className="grid min-h-screen place-items-center bg-cream px-4 py-12 text-ink">
+    <main className="admin-dashboard grid min-h-screen place-items-center bg-cream px-4 py-12 text-ink">
       <Card variant="login" className="w-full max-w-[440px]">
         <p className="font-serif text-xl font-bold text-plum">
           {ADMIN_COPY.login.wordmark}

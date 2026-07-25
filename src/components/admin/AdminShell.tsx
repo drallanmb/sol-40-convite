@@ -222,7 +222,7 @@ export function AdminShell({
   )
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[248px]">
+    <div className="admin-dashboard min-h-screen bg-cream text-ink lg:pl-[248px]">
       <a
         href="#admin-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-(--z-skip) focus:rounded-lg focus:bg-cream focus:px-4 focus:py-3 focus:font-bold focus:text-plum"

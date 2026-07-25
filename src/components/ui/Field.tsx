@@ -18,8 +18,8 @@ export type FieldTextareaProps = FieldOwnProps & {
 
 export type FieldProps = FieldInputProps | FieldTextareaProps
 
-const controlClasses =
-  'w-full min-h-[44px] border-0 border-b border-line bg-transparent px-0.5 py-3 font-sans text-body text-ink placeholder:text-wine outline-none focus:border-coral'
+const controlBaseClasses =
+  'w-full min-h-[44px] font-sans text-body text-ink placeholder:text-wine outline-none focus:border-coral'
 
 /**
  * Campo primitivo — label + input/textarea com borda inferior (foco vira
@@ -44,8 +44,8 @@ export const Field = forwardRef(function Field(
     [hintId, rest['aria-describedby']].filter(Boolean).join(' ') || undefined
   const appearanceClasses =
     appearance === 'outline'
-      ? 'rounded-lg border border-line bg-card px-3 focus:border-coral'
-      : controlClasses
+      ? `${controlBaseClasses} rounded-lg border border-line bg-card px-3 py-3`
+      : `${controlBaseClasses} border-0 border-b border-line bg-transparent px-0.5 py-3`
 
   return (
     <div className="mb-[22px] grid gap-[9px]">
