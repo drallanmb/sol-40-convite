@@ -699,6 +699,120 @@ describe('admin family authorization matrix', () => {
   })
 })
 
+describe('admin csv import tracer', () => {
+  const tracerGroups = [
+    {
+      sourceRows: [2, 3],
+      displayName: 'Família Horizonte',
+      phone: '(79) 99999-4101',
+      guests: [
+        { sourceRow: 2, name: 'Ana Horizonte' },
+        { sourceRow: 3, name: 'Beto Horizonte' },
+      ],
+    },
+  ]
+
+  it('requires authorization before importing any family', async () => {
+    const t = makeAdminTest()
+    await t.run(async (ctx) => {
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        createdAt: 1,
+        expiresAt: 2,
+      })
+    })
+    await insertActiveAdminSession(t, TOKEN_B)
+    await t.mutation(api.adminAuth.logout, { token: TOKEN_B })
+
+    for (const token of ['malformed', TOKEN_A, TOKEN_B]) {
+      await expect(
+        t.mutation(api.adminRsvps.importFamilies, {
+          token,
+          groups: tracerGroups,
+        }),
+      ).resolves.toEqual({ kind: 'unauthorized' })
+    }
+
+    expect(
+      await t.run((ctx) => ctx.db.query('rsvps').collect()),
+    ).toEqual([])
+  })
+
+  it('imports a fictitious csv family with pending-only guests', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+
+    const result = await t.mutation(api.adminRsvps.importFamilies, {
+      token: TOKEN_A,
+      groups: tracerGroups,
+    })
+
+    expect(result).toMatchObject({
+      kind: 'ready',
+      created: [
+        {
+          sourceRows: [2, 3],
+          displayName: 'Família Horizonte',
+          people: 2,
+        },
+      ],
+      ignored: [],
+    })
+    expect(JSON.stringify(result)).not.toMatch(
+      /token|password|session|hash|79999994101/iu,
+    )
+
+    const stored = await t.run(async (ctx) => ({
+      families: await ctx.db.query('rsvps').collect(),
+      guests: await ctx.db.query('rsvpGuests').collect(),
+    }))
+    expect(stored.families).toHaveLength(1)
+    expect(stored.guests).toHaveLength(2)
+    expect(stored.guests).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Ana Horizonte',
+          attendance: 'pending',
+        }),
+        expect.objectContaining({
+          name: 'Beto Horizonte',
+          attendance: 'pending',
+        }),
+      ]),
+    )
+    for (const guest of stored.guests) {
+      expect(guest).not.toHaveProperty('respondedAt')
+    }
+  })
+
+  it('rejects csv import batches beyond family or people limits', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+    const family = (index: number, people = 1) => ({
+      sourceRows: [index + 2],
+      displayName: `Família Fictícia ${index}`,
+      phone: `(79) 99${String(index).padStart(3, '0')}-4101`,
+      guests: Array.from({ length: people }, (_, guestIndex) => ({
+        sourceRow: index + guestIndex + 2,
+        name: `Pessoa Fictícia ${index}-${guestIndex}`,
+      })),
+    })
+
+    await expect(
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_A,
+        groups: Array.from({ length: 26 }, (_, index) => family(index)),
+      }),
+    ).rejects.toThrow(/25 famílias/iu)
+    await expect(
+      t.mutation(api.adminRsvps.importFamilies, {
+        token: TOKEN_A,
+        groups: [family(0, 51), family(1, 50)],
+      }),
+    ).rejects.toThrow(/100 pessoas/iu)
+  })
+})
+
 describe('admin post moderation, revision conflict and public album', () => {
   const adminPosts = (api as any).adminPosts
 
