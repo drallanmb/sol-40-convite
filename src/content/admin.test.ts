@@ -5,6 +5,7 @@ import {
   ADMIN_ROUTES,
   canonicalAdminDestination,
   formatAdminCount,
+  overviewEmptyState,
   moderationStatusFromSearch,
   presenceFromSearch,
   giftStatusFromSearch,
@@ -95,4 +96,20 @@ describe('admin copy and grammatical counts', () => {
       expect(formatAdminCount(count, singular, plural)).toBe(expected)
     },
   )
+
+  it('branches the empty overview on familyCount, never attendance sums', () => {
+    expect(overviewEmptyState(0, 0)).toEqual({
+      title: 'Nenhuma família cadastrada',
+      body: 'Adicione uma família para começar a organizar as confirmações.',
+      action: 'Adicionar primeira família',
+      route: '/admin/convidados',
+    })
+    expect(overviewEmptyState(1, 0)).toEqual({
+      title: 'Nenhuma pessoa cadastrada nos convites',
+      body: 'As famílias já existem. Abra um convite para adicionar pessoas.',
+      action: 'Ver famílias',
+      route: '/admin/convidados',
+    })
+    expect(overviewEmptyState(1, 1)).toBeNull()
+  })
 })

@@ -41,6 +41,46 @@ afterEach(() => {
   }
 })
 
+async function insertActiveAdminSession(
+  t: ReturnType<typeof makeAdminTest>,
+  token: string,
+) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('adminSessions', {
+      tokenHash: await hashAdminToken(token),
+      createdAt: Date.now(),
+      expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
+    })
+  })
+}
+
+async function insertOverviewWine(
+  t: ReturnType<typeof makeAdminTest>,
+  productCode: string,
+  status: 'available' | 'gifted',
+) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('wines', {
+      productCode,
+      name: `Vinho ${productCode}`,
+      producer: 'Produtor',
+      description: 'Descrição',
+      tone: 'rubi',
+      priceCents: 15_000,
+      category: 'ate-200',
+      palettePrimary: '#7A5148',
+      paletteSecondary: '#B99A82',
+      paletteReferenceUrl: 'https://example.com/reference',
+      paletteReferencedAt: '2026-07-25',
+      status,
+      ...(status === 'gifted'
+        ? { giftedBy: 'Convidada', giftedAt: Date.now() }
+        : {}),
+      updatedAt: Date.now(),
+    })
+  })
+}
+
 describe('admin session schema, hash and token boundaries', () => {
   it('stores only a token hash and timestamps', async () => {
     const t = makeAdminTest()
@@ -142,6 +182,157 @@ describe('admin authorization boundary', () => {
     expect(isAdminSessionActive(expiresAt, expiresAt - 1)).toBe(true)
     expect(isAdminSessionActive(expiresAt, expiresAt)).toBe(false)
     expect(isAdminSessionActive(expiresAt, expiresAt + 1)).toBe(false)
+  })
+})
+
+describe('admin overview authorization matrix', () => {
+  it('reveals no aggregate for malformed, unknown, expired or revoked sessions', async () => {
+    const t = makeAdminTest()
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rsvps', {
+        phone: '79999990000',
+        displayName: 'Família Protegida',
+        updatedAt: Date.now(),
+      })
+      await ctx.db.insert('adminSessions', {
+        tokenHash: await hashAdminToken(TOKEN_A),
+        createdAt: 1,
+        expiresAt: 2,
+      })
+    })
+
+    for (const token of ['malformed', TOKEN_A, TOKEN_B]) {
+      await expect(
+        t.query(api.adminOverview.get, { token }),
+      ).resolves.toEqual({ kind: 'unauthorized' })
+    }
+
+    await insertActiveAdminSession(t, TOKEN_B)
+    await t.mutation(api.adminAuth.logout, { token: TOKEN_B })
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_B }),
+    ).resolves.toEqual({ kind: 'unauthorized' })
+  })
+})
+
+describe('admin overview familyCount, person count and badge aggregates', () => {
+  it('distinguishes zero families from one zero-person family', async () => {
+    const t = makeAdminTest()
+    await insertActiveAdminSession(t, TOKEN_A)
+
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
+    ).resolves.toMatchObject({
+      kind: 'ready',
+      familyCount: 0,
+      confirmedCount: 0,
+      refusedCount: 0,
+      pendingCount: 0,
+    })
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rsvps', {
+        phone: '79999990001',
+        displayName: 'Família sem pessoas',
+        updatedAt: Date.now(),
+      })
+    })
+
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
+    ).resolves.toMatchObject({
+      kind: 'ready',
+      familyCount: 1,
+      confirmedCount: 0,
+      refusedCount: 0,
+      pendingCount: 0,
+    })
+  })
+
+  it('counts mixed-family attendance, memories, wines and badges from source rows', async () => {
+    const t = makeAdminTest()
+    await Promise.all([
+      insertActiveAdminSession(t, TOKEN_A),
+      insertActiveAdminSession(t, TOKEN_B),
+    ])
+    await t.run(async (ctx) => {
+      const familyA = await ctx.db.insert('rsvps', {
+        phone: '79999990002',
+        displayName: 'Família A',
+        updatedAt: Date.now(),
+      })
+      const familyB = await ctx.db.insert('rsvps', {
+        phone: '79999990003',
+        displayName: 'Família B',
+        updatedAt: Date.now(),
+      })
+      for (const [rsvpId, attendance, sortOrder] of [
+        [familyA, 'yes', 0],
+        [familyA, 'pending', 1],
+        [familyB, 'no', 0],
+        [familyB, 'pending', 1],
+        [familyB, 'yes', 2],
+      ] as const) {
+        await ctx.db.insert('rsvpGuests', {
+          rsvpId,
+          publicRef: `${rsvpId}-${sortOrder}`,
+          name: `Pessoa ${sortOrder}`,
+          attendance,
+          sortOrder,
+        })
+      }
+      await ctx.db.insert('posts', {
+        message: 'Pendente',
+        status: 'pendente',
+        source: 'convidado',
+        createdAt: Date.now(),
+      })
+      await ctx.db.insert('posts', {
+        message: 'Aprovada',
+        status: 'aprovado',
+        source: 'convidado',
+        createdAt: Date.now(),
+      })
+    })
+    await insertOverviewWine(t, 'A', 'gifted')
+    await insertOverviewWine(t, 'B', 'available')
+
+    const expected = {
+      kind: 'ready',
+      familyCount: 2,
+      confirmedCount: 2,
+      refusedCount: 1,
+      pendingCount: 2,
+      pendingMemoryCount: 1,
+      giftedWineCount: 1,
+      totalWineCount: 2,
+      badges: { guests: 2, memories: 1 },
+    }
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_A }),
+    ).resolves.toEqual(expected)
+    await expect(
+      t.query(api.adminOverview.get, { token: TOKEN_B }),
+    ).resolves.toEqual(expected)
+
+    await t.run(async (ctx) => {
+      const pending = await ctx.db
+        .query('rsvpGuests')
+        .filter((query) => query.eq(query.field('attendance'), 'pending'))
+        .first()
+      if (!pending) throw new Error('missing pending source row')
+      await ctx.db.patch(pending._id, { attendance: 'yes' })
+    })
+
+    for (const token of [TOKEN_A, TOKEN_B]) {
+      await expect(
+        t.query(api.adminOverview.get, { token }),
+      ).resolves.toMatchObject({
+        confirmedCount: 3,
+        pendingCount: 1,
+        badges: { guests: 1, memories: 1 },
+      })
+    }
   })
 })
 
