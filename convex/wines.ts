@@ -11,6 +11,11 @@ import {
 const CANONICAL_CODES = new Set(WINE_CATALOG.map((wine) => wine.productCode))
 
 function toPublicWine(wine: Doc<'wines'>): PublicWine {
+  if (wine.palettePrimary === undefined || wine.paletteSecondary === undefined) {
+    throw new Error(
+      `Catálogo público indisponível: paleta ausente para ${wine.productCode}.`,
+    )
+  }
   return {
     productCode: wine.productCode,
     name: wine.name,
@@ -19,7 +24,8 @@ function toPublicWine(wine: Doc<'wines'>): PublicWine {
     tone: wine.tone,
     priceCents: wine.priceCents,
     category: wine.category,
-    imageUrl: wine.imageUrl,
+    palettePrimary: wine.palettePrimary,
+    paletteSecondary: wine.paletteSecondary,
     status: wine.status,
   }
 }

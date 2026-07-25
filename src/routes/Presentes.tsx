@@ -77,6 +77,7 @@ function PresentesScaffold({
 const CATEGORIES = new Set(['ate-200', '200-350', '350-500'])
 const TONES = new Set(['rubi', 'dourado', 'rose', 'verde'])
 const STATUSES = new Set(['available', 'gifted'])
+const HEX_COLOR_PATTERN = /^#[0-9A-F]{6}$/u
 
 function isDisplayWine(value: unknown): value is PublicWine {
   if (!value || typeof value !== 'object') return false
@@ -90,8 +91,11 @@ function isDisplayWine(value: unknown): value is PublicWine {
     wine.producer.length > 0 &&
     typeof wine.description === 'string' &&
     wine.description.length > 0 &&
-    typeof wine.imageUrl === 'string' &&
-    wine.imageUrl.length > 0 &&
+    typeof wine.palettePrimary === 'string' &&
+    HEX_COLOR_PATTERN.test(wine.palettePrimary) &&
+    typeof wine.paletteSecondary === 'string' &&
+    HEX_COLOR_PATTERN.test(wine.paletteSecondary) &&
+    wine.palettePrimary !== wine.paletteSecondary &&
     typeof wine.priceCents === 'number' &&
     Number.isSafeInteger(wine.priceCents) &&
     wine.priceCents > 0 &&

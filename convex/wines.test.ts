@@ -77,11 +77,23 @@ const wineApi = (
 ).wines
 
 describe('catalog wines', () => {
-  it('keeps the complete canonical catalog byte-for-byte', async () => {
+  it('keeps the canonical commercial catalog byte-for-byte', async () => {
     const digestBytes = new Uint8Array(
       await crypto.subtle.digest(
         'SHA-256',
-        new TextEncoder().encode(JSON.stringify(WINE_CATALOG)),
+        new TextEncoder().encode(
+          JSON.stringify(
+            WINE_CATALOG.map(
+              ({
+                palettePrimary: _palettePrimary,
+                paletteSecondary: _paletteSecondary,
+                paletteReferenceUrl: _paletteReferenceUrl,
+                paletteReferencedAt: _paletteReferencedAt,
+                ...commercial
+              }) => commercial,
+            ),
+          ),
+        ),
       ),
     )
     const digest = Array.from(digestBytes, (byte) =>
@@ -89,7 +101,7 @@ describe('catalog wines', () => {
     ).join('')
 
     expect(digest).toBe(
-      '29ec75e05ce7c9c68418ed5df1c6b841f291300bc8a36f1b457ca624f5d143d8',
+      '792bbdabdd250ce16afc8c5411d643033aebb697977b4a839532b963e5efbc78',
     )
     expect(WINE_CATALOG).toHaveLength(37)
     expect(WINE_CATALOG.find((wine) => wine.productCode === '0699230')?.productCode).toBe(

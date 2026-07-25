@@ -36,7 +36,11 @@ function commercialFieldsChanged(
     stored.tone !== canonical.tone ||
     stored.priceCents !== canonical.priceCents ||
     stored.category !== canonical.category ||
-    stored.imageUrl !== canonical.imageUrl
+    stored.palettePrimary !== canonical.palettePrimary ||
+    stored.paletteSecondary !== canonical.paletteSecondary ||
+    stored.paletteReferenceUrl !== canonical.paletteReferenceUrl ||
+    stored.paletteReferencedAt !== canonical.paletteReferencedAt ||
+    stored.imageUrl !== undefined
   )
 }
 
@@ -129,6 +133,7 @@ export const ensureWineCatalog = internalMutation({
       if (commercialFieldsChanged(stored, canonical)) {
         await ctx.db.patch(stored._id, {
           ...canonical,
+          imageUrl: undefined,
           updatedAt: Date.now(),
         })
         updated += 1
