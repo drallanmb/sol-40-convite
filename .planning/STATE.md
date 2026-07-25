@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 07
 current_phase_name: endurecimento-lan-amento
 status: executing
-stopped_at: Phase 08 planned — 7 plans ready to execute
-last_updated: "2026-07-25T15:53:49.681Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-07-25T16:17:22.185Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 46
-  completed_plans: 37
+  completed_plans: 38
 ---
 
 # Project State
@@ -32,7 +32,7 @@ Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-07-25 — Phase 07 execution started
 
-Progress: [██████████] 95%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Progress: [██████████] 95%
 | Phase 07 P02 | 9min | 3 tasks | 19 files |
 | Phase 07 P03 | 55min | 3 tasks | 4 files |
 | Phase 07 P04 | 18min | 2 tasks | 4 files |
+| Phase 08 P01 | 4 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 - [Phase 07]: Vercel mantém o único redirect permanente apex→www; Cloudflare fica DNS-only com os alvos específicos do projeto. — Evita redirect concorrente, proxy acidental e alteração de registros externos ao site.
 - [Phase 07]: O drill usa apenas dois frontends Production no commit saudável; deployment ligado ao Convex incorreto permanece inelegível. — Rollback só é seguro entre clientes compatíveis com o backend Production atual.
 - [Phase 07]: Rollback/promote Vercel move somente aliases; Convex, env, scheduled work, storage e dados têm recuperação separada. — Impede que recuperação de frontend seja registrada como restauração de backend ou dados.
+- [Phase 08]: Sessões legadas recebem principal sintético somente antes de legacyDisabledAt; contas individuais são a identidade persistente. — Mantém rollout aditivo e cria um cutoff lógico global imediato.
+- [Phase 08]: Senhas humanas usam envelope scrypt versionado em internal actions Node exclusivas. — Evita hash rápido de senha e impede módulos Web-runtime de importar Node crypto.
 
 ### Pending Todos
 
@@ -148,6 +151,6 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 
 ## Session Continuity
 
-Last session: 2026-07-25T15:53:49.676Z
-Stopped at: Phase 08 planned — 7 plans ready to execute
-Resume file: .planning/phases/08-gest-o-de-gestores-contas-individuais-permiss-es-e-auditoria/08-01-PLAN.md
+Last session: 2026-07-25T16:17:22.177Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
