@@ -59,6 +59,17 @@ export const login = mutation({
       } as const
     }
 
+    const configs = await ctx.db
+      .query('adminAuthConfig')
+      .withIndex('by_key', (query) => query.eq('key', 'primary'))
+      .take(2)
+    if (
+      configs.length > 1 ||
+      configs[0]?.bootstrapCompletedAt !== undefined
+    ) {
+      return { kind: 'invalid_credentials' } as const
+    }
+
     const validPassword = await compareAdminPassword(
       args.password,
       process.env.ADMIN_PASSWORD,
