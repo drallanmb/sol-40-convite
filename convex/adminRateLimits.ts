@@ -11,6 +11,11 @@ export const ADMIN_RATE_LIMITS = {
     rate: 10,
     period: FIFTEEN_MINUTES_MS,
   },
+  loginEmail: {
+    kind: 'fixed window',
+    rate: 5,
+    period: FIFTEEN_MINUTES_MS,
+  },
   bootstrapGlobal: {
     kind: 'fixed window',
     rate: 10,

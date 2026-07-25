@@ -11,6 +11,7 @@
 import type * as adminAccessLinkActions from "../adminAccessLinkActions.js";
 import type * as adminAccessLinks from "../adminAccessLinks.js";
 import type * as adminAccountModel from "../adminAccountModel.js";
+import type * as adminAccounts from "../adminAccounts.js";
 import type * as adminAuditModel from "../adminAuditModel.js";
 import type * as adminAuth from "../adminAuth.js";
 import type * as adminAuthActions from "../adminAuthActions.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   adminAccessLinkActions: typeof adminAccessLinkActions;
   adminAccessLinks: typeof adminAccessLinks;
   adminAccountModel: typeof adminAccountModel;
+  adminAccounts: typeof adminAccounts;
   adminAuditModel: typeof adminAuditModel;
   adminAuth: typeof adminAuth;
   adminAuthActions: typeof adminAuthActions;

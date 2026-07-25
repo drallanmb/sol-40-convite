@@ -120,6 +120,15 @@ export const getSessionStatus = query({
     return {
       kind: 'valid',
       expiresAt: authorization.session.expiresAt,
+      ...(authorization.principal.kind === 'account'
+        ? {
+            principal: {
+              id: authorization.principal.account._id,
+              displayName: authorization.principal.account.displayName,
+              role: authorization.principal.account.role,
+            },
+          }
+        : {}),
     } as const
   },
 })

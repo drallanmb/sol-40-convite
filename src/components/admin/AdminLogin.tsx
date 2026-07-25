@@ -13,7 +13,7 @@ type AdminLoginProps = {
   busy: boolean
   error?: AdminSessionError
   notice?: AdminSessionNotice
-  onSubmit: (password: string) => Promise<void>
+  onSubmit: (email: string, password: string) => Promise<void>
 }
 
 export function AdminLogin({
@@ -22,6 +22,7 @@ export function AdminLogin({
   notice,
   onSubmit,
 }: AdminLoginProps) {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const errorId = useId()
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -35,8 +36,8 @@ export function AdminLogin({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!password || busy) return
-    await onSubmit(password)
+    if (!email.trim() || !password || busy) return
+    await onSubmit(email, password)
   }
 
   const errorCopy = error ? ADMIN_COPY.login.errors[error] : null
@@ -59,6 +60,19 @@ export function AdminLogin({
         <p className="mt-3 text-base leading-normal">{description}</p>
 
         <form className="mt-8" onSubmit={handleSubmit}>
+          <Field
+            id="admin-email"
+            label={ADMIN_COPY.login.emailLabel}
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            appearance="outline"
+            value={email}
+            disabled={busy}
+            aria-invalid={errorCopy ? true : undefined}
+            aria-describedby={errorCopy ? errorId : undefined}
+            onChange={(event) => setEmail(event.currentTarget.value)}
+          />
           <Field
             ref={passwordRef}
             id="admin-password"
@@ -83,7 +97,7 @@ export function AdminLogin({
             type="submit"
             variant="adminPrimary"
             className="w-full"
-            disabled={busy || !password}
+            disabled={busy || !email.trim() || !password}
             aria-busy={busy}
           >
             {busy

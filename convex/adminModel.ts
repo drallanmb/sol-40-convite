@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { adminRoleValidator } from './adminAccountModel'
 
 export const ADMIN_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1_000
 export const ADMIN_CAPABILITY_BYTE_LENGTH = 32
@@ -7,6 +8,13 @@ export const adminSessionStatusValidator = v.union(
   v.object({
     kind: v.literal('valid'),
     expiresAt: v.number(),
+    principal: v.optional(
+      v.object({
+        id: v.id('adminAccounts'),
+        displayName: v.string(),
+        role: adminRoleValidator,
+      }),
+    ),
   }),
   v.object({ kind: v.literal('invalid') }),
 )
@@ -15,6 +23,13 @@ export const adminLoginResultValidator = v.union(
   v.object({
     kind: v.literal('authenticated'),
     expiresAt: v.number(),
+    principal: v.optional(
+      v.object({
+        id: v.id('adminAccounts'),
+        displayName: v.string(),
+        role: adminRoleValidator,
+      }),
+    ),
   }),
   v.object({ kind: v.literal('invalid_credentials') }),
   v.object({ kind: v.literal('invalid_token') }),

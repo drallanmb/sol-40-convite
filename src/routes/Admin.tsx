@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import { useLocation } from 'react-router'
 import { api } from '../../convex/_generated/api'
 import AdminAccessLink from '../components/admin/AdminAccessLink'
@@ -45,7 +45,7 @@ function applyEffects(effects: AdminSessionEffect[]) {
 function AdminSessionGate() {
   const [session, setSession] = useState<AdminSessionState>(initialSessionState)
   const sessionRef = useRef(session)
-  const login = useMutation(api.adminAuth.login)
+  const login = useAction(api.adminAuthActions.login)
   const logout = useMutation(api.adminAuth.logout)
   const token =
     session.kind === 'checking' ||
@@ -129,15 +129,30 @@ function AdminSessionGate() {
     return () => window.removeEventListener('storage', onStorage)
   }, [dispatch])
 
-  const handleLogin = async (password: string) => {
+  const handleLogin = async (email: string, password: string) => {
     const sequence = nextAdminSessionSequence(sessionRef.current)
     dispatch({ type: 'login-started', sequence })
     try {
       let capability = generateAdminCapability()
-      let result = await login({ password, token: capability })
+      const deviceLabel = /Mobi|Android|iPhone|iPad/iu.test(
+        window.navigator.userAgent,
+      )
+        ? 'Navegador no celular'
+        : 'Navegador no computador'
+      let result = await login({
+        email,
+        password,
+        token: capability,
+        deviceLabel,
+      })
       if (result.kind === 'token_conflict') {
         capability = generateAdminCapability()
-        result = await login({ password, token: capability })
+        result = await login({
+          email,
+          password,
+          token: capability,
+          deviceLabel,
+        })
       }
       if (result.kind === 'authenticated') {
         dispatch({

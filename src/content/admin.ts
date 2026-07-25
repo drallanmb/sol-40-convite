@@ -55,17 +55,19 @@ export const ADMIN_COPY = {
   login: {
     wordmark: 'Sol 40',
     title: 'Painel dos donos',
-    description: 'Entre com a senha compartilhada para cuidar da festa.',
+    description: 'Entre com seu e-mail e sua senha para cuidar da festa.',
     expired:
       'Sua sessão expirou. Entre novamente para continuar nesta seção.',
     logoutUnconfirmed:
       'Você saiu deste navegador, mas não foi possível confirmar o encerramento no servidor. Tente entrar e sair novamente quando a conexão voltar.',
+    emailLabel: 'E-mail',
     passwordLabel: 'Senha',
     submit: 'Entrar no painel',
     submitting: 'Entrando…',
     checking: 'Verificando acesso…',
     errors: {
-      invalid_credentials: 'Senha incorreta. Confira e tente novamente.',
+      invalid_credentials:
+        'E-mail ou senha inválidos. Confira os dados e tente novamente.',
       rate_limited:
         'Muitas tentativas. Aguarde um pouco e tente novamente.',
       network:
