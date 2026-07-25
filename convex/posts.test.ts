@@ -28,6 +28,12 @@ import cronsSource from './crons.ts?raw'
 import postInternalSource from './postInternal.ts?raw'
 import postsSource from './posts.ts?raw'
 import schemaSource from './schema.ts?raw'
+import {
+  compactPngInflateBomb,
+  corruptJpegWithOneEntropyByte,
+  corruptWebpWithZeroedPayload,
+  indexedPngWithoutPalette,
+} from '../src/test/adversarialImageFixtures'
 
 const modules = import.meta.glob(['./**/*.*s', '!./**/*.test.*s'])
 
@@ -817,6 +823,30 @@ describe('photo upload reservation and validation', () => {
       'structurally truncated jpeg',
       'image/jpeg',
       new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 10]),
+      'unsupported_type',
+    ],
+    [
+      'one-byte JPEG entropy',
+      'image/jpeg',
+      corruptJpegWithOneEntropyByte(),
+      'unsupported_type',
+    ],
+    [
+      'zeroed VP8L payload',
+      'image/webp',
+      corruptWebpWithZeroedPayload(),
+      'unsupported_type',
+    ],
+    [
+      'indexed PNG without PLTE',
+      'image/png',
+      indexedPngWithoutPalette(),
+      'unsupported_type',
+    ],
+    [
+      'PNG inflate bomb',
+      'image/png',
+      compactPngInflateBomb(),
       'unsupported_type',
     ],
     [
