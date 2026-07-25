@@ -1,5 +1,7 @@
 import type { Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
+import type { FunctionReference } from 'convex/server'
+import { internal } from './_generated/api'
 import {
   RSVP_CAPABILITY_BYTE_LENGTH,
   isRsvpCapability,
@@ -10,7 +12,21 @@ const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 
 type LimiterKeyScope = 'lookup-phone' | 'save-session'
 type RsvpReadContext = Pick<QueryCtx, 'db'>
-type RsvpWriteContext = Pick<MutationCtx, 'db'>
+type RsvpWriteContext = Pick<MutationCtx, 'db' | 'scheduler'>
+
+const expireRsvpSession = (internal as unknown as {
+  rsvpInternal: {
+    expireRsvpSession: FunctionReference<
+      'mutation',
+      'internal',
+      {
+        sessionId: Id<'rsvpSessions'>
+        expectedExpiresAt: number
+      },
+      unknown
+    >
+  }
+}).rsvpInternal.expireRsvpSession
 
 function toHex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -69,6 +85,14 @@ export function isSessionActive(expiresAt: number, now: number) {
   return now < expiresAt
 }
 
+export function normalizeRsvpGeneration(value: number | undefined) {
+  const generation = value ?? 0
+  if (!Number.isInteger(generation) || generation < 0) {
+    throw new Error('Invalid RSVP generation')
+  }
+  return generation
+}
+
 export function toRetryAfterSeconds(retryAfterMs: number) {
   if (!Number.isFinite(retryAfterMs)) {
     return 1
@@ -105,11 +129,22 @@ export async function createRsvpSession(
     return { kind: 'token_conflict' } as const
   }
 
-  await ctx.db.insert('rsvpSessions', {
+  const invitation = await ctx.db.get(rsvpId)
+  if (!invitation) {
+    throw new Error('RSVP invitation not found')
+  }
+  const generation = normalizeRsvpGeneration(invitation.generation)
+
+  const sessionId = await ctx.db.insert('rsvpSessions', {
     tokenHash,
     rsvpId,
+    generation,
     expiresAt,
     createdAt: now,
+  })
+  await ctx.scheduler.runAt(expiresAt, expireRsvpSession, {
+    sessionId,
+    expectedExpiresAt: expiresAt,
   })
 
   return { kind: 'created', tokenHash } as const
@@ -136,6 +171,12 @@ export async function resolveActiveRsvpSession(
 
   const rsvp = await ctx.db.get(sessions[0].rsvpId)
   if (!rsvp) {
+    return null
+  }
+  if (
+    normalizeRsvpGeneration(sessions[0].generation) !==
+    normalizeRsvpGeneration(rsvp.generation)
+  ) {
     return null
   }
 

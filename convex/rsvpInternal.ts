@@ -25,6 +25,37 @@ import {
   validateOpaqueToken,
 } from './rsvpSecurity'
 
+export async function expireRsvpSessionRecord(
+  ctx: Pick<MutationCtx, 'db'>,
+  {
+    sessionId,
+    expectedExpiresAt,
+  }: {
+    sessionId: Id<'rsvpSessions'>
+    expectedExpiresAt: number
+  },
+) {
+  const session = await ctx.db.get(sessionId)
+  if (!session || session.expiresAt !== expectedExpiresAt) {
+    return { kind: 'ignored' } as const
+  }
+
+  await ctx.db.delete(sessionId)
+  return { kind: 'expired' } as const
+}
+
+export const expireRsvpSession = internalMutation({
+  args: {
+    sessionId: v.id('rsvpSessions'),
+    expectedExpiresAt: v.number(),
+  },
+  returns: v.union(
+    v.object({ kind: v.literal('expired') }),
+    v.object({ kind: v.literal('ignored') }),
+  ),
+  handler: expireRsvpSessionRecord,
+})
+
 declare const process: {
   env: Record<string, string | undefined>
 }

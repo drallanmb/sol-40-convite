@@ -17,6 +17,7 @@ export default defineSchema({
     phone: v.string(),
     displayName: v.string(),
     contact: v.optional(v.string()),
+    generation: v.optional(v.number()),
     updatedAt: v.number(),
   }).index('by_phone', ['phone']),
 
@@ -35,6 +36,7 @@ export default defineSchema({
   rsvpSessions: defineTable({
     tokenHash: v.string(),
     rsvpId: v.id('rsvps'),
+    generation: v.optional(v.number()),
     expiresAt: v.number(),
     createdAt: v.number(),
   })
