@@ -79,6 +79,39 @@ async function insertActiveAdminSession(
   })
 }
 
+async function insertActiveAdminAccount(
+  t: ReturnType<typeof makeAdminTest>,
+  {
+    email = 'allanmesquitab@gmail.com',
+    displayName = 'Allan',
+    role = 'owner' as const,
+    password = 'Uma frase segura para o painel',
+  } = {},
+) {
+  const hashed = await t.action(
+    internal.adminPasswordActions.hashAdminPassword,
+    {
+      password,
+      context: { email, displayName },
+    },
+  )
+  if (hashed.kind !== 'hashed') throw new Error('test password was rejected')
+  const accountId = await t.run((ctx) =>
+    ctx.db.insert('adminAccounts', {
+      email: normalizeAdminEmail(email),
+      displayName,
+      role,
+      state: 'active',
+      passwordHash: hashed.envelope,
+      credentialVersion: 1,
+      createdAt: 1_000,
+      updatedAt: 1_000,
+      activatedAt: 1_000,
+    }),
+  )
+  return { accountId, password }
+}
+
 async function insertOverviewWine(
   t: ReturnType<typeof makeAdminTest>,
   productCode: string,
@@ -903,6 +936,121 @@ describe('admin login rate limit policy', () => {
       rate: 10,
       period: 15 * 60 * 1_000,
     })
+  })
+})
+
+describe('individual login, rate limit and seven day session', () => {
+  it('normalizes email and creates multiple absolute account sessions', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(10_000)
+    const t = makeAdminTest()
+    const seeded = await insertActiveAdminAccount(t)
+
+    const first = await t.action(api.adminAuthActions.login, {
+      email: ' ALLANMESQUITAB@GMAIL.COM ',
+      password: seeded.password,
+      token: TOKEN_A,
+      deviceLabel: 'Safari em iPhone',
+    })
+    const second = await t.action(api.adminAuthActions.login, {
+      email: 'allanmesquitab@gmail.com',
+      password: seeded.password,
+      token: TOKEN_B,
+      deviceLabel: 'Chrome no computador',
+    })
+
+    expect(first).toMatchObject({
+      kind: 'authenticated',
+      expiresAt: 10_000 + ADMIN_SESSION_TTL_MS,
+    })
+    expect(second).toMatchObject({
+      kind: 'authenticated',
+      expiresAt: 10_000 + ADMIN_SESSION_TTL_MS,
+    })
+    const rows = await t.run((ctx) =>
+      ctx.db.query('adminSessions').withIndex('by_account', (query) =>
+        query.eq('accountId', seeded.accountId),
+      ).collect(),
+    )
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => row.credentialVersion === 1)).toBe(true)
+    expect(rows.map((row) => row.deviceLabel).sort()).toEqual([
+      'Chrome no computador',
+      'Safari em iPhone',
+    ])
+  })
+
+  it('returns the same credential error for absent, wrong and disabled accounts', async () => {
+    const t = makeAdminTest()
+    const seeded = await insertActiveAdminAccount(t)
+    const attempts = [
+      await t.action(api.adminAuthActions.login, {
+        email: 'ninguém@example.com',
+        password: seeded.password,
+        token: TOKEN_A,
+        deviceLabel: 'Teste',
+      }),
+      await t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: 'Outra frase completamente errada',
+        token: TOKEN_A,
+        deviceLabel: 'Teste',
+      }),
+    ]
+    await t.run((ctx) =>
+      ctx.db.patch(seeded.accountId, {
+        state: 'disabled',
+        credentialVersion: 2,
+      }),
+    )
+    attempts.push(
+      await t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: seeded.password,
+        token: TOKEN_A,
+        deviceLabel: 'Teste',
+      }),
+    )
+
+    expect(attempts).toEqual([
+      { kind: 'invalid_credentials' },
+      { kind: 'invalid_credentials' },
+      { kind: 'invalid_credentials' },
+    ])
+    expect(
+      await t.run((ctx) => ctx.db.query('adminSessions').collect()),
+    ).toEqual([])
+  })
+
+  it('revalidates account version after password verification', async () => {
+    const t = makeAdminTest()
+    const seeded = await insertActiveAdminAccount(t)
+    const snapshot = await t.mutation(
+      internal.adminAccounts.prepareIndividualLogin,
+      { email: 'allanmesquitab@gmail.com' },
+    )
+    expect(snapshot.kind).toBe('ready')
+    if (snapshot.kind !== 'ready') return
+    await t.run((ctx) =>
+      ctx.db.patch(seeded.accountId, {
+        state: 'disabled',
+        credentialVersion: 2,
+      }),
+    )
+
+    await expect(
+      t.mutation(internal.adminAccounts.finishIndividualLogin, {
+        accountId: seeded.accountId,
+        expectedCredentialVersion: 1,
+        passwordValid: true,
+        tokenHash: await hashAdminToken(TOKEN_A),
+        deviceLabel: 'Teste',
+        now: 20_000,
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+    expect(
+      await t.run((ctx) => ctx.db.query('adminSessions').collect()),
+    ).toEqual([])
   })
 })
 
