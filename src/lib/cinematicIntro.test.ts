@@ -3,12 +3,12 @@ import { SECTION_IDS } from '../content/event'
 import {
   CINEMATIC_INTRO_DURATION_MS,
   CINEMATIC_INTRO_EASING,
-  CINEMATIC_INTRO_REVEAL_MS,
   CINEMATIC_INTRO_SCROLL_THRESHOLD_PX,
   hasIntentionalIntroScroll,
   homeSectionIdFromHash,
   isEligibleHeroHash,
-  resolveInitialIntroPhase,
+  resolveCompletedIntroState,
+  resolveInitialIntroState,
 } from './cinematicIntro'
 
 describe('cinematic intro eligibility', () => {
@@ -30,20 +30,27 @@ describe('cinematic intro eligibility', () => {
   })
 })
 
-describe('cinematic intro initial phase', () => {
-  it('descends only for an eligible hash when motion is allowed', () => {
-    expect(resolveInitialIntroPhase('', false)).toBe('descending')
-    expect(resolveInitialIntroPhase(`#${SECTION_IDS.hero}`, false)).toBe(
-      'descending',
+describe('cinematic intro initial state', () => {
+  it('plays only for an eligible hash when motion is allowed', () => {
+    expect(resolveInitialIntroState('', false)).toBe('playing')
+    expect(resolveInitialIntroState(`#${SECTION_IDS.hero}`, false)).toBe(
+      'playing',
     )
   })
 
   it('starts complete for reduced motion or an ineligible hash', () => {
-    expect(resolveInitialIntroPhase('', true)).toBe('complete')
+    expect(resolveInitialIntroState('', true)).toBe('complete')
     expect(
-      resolveInitialIntroPhase(`#${SECTION_IDS.programa}`, false),
+      resolveInitialIntroState(`#${SECTION_IDS.programa}`, false),
     ).toBe('complete')
   })
+
+  it.each(['finished', 'reduced-motion', 'ineligible', 'error'] as const)(
+    'converges %s completion to the fully open state',
+    (reason) => {
+      expect(resolveCompletedIntroState(reason)).toBe('complete')
+    },
+  )
 })
 
 describe('cinematic intro scroll intent', () => {
@@ -86,11 +93,10 @@ describe('cinematic intro fragment policy', () => {
 })
 
 describe('cinematic intro timing contract', () => {
-  it('keeps duration, reveal, easing and scroll threshold centralized', () => {
-    expect(CINEMATIC_INTRO_DURATION_MS).toBe(2000)
-    expect(CINEMATIC_INTRO_REVEAL_MS).toBe(260)
+  it('keeps the single scene clock, easing and scroll threshold centralized', () => {
+    expect(CINEMATIC_INTRO_DURATION_MS).toBe(3000)
     expect(CINEMATIC_INTRO_EASING).toBe(
-      'cubic-bezier(.65, 0, .35, 1)',
+      'cubic-bezier(.22, .7, .16, 1)',
     )
     expect(CINEMATIC_INTRO_SCROLL_THRESHOLD_PX).toBe(4)
   })
