@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { generateAdminCapability } from '../../lib/adminSession'
+import { copyTextToClipboard } from '../../lib/clipboard'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
 import Field from '../ui/Field'
@@ -231,6 +232,16 @@ export function AdminManagers({
     }
   }
 
+  async function copyOneTimeLink() {
+    if (!oneTimeLink) return
+    const copied = await copyTextToClipboard(oneTimeLink)
+    setFeedback(
+      copied
+        ? 'Link copiado.'
+        : 'Não foi possível copiar automaticamente. Abra o link abaixo ou mantenha-o pressionado para copiar.',
+    )
+  }
+
   if (accountsResult === undefined) {
     return <p role="status">Carregando gestores…</p>
   }
@@ -265,18 +276,22 @@ export function AdminManagers({
             Link de uso único
           </h2>
           <p className="mt-2 text-sm">
-            Ele expira em 72 horas e não poderá ser consultado novamente.
+            Envie somente este link pelo WhatsApp. Ele expira em 72 horas e,
+            se outro for gerado para esta conta, este deixa de funcionar.
           </p>
-          <code className="mt-4 block overflow-x-auto rounded bg-cream p-3 text-sm">
-            {oneTimeLink}
-          </code>
+          <a
+            href={oneTimeLink}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Abrir link de uso único"
+            className="mt-4 block break-all rounded bg-cream p-3 text-sm text-sea underline decoration-sea/50 underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-plum"
+          >
+            <code>{oneTimeLink}</code>
+          </a>
           <Button
             className="mt-4"
             variant="adminPrimary"
-            onClick={() => {
-              void navigator.clipboard.writeText(oneTimeLink)
-              setFeedback('Link copiado.')
-            }}
+            onClick={() => void copyOneTimeLink()}
           >
             Copiar link
           </Button>
