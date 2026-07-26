@@ -1,710 +1,1033 @@
-# Phase 10: Abertura cinematográfica do pôr do sol - Research
+# Phase 10: Abertura cinematográfica do pôr do sol — Research
 
 **Researched:** 2026-07-26
-**Domain:** React SPA entry choreography, responsive DOM geometry, Web Animations API, navigation lifecycle, and accessibility
-**Confidence:** HIGH for the codebase and architecture; MEDIUM for browser lifecycle details cited from current official documentation
+**Domain:** direção de arte responsiva em CSS/SVG, React, Web Animations API,
+continuidade perceptual, acessibilidade e validação visual
+**Research type:** re-pesquisa completa após rejeição da direção anterior
+**Confidence:** HIGH para a arquitetura e os pontos de integração do projeto;
+MEDIUM para a qualidade artística até o checkpoint humano de keyframes
+
+<research_revision>
+## Revision Boundary
+
+Esta pesquisa **substitui integralmente** a pesquisa anterior da Fase 10.
+
+A tentativa “céu vazio + sol em queda vertical + mar/copy ocultos + fade
+conjunto” foi rejeitada pelo usuário como seca, abrupta e com aparência de
+protótipo. Ela não deve ser preservada como base estética, nem tratada como uma
+implementação quase pronta que precise apenas de polimento.
+
+Partes técnicas da tentativa anterior que continuam úteis:
+
+- política de elegibilidade por montagem e fragmento;
+- uso do sol canônico do hero em vez de clone;
+- alvo final derivado da geometria realmente renderizada;
+- skip link fora de qualquer região `inert`;
+- matriz Playwright em Chromium/WebKit e mobile/desktop;
+- dívida já identificada de conclusão **fail-open** quando WAAPI lança.
+
+Partes que precisam ser substituídas:
+
+- primeiro frame composto apenas pelo céu;
+- trajetória vertical central;
+- duração de 2000 ms;
+- fases `descending → revealing` como modelo conceitual;
+- ocultação total do mar, paisagem e conteúdo por `[data-intro-reveal]`;
+- reveal único de 260 ms;
+- testes que canonizam esses comportamentos rejeitados.
+</research_revision>
 
 <user_constraints>
-## User Constraints (from CONTEXT.md)
+## User Constraints (from revised CONTEXT.md)
 
 ### Locked Decisions
 
-### Cena, trajetória e ritmo
+#### Direção visual e atmosfera
 
-- **D-01:** O primeiro frame mostra imediatamente apenas o céu do próprio
-  hero em tela cheia, com o gradiente final estável. Não pode haver flash do
-  hero completo antes da abertura.
-- **D-02:** O sol começa totalmente fora da tela, entra pela borda superior e
-  desce pelo eixo central até a posição real medida do sol do hero.
-- **D-03:** O disco mantém exatamente o tamanho final e a mesma intensidade de
-  halo durante todo o percurso. Céu, tamanho e halo não mudam durante a
-  descida.
-- **D-04:** A descida dura aproximadamente **2 segundos** e usa movimento
-  cinematográfico suave: começa devagar, ganha velocidade e desacelera ao
-  encaixar.
-- **D-05:** A abertura não apresenta spinner, progresso, copy de espera ou
-  qualquer estado que pareça loading.
-- **D-06:** Ao pousar, o sol permanece continuamente visível e passa a ser o
-  sol real do hero sem piscar, desaparecer ou reduzir opacidade.
-- **D-07:** Mar, textos, CTAs, metadados e navegação surgem juntos em um fade
-  curto de **250–300 ms**. As animações escalonadas atuais do hero são
-  substituídas por esse único reveal.
+- A abertura é um plano-sequência atmosférico. Céu, horizonte, mar e
+  silhuetas pertencem à mesma paisagem desde o primeiro frame.
+- Não existe troca de fundo, tela vazia ou estado formado apenas pelo
+  gradiente do céu.
+- A luz do sol desperta a paisagem: horizonte aquece, mar recebe reflexos,
+  ondas ganham brilho e silhuetas adquirem contraste.
+- O acabamento é uma ilustração editorial cinematográfica com nuvens suaves,
+  névoa luminosa, profundidade em camadas, reflexo no mar e textura sutil.
+- Gradiente seco, fundo plano e fade genérico não satisfazem a direção.
 
-### Frequência e navegação
+#### Trajetória, câmera e encaixe
 
-- **D-08:** A abertura roda sempre que a rota `/` é carregada ou acessada
-  novamente pelo hero. Não existe persistência de “já viu” em storage,
-  cookie, sessão ou perfil.
-- **D-09:** Rolar para baixo e voltar ao hero na mesma montagem não repete a
-  abertura.
-- **D-10:** Tocar no símbolo da topbar enquanto a pessoa já está na página
-  apenas volta a `#inicio`; não reinicia a cena.
-- **D-11:** Se a pessoa sair durante a animação e depois retornar à rota `/`,
-  a abertura recomeça desde o início.
-- **D-12:** Links diretos para outra seção, como `/#programacao`, respeitam o
-  fragmento e não executam a abertura.
+- O sol percorre arco diagonal amplo e natural e desacelera ao se aproximar
+  da posição final; queda vertical é proibida.
+- Há recuo sutil de câmera e parallax mínimo entre nuvens, horizonte, mar e
+  palmeiras.
+- A câmera termina exatamente no enquadramento real do hero, sem parecer zoom
+  de interface.
+- O encaixe é absorvido pela conexão do halo com o horizonte e pela formação
+  do reflexo no mar.
+- Quando o sol para, a paisagem já é o hero final: sem corte, swap, troca de
+  background ou fade-cortina.
+- A coreografia completa dura aproximadamente 3 segundos.
 
-### Interação e acessibilidade
+#### Conteúdo
 
-- **D-13:** Não existe botão “Pular”, gesto próprio ou controle específico da
-  abertura.
-- **D-14:** A camada visual não captura clique, toque ou teclado. A página
-  continua tecnicamente navegável e rolável durante os 2 segundos.
-- **D-15:** Uma rolagem iniciada durante a descida conclui imediatamente a
-  abertura e libera a página no ponto escolhido pela pessoa.
-- **D-16:** O skip link existente permanece como primeiro elemento focável,
-  aparece acima da abertura ao receber foco e continua funcional.
-- **D-17:** `prefers-reduced-motion: reduce` recebe o hero final
-  imediatamente, sem descida e sem fade.
+- Conteúdo entra em hierarquia curta, não em fade conjunto.
+- Primeiro entram “Sol faz 40” e data; depois convite e CTAs.
+- A sequência tipográfica ocupa aproximadamente 500–700 ms quando a paisagem
+  já está quase formada.
+- Visibilidade e interatividade precisam permanecer coordenadas; controles
+  não ficam presos esperando ornamentação.
 
-### Revelação do hero
+#### Responsividade, movimento e lifecycle
 
-- **D-18:** Links e botões ficam interativos assim que o fade de revelação
-  começa; não esperam os 250–300 ms terminarem.
-- **D-19:** O sol não participa do fade. Somente mar, conteúdo e navegação
-  ganham opacidade ao redor do disco já encaixado.
-- **D-20:** O mar aparece já em movimento durante o fade, sem uma etapa
-  estática posterior.
-- **D-21:** A composição inicial usa a própria linguagem visual do hero;
-  nenhuma tela neutra ou escura antecede o céu.
-
-### Decisões herdadas
-
-- **D-22:** O alvo é a geometria realmente renderizada em cada viewport, não
-  coordenadas duplicadas ou breakpoints paralelos.
-- **D-23:** Resize ou mudança de orientação antes do início precisa produzir o
-  alvo correto para 320 px, tablet e desktop.
-- **D-24:** A cena reutiliza a arte e os tokens atuais do hero e preserva
-  contraste AA, desempenho mobile, foco e a navegação existente.
+- Mobile recebe composição vertical própria: arco mais alto/compacto,
+  horizonte mais baixo, reflexo vertical e palmeiras como moldura.
+- Resize/orientação durante a abertura preserva progresso e reenquadra
+  suavemente, sem reiniciar nem saltar.
+- `prefers-reduced-motion: reduce` mostra imediatamente a cena final completa,
+  sem arco, zoom, parallax ou fade.
+- Alvo solar final continua vindo da geometria real do hero.
+- Entradas elegíveis são `/` e `/#inicio`; fragmentos de outras seções pulam a
+  abertura; mesma montagem não repete ao voltar ao topo.
+- Não há storage de “já viu”, loading ou botão próprio de pular.
+- Intenção de navegação acelera a conclusão para aproximadamente 150–200 ms,
+  sem bloquear scroll, teclado, toque ou navegação.
+- Nova montagem elegível reinicia. Restauração real por bfcache limpa handles
+  e listeners antes de criar uma nova execução.
+- Camadas decorativas nunca capturam pointer/teclado; skip link continua
+  primeiro foco e acima da composição.
+- Qualquer falha visual/WAAPI é fail-open: hero final e controles aparecem
+  imediatamente e permanecem operáveis.
+- Contraste AA, ausência de overflow horizontal e desempenho mobile são
+  invariantes.
 
 ### Claude's Discretion
 
-- Técnica exata de medição e transição shared-element, desde que exista um
-  único sol visual no encaixe e nenhum salto perceptível.
-- Curva de easing concreta que materializa o ritmo decidido.
-- Valor final dentro da faixa de 250–300 ms e tolerância de arredondamento
-  subpixel.
-- Limiar mínimo de rolagem que encerra a abertura, evitando cancelamento por
-  ruído sem atrasar uma intenção real de navegação.
-- Organização dos estados e testes, sem introduzir uma biblioteca pesada de
-  animação por necessidade presumida.
+- lado de origem do arco em cada composição;
+- desenho e quantidade de nuvens, névoa, reflexo, textura e silhuetas;
+- curvas e microtiming dentro do ritmo aprovado;
+- técnica de composição, desde que leve, contínua e responsiva;
+- microtiming dos dois grupos tipográficos.
 
-### Deferred Ideas (OUT OF SCOPE)
+### Deferred Ideas
 
-None — discussion stayed within phase scope.
+None.
 </user_constraints>
 
 <phase_requirements>
 ## Phase Requirements
 
-| ID | Description | Research Support |
-|----|-------------|------------------|
-| INTRO-01 | A entrada do site encena o sol se pondo e termina exatamente na geometria responsiva do sol real do hero, sem salto visual | Use one canonical visual sun inside a separately measurable target wrapper; measure its rendered `DOMRect`, animate only the inner disc's `transform`, and finish at the wrapper's zero transform. |
-| INTRO-02 | A abertura preserva interação, desempenho mobile e acessibilidade, incluindo alternativa segura para `prefers-reduced-motion` | Keep the scene pointer-transparent, keep the skip link outside the inert groups, cancel on actual scroll, animate only `transform`/`opacity`, and initialize reduced-motion entries directly in the final state. |
+| ID | Requirement | Research support |
+|---|---|---|
+| INTRO-01 | O sol se põe e termina exatamente na geometria responsiva do sol real, sem salto visual | Manter um único disco solar dentro do wrapper final; calcular o arco a partir do `DOMRect` do palco e do alvo; terminar em `transform: none`; usar um shell separado para FLIP de resize, sem clone ou troca de nó. |
+| INTRO-02 | Preservar interação, desempenho mobile e acessibilidade, inclusive `prefers-reduced-motion` | Cena decorativa pointer-transparent, estado final síncrono em reduced motion, timeline nativa limitada a `transform`/`opacity`, aceleração sem `preventDefault`, conclusão fail-open e testes cross-browser. |
 </phase_requirements>
 
-## Summary
+## Executive Summary
 
-The existing implementation already has every visual asset this phase needs: one responsive sun, the stable final sky gradient, three CSS/SVG wave bands, the hero copy, and a reactive reduced-motion store. It also has the important constraint that the topbar is a normal-flow sticky element before the hero, so the planner must deliberately let the home hero underlap that 72px chrome if the opening sky is to fill the viewport from the first row. `[VERIFIED: src/components/invite/Hero.tsx, src/components/invite/SeaWaves.tsx, src/components/layout/Shell.tsx, src/hooks/useReducedMotion.ts, src/index.css]`
+O hero existente não precisa de um overlay ou vídeo separado; ele precisa ser
+reconstruído internamente como **uma única cena estratificada**, sempre montada
+e visível. A diferença entre o primeiro frame e o último não deve ser
+“elementos escondidos que aparecem”, mas a evolução de luz, profundidade,
+enquadramento e hierarquia.
 
-The most reliable implementation is not a cloned shared-element overlay. Keep a target wrapper at the sun's existing responsive CSS geometry and put the only visual solar disc inside it. On an eligible mount, render the final sky synchronously, hide/inert only the reveal groups, measure the target wrapper before paint, and use `Element.animate()` to translate the inner disc from just above the viewport to `translateY(0)`. Because the endpoint is the element's normal style, finishing and canceling the animation leaves the exact same DOM disc at the exact responsive target; there is no clone swap to align. `getBoundingClientRect()` provides subpixel viewport-relative rendered geometry, and `useLayoutEffect` is React's pre-paint measurement hook. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect]` `[CITED: https://react.dev/reference/react/useLayoutEffect]`
+A melhor solução no stack atual é:
 
-Use a four-state coordinator—`descending`, `revealing`, `complete`, plus a run generation for bfcache re-entry—owned by `Home`. Eligibility is decided only by the hash present when that `Home` mount begins: empty hash and `#inicio` play; other fragments skip. Do not key replay from every `location` change, because same-page `#inicio` navigation must not restart. React Router exposes the current `Location`, including `hash` and `key`, but the project policy is mount-based, not location-key-based. `[CITED: https://reactrouter.com/api/hooks/useLocation]` `[CITED: https://api.reactrouter.com/v8/interfaces/react-router.Location.html]` `[VERIFIED: 10-CONTEXT.md D-08 through D-12]`
+1. manter o hero real como palco e o único sol visual dentro de seu wrapper
+   responsivo final;
+2. transformar céu, nuvens, névoa, halo, horizonte, reflexão, mar, ondas e
+   silhuetas em camadas semânticas CSS/SVG;
+3. dar a todas as animações finitas a mesma timeline WAAPI de 3000 ms, usando
+   offsets diferentes para coreografar arco, luz, câmera, reflexo e texto;
+4. manter o estado CSS de repouso igual ao frame final e usar a WAAPI apenas
+   como efeito transitório, de modo que cancelar depois de concluir não mude a
+   imagem;
+5. usar transformações e opacidades de overlays já pintados, evitando animar
+   gradientes, blur, `top`, `left`, largura ou altura a cada frame;
+6. fazer resize por re-resolução de geometria + correção FLIP em wrappers
+   separados, mantendo `currentTime` e dissolvendo a correção em ~180 ms;
+7. acelerar todas as animações existentes por `updatePlaybackRate()` quando
+   houver intenção de navegação, sem impedir a ação original;
+8. cercar **todas** as chamadas WAAPI por uma fronteira idempotente fail-open;
+9. aprovar keyframes estáticos em desktop e mobile **antes** de investir na
+   timeline, lifecycle e matriz completa.
 
-**Primary recommendation:** Add a small home-owned intro state machine and a WAAPI-powered canonical sun wrapper; use the existing `useReducedMotion`, existing CSS tokens, native `inert`, and the existing Playwright suite—no new runtime or test dependency.
+Não há evidência de que GSAP, Framer Motion, vídeo ou canvas sejam necessários.
+WAAPI oferece reprodução, seek e mudança suave de velocidade; CSS/SVG já é a
+linguagem ilustrativa do projeto. A dificuldade principal agora não é a
+interpolação, mas direção de arte, separação correta das camadas e lifecycle
+seguro.
 
-## Architectural Responsibility Map
+## Critical Documentation Conflict
 
-| Capability | Primary Tier | Secondary Tier | Rationale |
-|------------|-------------|----------------|-----------|
-| Entry eligibility and replay policy | Browser / Client | React Router | It depends on the current SPA mount, URL fragment, bfcache restoration, and no persistent server state. `[VERIFIED: 10-CONTEXT.md D-08 through D-12]` |
-| Responsive sun target measurement | Browser / Client | CSS layout | The browser owns the final rendered geometry produced by `clamp()`, percentages, and media queries. `[VERIFIED: src/components/invite/Hero.tsx]` |
-| Descent and reveal timing | Browser / Client | CSS compositor | WAAPI controls the measured translation; CSS controls the 260ms group opacity reveal. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/animate]` |
-| Reduced motion and focus safety | Browser / Client | HTML/CSS accessibility | `matchMedia`, `inert`, focus order, and the skip link are browser primitives. `[CITED: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion]` `[CITED: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert]` |
-| Automated acceptance | Browser test | Unit test | Real geometry, focus, scrolling, animation lifecycle, and viewport changes require Playwright; pure eligibility helpers can use Vitest. `[VERIFIED: playwright.config.ts, vite.config.ts, tests/release.spec.ts]` |
+O `10-CONTEXT.md` revisado é a decisão mais recente do usuário e deve prevalecer,
+mas o `DESIGN.md` ainda contém regras incompatíveis:
+
+| `DESIGN.md` atual | Nova decisão canônica |
+|---|---|
+| Hero tem somente céu, disco e três faixas do mar | Cena ganha nuvens, névoa, profundidade e silhuetas |
+| Coqueiros/silhuetas laterais são proibidos | Mobile usa palmeiras como moldura lateral |
+| Reflexo/caminho de luz não existe | Reflexo solar no mar é a ponte do encaixe |
+| Signature entrance de 900 ms + cinco entradas de 680 ms | Timeline contínua ~3000 ms e hierarquia final de 500–700 ms |
+
+O plano deve reservar uma atualização normativa de `DESIGN.md` **depois do
+checkpoint visual aprovado**. Atualizar antes da aprovação congelaria uma
+direção ainda não validada; deixar sem atualização depois criaria duas fontes
+de verdade concorrentes.
+
+## Existing Code Reality
+
+### Reusable
+
+- `Hero.tsx` já possui o wrapper responsivo do alvo solar e o único disco
+  visual. A separação wrapper/alvo deve continuar.
+- `SeaWaves.tsx` já oferece três bandas SVG com velocidades diferentes. Os
+  paths podem ser preservados, mas precisam participar de iluminação e
+  profundidade desde o primeiro frame.
+- `Home.tsx` já resolve elegibilidade inicial, reduced motion, fragmento e
+  `pageshow.persisted`.
+- `useReducedMotion` é reativo, usa `useSyncExternalStore` e deve ser
+  reutilizado.
+- `Shell.tsx` já mantém skip link antes do header/main e limita `inert` ao
+  chrome.
+- `cinematicIntro.ts` contém política útil de hash e scroll.
+- Playwright já está configurado em Chromium/WebKit, 1280×800 e 320×760@2x.
+
+### Must Be Reworked
+
+- `[data-intro-reveal]` atualmente esconde mar, copy e metadados por completo;
+  isso contradiz a paisagem presente no primeiro frame.
+- O CSS de produção depende de `data-testid="hero-sun-visual"`. Trocar para um
+  atributo semântico, como `data-intro-sun`, e deixar `data-testid` apenas para
+  testes.
+- `Hero.tsx` cria uma única animação vertical de 2000 ms e não protege
+  `animate()`, `finish()` nem `cancel()` contra exceções.
+- `Home.tsx` modela `descending → revealing → complete`, incluindo timeout fixo
+  de 260 ms. A nova timeline deve ser tratada como uma cena única, não como
+  “movimento e depois reveal”.
+- Os testes atuais afirmam “somente céu no primeiro frame”, queda vertical,
+  2000 ms e reveal 260 ms. Eles precisam ser substituídos onde codificam o
+  conceito rejeitado, mantendo apenas política, geometria, foco e lifecycle
+  úteis.
 
 ## Standard Stack
 
-No package installation is required. Versions below are the exact locally installed versions checked with `npm list --depth=0` on 2026-07-26. `[VERIFIED: npm list]`
+Nenhuma dependência nova é recomendada.
 
-### Core
+| Tecnologia | Versão local / origem | Papel |
+|---|---|---|
+| React | 19.2.8 | estado mount-scoped, refs, efeitos e cleanup |
+| React Router | 7.18.1 | rota, fragmento e nova montagem |
+| Tailwind/CSS | 4.3.3 + CSS nativo | layout responsivo, tokens e estados estáticos |
+| SVG inline | navegador | nuvens, silhuetas, ondas, máscaras e reflexo vetorial |
+| Web Animations API | navegador | timeline finita, seek, finish/cancel e aceleração |
+| ResizeObserver | navegador | detectar mudança real do palco/alvo durante a execução |
+| Playwright | 1.62.0 | geometria, timeline, screenshots e cross-browser |
+| Vitest | 4.1.10 | política pura e matemática da timeline |
 
-| Library / API | Version | Purpose | Why Standard Here |
-|---------------|---------|---------|-------------------|
-| React | 19.2.8 | Home-owned state machine, refs, layout/effect lifecycle | Already owns the route composition; `useLayoutEffect` supports pre-paint geometry measurement and cleanup. `[VERIFIED: package.json, npm list]` `[CITED: https://react.dev/reference/react/useLayoutEffect]` |
-| React Router | 7.18.1 | Current pathname/hash and SPA remount behavior | Already routes `/`, `/confirmar`, and `/presentes`; `useLocation` exposes the fragment without storage. `[VERIFIED: package.json, src/App.tsx]` `[CITED: https://reactrouter.com/api/hooks/useLocation]` |
-| Web Animations API | Browser native | Measured transform animation with `finish()`/`cancel()` | It returns a controllable `Animation` and needs no animation library. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/animate]` `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Animation]` |
-| CSS / Tailwind v4 tokens | Existing project stack | Stable sky, reveal opacity, layout, z-index, motion media rules | The final art and motion tokens already live in `src/index.css`; the phase must reuse them. `[VERIFIED: src/index.css, DESIGN.md, 10-CONTEXT.md D-21/D-24]` |
+### Why not a new animation library
 
-### Supporting
+WAAPI já suporta controle de tempo, `currentTime`, `finish()`, `cancel()`,
+`updatePlaybackRate()` e keyframes com offsets. A especificação inclusive usa
+seek para testar animações sem aguardar o tempo real. Uma biblioteca adicionaria
+bundle, outra semântica de cleanup e risco de composição de transforms sem
+resolver a parte difícil: a direção de arte.
 
-| Library / API | Version | Purpose | When to Use |
-|---------------|---------|---------|-------------|
-| `useReducedMotion` | Project local | Reactive `prefers-reduced-motion` snapshot | Read synchronously during initial home render and complete immediately when `reduce` is active or becomes active. `[VERIFIED: src/hooks/useReducedMotion.ts]` |
-| HTML `inert` | Browser native | Remove visually hidden header/hero actions from click, focus, tab order, and accessibility tree | Apply only while `descending`; remove at the first frame of `revealing`. `[CITED: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert]` |
-| Playwright Test | 1.62.0 | Deterministic cross-browser geometry, focus, scroll, hash, and reduced-motion tests | Use `addInitScript`, `emulateMedia`, `setViewportSize`, and programmatic WAAPI finish. `[VERIFIED: npm list, playwright.config.ts]` `[CITED: https://playwright.dev/docs/api/class-page]` |
-| Vitest | 4.1.10 | Pure eligibility/threshold tests | Use only if the policy helpers are extracted from React; do not emulate layout in jsdom. `[VERIFIED: npm list, vite.config.ts]` |
+Fontes:
 
-### Alternatives Considered
+- Web Animations Level 1: https://www.w3.org/TR/web-animations-1/
+- React `useLayoutEffect`: https://react.dev/reference/react/useLayoutEffect
+- React Strict Mode: https://react.dev/reference/react/StrictMode
+- Resize Observer: https://www.w3.org/TR/resize-observer/
+- Performance de animações: https://web.dev/articles/animations-guide
 
-| Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
-| Native WAAPI on the canonical disc | CSS keyframes with custom properties | CSS can animate the transform, but imperative `finish()` on scroll and deterministic access to lifecycle/progress become more awkward. The measured start offset still requires JavaScript. |
-| One target wrapper + one visual disc | Clone/overlay shared element | A clone can cover the topbar gap, but creates two DOM suns and a swap boundary—the exact risk INTRO-01 is intended to eliminate. |
-| Existing APIs | GSAP, Framer Motion, or another animation dependency | Adds bundle and lifecycle surface for a single two-keyframe transform; no required behavior needs it. |
+## Recommended Scene Model
 
-**Installation:** none.
-
-## Architecture Patterns
-
-### System Architecture Diagram
-
-```mermaid
-flowchart TD
-  A["Home mount or bfcache pageshow"] --> B{"Hash is empty or #inicio?"}
-  B -- "No" --> F["Complete final hero immediately"]
-  B -- "Yes" --> C{"Reduced motion?"}
-  C -- "Yes" --> F
-  C -- "No" --> D["Render final sky; reveal groups hidden + inert"]
-  D --> E["Measure real sun target before paint"]
-  E --> G["Animate the canonical disc from above viewport to transform: none"]
-  G --> H{"Actual page scroll or route unmount?"}
-  H -- "Scroll" --> I["Finish disc at endpoint and start reveal"]
-  H -- "Unmount" --> J["Cancel animation/listeners without state update"]
-  H -- "No" --> K["Natural finish at ~2000ms"]
-  K --> I
-  I --> L["Remove inert; fade header, sea, copy, CTAs, metadata for 260ms"]
-  L --> M["Complete state; keep waves running and sun unchanged"]
-```
-
-### Recommended Project Structure
+O hero deve expor camadas estáveis e nomeadas. Nenhuma camada decorativa pode
+ser um overlay alternativo ao hero.
 
 ```text
-src/
-├── routes/
-│   └── Home.tsx                         # owns eligibility, phase, replay generation
-├── components/
-│   ├── invite/
-│   │   └── Hero.tsx                     # measurable target + canonical visual disc + reveal groups
-│   └── layout/
-│       └── Shell.tsx                    # home-under-topbar layout and header reveal/inert
-├── hooks/
-│   ├── useReducedMotion.ts              # reuse unchanged unless tests expose a bug
-│   └── useCinematicIntro.ts             # optional extraction of lifecycle coordinator
-├── lib/
-│   ├── cinematicIntro.ts                # optional pure eligibility/timing helpers
-│   └── cinematicIntro.test.ts           # fast policy tests
-├── index.css                            # phase selectors; remove old hero stagger
-tests/
-└── cinematic-intro.spec.ts              # real-browser acceptance
+Hero (layout, final responsive framing)
+├── scene-viewport            overflow clip; pointer-events none
+│   └── scene-camera          recuo global sutil, termina em transform:none
+│       ├── sky-base          gradiente final estático
+│       ├── sky-cool-veil     overlay inicial que perde opacidade
+│       ├── cloud-far         SVG/gradientes, parallax mínimo
+│       ├── cloud-near        SVG/gradientes, parallax um pouco maior
+│       ├── haze-horizon      faixa luminosa larga e suave
+│       ├── sun-target        wrapper na geometria final real
+│       │   └── sun-retarget  correção FLIP de resize
+│       │       └── sun       único disco/halo; arco termina em transform:none
+│       ├── horizon-depth     massa distante/silhueta
+│       ├── reflection        SVG ou elemento mascarado sob o sol
+│       ├── sea               plano e três wave bands existentes
+│       └── palms             moldura/silhuetas, especialmente no mobile
+├── copy-primary              marca/título/data
+├── copy-secondary            convite/CTAs
+└── metadata
 ```
 
-The hook/helper split is optional; the plan should extract only logic that is genuinely testable without layout. The geometry and WAAPI work should remain next to the hero ref rather than being abstracted into a general animation framework.
-
-### Pattern 1: Synchronous eligibility, mount-scoped replay
-
-**What:** Derive the first intro phase during the initial render from the current hash and the synchronous reduced-motion snapshot. Never render the full hero and then hide it in `useEffect`.
-
-**Why:** React documents that a normal effect may run after paint, while `useLayoutEffect` is the pre-paint hook for visual measurement. More importantly, the hidden/revealed class must already be present in the first React commit to prevent a full-hero flash. `[CITED: https://react.dev/reference/react/useEffect]` `[CITED: https://react.dev/reference/react/useLayoutEffect]`
-
-```typescript
-// Source basis: React useState/useLayoutEffect and React Router useLocation docs.
-type IntroPhase = 'descending' | 'revealing' | 'complete'
-
-export function isEligibleHeroHash(hash: string) {
-  return hash === '' || hash === '#inicio'
-}
-
-const location = useLocation()
-const reducedMotion = useReducedMotion()
-const [phase, setPhase] = useState<IntroPhase>(() =>
-  isEligibleHeroHash(location.hash) && !reducedMotion
-    ? 'descending'
-    : 'complete',
-)
-```
+`scene-camera`, `sun-retarget` e `sun` precisam ser wrappers distintos porque
+cada um resolve uma transformação diferente:
 
-Do not add `location.key` or every `location.hash` change as a replay trigger. A new `Home` mount after `/confirmar` or `/presentes` naturally creates a new run, while changing the existing mounted home to `#inicio` does not. `[VERIFIED: src/App.tsx, src/routes/Home.tsx, 10-CONTEXT.md D-08 through D-12]`
+- câmera: enquadramento global;
+- retarget: correção transitória de resize;
+- sol: trajetória artística.
 
-### Pattern 2: Target wrapper plus canonical visual disc
+Misturar os três no mesmo `transform` cria composição frágil e torna impossível
+corrigir resize sem quebrar o arco.
 
-**What:** Keep the responsive classes on a measurable wrapper and animate only its full-size child:
+### Layer responsibilities
 
-```tsx
-<div
-  ref={sunTargetRef}
-  data-testid="hero-sun-target"
-  className="absolute left-1/2 top-[62%] aspect-square w-[clamp(260px,28vw,480px)] -translate-x-1/2 -translate-y-1/2 sm:top-[59%]"
->
-  <div
-    ref={sunVisualRef}
-    data-testid="hero-sun-visual"
-    aria-hidden="true"
-    className="h-full w-full rounded-full bg-sun"
-  />
-</div>
-```
+| Layer | Initial frame | Final frame | Animate |
+|---|---|---|---|
+| sky-base | visível | igual | nunca |
+| cool veil | opacidade moderada | opacidade 0 | opacity |
+| warm horizon | sutil | mais presente | opacity/scaleX |
+| clouds | visíveis e suaves | redistribuídas pelo recuo | transform/opacity |
+| haze | baixa intensidade | conecta halo/horizonte | opacity/scale |
+| sun | alto e lateral | wrapper final | transform |
+| reflection | estreito/fraco | faixa alinhada ao sol | opacity/scaleY |
+| sea/waves | sempre visíveis | mais luminosos/definidos | overlay opacity + wave motion existente |
+| silhouettes | legíveis, pouco contrastadas | contraste final | opacity de camada tonal |
+| copy primary | ausente visualmente | visível | transform/opacity |
+| copy secondary | ausente visualmente | visível | transform/opacity |
 
-Measure `sunTargetRef.current.getBoundingClientRect()` only after the DOM commit. Use `-(rect.bottom + rect.height)` as the recommended initial Y translation: the extra full-disc diameter keeps both the disc and its existing 100px halo above the viewport instead of letting the blur glow into the first frame. Then animate the child to `translateY(0)`. The wrapper retains the current `clamp()` width and breakpoint top position, so the browser remains the only source of responsive geometry. `getBoundingClientRect()` returns floating-point rendered coordinates relative to the viewport and accounts for transforms. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect]` `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model/Determining_the_dimensions_of_elements]` `[VERIFIED: src/components/invite/Hero.tsx uses a 100px sun halo]`
+O primeiro frame precisa ser uma composição intencional por si só. “Baixo
+contraste” não significa esconder a paisagem; horizonte, mar e profundidade
+devem continuar reconhecíveis.
 
-Schedule the actual read in the first `requestAnimationFrame` created by the layout effect, not during render. Any resize/orientation change completed before that read is therefore reflected in the measured rect. A long-lived `ResizeObserver` is not required for this hero because the endpoint is always the live wrapper's zero transform; if implementation work reveals a second layout frame before start, observe only until the animation is created and disconnect immediately. The Resize Observer API is appropriate for element-size changes, but leaving it active and restarting a two-second intro on every notification would add unnecessary lifecycle and loop risk. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API]`
+## Building the Editorial Atmosphere
 
-Use only a translate transform for the 2000ms descent. Keep size, background, and box-shadow in static CSS. Use `cubic-bezier(.65, 0, .35, 1)` as the concrete ease-in/out recommendation: it supplies a slow departure, a faster middle, and a slow landing without an overshoot. At natural or forced completion, remove/cancel the finished animation only after the disc is at its base `transform: none`; the base style and endpoint are identical.
+### 1. Sky without animating gradients
 
-### Pattern 3: Symmetric animation cleanup under React Strict Mode
-
-The project root is wrapped in `<StrictMode>`. React intentionally performs an extra development setup/cleanup cycle for effects and ref callbacks, so every animation, frame, timeout, and listener created by the intro must be canceled or removed by the same setup. `[VERIFIED: src/main.tsx]` `[CITED: https://react.dev/reference/react/StrictMode]`
+Use um gradiente final estático como base e dois overlays:
 
-```typescript
-// Source basis: React useLayoutEffect and MDN Animation lifecycle docs.
-useLayoutEffect(() => {
-  if (phase !== 'descending') return
+- véu frio/escuro inicial, cuja opacidade diminui;
+- halo quente amplo no horizonte, cuja opacidade e escala horizontal aumentam.
 
-  let disposed = false
-  let animation: Animation | undefined
-  let frame = requestAnimationFrame(() => {
-    const target = sunTargetRef.current
-    const visual = sunVisualRef.current
-    if (!target || !visual || disposed) {
-      if (!disposed) onReveal()
-      return
-    }
+Isso produz mudança cromática sem recalcular stops de um gradiente full-screen
+em todo frame. `opacity` e `transform` são as propriedades mais previsíveis
+para composição; `will-change` deve ser aplicado somente às poucas camadas
+realmente animadas e removido ao terminar.
 
-    const rect = target.getBoundingClientRect()
-    animation = visual.animate(
-      [
-        { transform: `translate3d(0, ${-(rect.bottom + rect.height)}px, 0)` },
-        { transform: 'translate3d(0, 0, 0)' },
-      ],
-      {
-        duration: 2000,
-        easing: 'cubic-bezier(.65, 0, .35, 1)',
-        fill: 'both',
-      },
-    )
-    animation.onfinish = () => {
-      if (!disposed) onReveal()
-    }
-  })
+### 2. Clouds and haze
 
-  return () => {
-    disposed = true
-    cancelAnimationFrame(frame)
-    if (animation) {
-      animation.onfinish = null
-      animation.cancel()
-    }
-  }
-}, [phase, runGeneration, onReveal])
-```
+Nuvens devem ser formas SVG de baixa complexidade ou grupos de gradientes
+radiais, nunca dezenas de DOM nodes. Use duas profundidades:
 
-`Animation.finish()` moves to the endpoint and fires `finish`; `Animation.cancel()` aborts and removes the effect. If the implementation uses `animation.finished` instead of `onfinish`, it must catch cancellation because the promise rejects when canceled. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API/Using_the_Web_Animations_API]`
+- nuvem distante: menor deslocamento, menor contraste;
+- nuvem próxima: deslocamento um pouco maior e bordas mais suaves.
 
-### Pattern 4: Reveal groups, `inert`, and the skip link
+Não anime `filter: blur()` continuamente. Pré-renderize a suavidade por
+gradiente ou filtro SVG estático e anime apenas o grupo. A névoa do horizonte
+pode ser um elemento largo com gradiente radial/linear e opacidade baixa.
 
-Group only these elements behind the reveal state:
+### 3. Reflection as the landing bridge
 
-- Shell header/topbar and countdown rail.
-- `SeaWaves`.
-- Hero copy, CTAs, and corner metadata.
+O reflexo deve começar a ganhar leitura antes do sol atingir o horizonte e
+chegar ao máximo junto com a desaceleração final. A solução leve:
 
-Do not include the sky, the canonical sun, the skip link, `<main>`, or later sections. The opening remains pointer-transparent because it is the existing hero background rather than an intercepting modal overlay. While descending, put `inert` on the hidden header and hidden hero-interaction wrapper and use `visibility: hidden; opacity: 0`. At `revealing`, remove `inert` immediately, set `visibility: visible`, and transition only opacity for the existing `--duration-medium` token (260ms). Native `inert` removes descendants from click, focus, tab order, and the accessibility tree. `[CITED: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert]` `[VERIFIED: src/index.css defines --duration-medium: 260ms]`
+- um SVG ou `div` vertical alinhado ao centro final do sol;
+- preenchimento em gradiente quente;
+- `mask-image: linear-gradient(...)` mais uma forma irregular SVG/polygonal;
+- `transform-origin: top center`;
+- animação somente de `opacity`, `scaleY` e pequena `scaleX`.
 
-The skip link is already before the header, becomes fixed on focus, and has `--z-skip: 110`, above the sticky header's `--z-sticky: 80`. Preserve that DOM order and do not place it inside an inert or opacity-hidden ancestor. `[VERIFIED: src/components/layout/Shell.tsx, src/index.css]`
+CSS Masking permite usar gradientes ou `<mask>` SVG para revelar parcialmente
+uma camada; a própria especificação alerta que clipping básico tende a ser mais
+barato que máscaras complexas. Portanto, manter uma máscara simples e sem
+animação de `mask-image`.
 
-The waves should remain mounted and animating behind opacity zero, then become visible during the reveal. That meets D-20 without adding a second start event. Under `prefers-reduced-motion`, the existing CSS already sets their animation to `none`; the intro phase must also initialize as `complete`, with no reveal transition. `[VERIFIED: src/components/invite/SeaWaves.tsx, src/index.css, src/hooks/useReducedMotion.ts]`
+Fonte: https://www.w3.org/TR/css-masking-1/
 
-### Pattern 5: Make the sky truly fill the top of the viewport
+### 4. Waves and light
 
-`Shell` currently renders a 72px sticky header in normal flow before `<main>`, so the hero currently begins below that row. `[VERIFIED: src/components/layout/Shell.tsx]` For the home composition, add a Shell prop that lets `<main>` underlap exactly the topbar height (for example `-mt-[72px]`) while the header remains sticky and above it. This keeps the same scroll/sticky behavior, places the hero sky at viewport Y=0, and avoids toggling header positioning at reveal, which would move the measured target. The prop should be home-only; secondary routes should retain their current flow.
+As três bandas existentes podem continuar em loop, mas a luz não deve exigir
+alterar seus `fill` a cada frame. Recomenda-se:
 
-### Pattern 6: Scroll cancellation and fragment routing
+- preservar os fills base;
+- adicionar uma camada de “rim light”/espuma sobre um ou dois paths;
+- animar a opacidade dessa camada durante a abertura;
+- manter o `wave-scroll` independente e muito lento;
+- em reduced motion, desativar tanto a timeline finita quanto os loops.
 
-Register one passive `scroll` listener only during `descending`. Capture `startScrollY` and complete when `Math.abs(window.scrollY - startScrollY) >= 4`; four CSS pixels is the recommended threshold because it ignores subpixel/no-op noise but reacts before a meaningful section navigation has progressed. Do not listen to `wheel` or `touchmove`: those can fire without an actual scroll at a boundary. On cancellation, call `animation.finish()` (or set the visual to its base transform), synchronously enter `revealing`, and leave the browser's scroll position untouched.
+### 5. Silhouettes and palms
 
-For non-hero initial fragments, initialize `complete` and run the project's established `getElementById(...).scrollIntoView(...)` style after the home DOM is committed. Do not build a dynamic CSS selector from `location.hash`; exact ID lookup avoids selector escaping and preserves the existing section `scroll-mt-32` offsets. `[VERIFIED: src/routes/Presentes.tsx uses getElementById + scrollIntoView; invite sections use scroll-mt-32]`
+Silhuetas precisam ser SVG inline com `currentColor` ou tokens semânticos, sem
+hex literals. No desktop podem ficar quase fora de quadro ou muito discretas;
+no mobile funcionam como moldura lateral, conforme D-16. Elas não devem cobrir
+CTAs, foco ou metadados.
 
-### Pattern 7: bfcache and route re-entry
+### 6. Texture
 
-Internal SPA route exits unmount `Home`, so returning creates a fresh eligible mount. A document restored from the browser back/forward cache may retain the completed or mid-animation React state; listen for `window.pageshow` and, when `event.persisted` is true and the current hash is eligible, increment a run generation and reset to `descending` (unless reduced motion is active). The `pageshow` event covers bfcache restoration and exposes `PageTransitionEvent.persisted`. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event]`
+Textura sutil deve ser uma única camada estática (pattern SVG minúsculo,
+repeating radial gradient ou asset local muito leve), com baixa opacidade e
+`mix-blend-mode: soft-light`. Não animá-la; o movimento das outras camadas já
+fornece vida suficiente.
 
-Do not add an `unload` listener to manage this. It is unreliable and can harm bfcache eligibility; the intro only needs effect cleanup for SPA unmount and `pageshow` for restoration. `[CITED: https://web.dev/articles/bfcache]`
+## Choreography Recommendation
 
-### Anti-Patterns to Avoid
-
-- **Hide after `useEffect`:** can expose the complete hero for a paint before the intro state applies. Initialize the hidden phase during render.
-- **Animate `top`, `left`, width, or height:** these affect layout or paint. Animate only the disc transform and reveal opacity. `[CITED: https://web.dev/articles/animations-guide]`
-- **Clone the sun into a fixed overlay:** introduces an avoidable swap seam and duplicated responsive art.
-- **Keep invisible controls focusable:** opacity alone leaves links in interaction order; use `inert` only on the hidden groups.
-- **Replay on every `location.key` or `hash` update:** would violate the no-replay rule for the home wordmark.
-- **Persist “already seen”:** explicitly conflicts with D-08.
-- **Use `display: none` on the target:** there is no rendered target geometry to measure.
-- **Use `animation.finished` without a rejection handler:** cancellation rejects the promise. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API/Using_the_Web_Animations_API]`
-- **Leave the old `.hero-sky-enter`, `.hero-sun-enter`, and `.hero-enter--*` animations active:** they would create a second choreography and transform conflict after the new intro. `[VERIFIED: src/index.css lines 150–184 and 268–297]`
-
-## Don't Hand-Roll
-
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| Animation scheduler | `setInterval`/per-frame React state loop | Native `Element.animate()` | Provides timing, finish, cancel, and compositor-compatible transform animation. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/animate]` |
-| Responsive coordinates | Parallel mobile/tablet/desktop numbers in TypeScript | Existing CSS geometry + `getBoundingClientRect()` | The browser already resolves `clamp()` and breakpoints to subpixel rendered geometry. `[VERIFIED: src/components/invite/Hero.tsx]` |
-| Focus suppression | Manual `tabIndex` bookkeeping on every link | `inert` on the two hidden groups | Applies consistently to all current and future descendants. `[CITED: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert]` |
-| Reduced-motion listener | Another `matchMedia` store | Existing `useReducedMotion` | It already uses `useSyncExternalStore`, change events, legacy listener fallback, and cleanup. `[VERIFIED: src/hooks/useReducedMotion.ts]` |
-| Scroll throttling framework | New utility/dependency | One temporary passive listener | The handler only compares two numbers and tears down after at most ~2s. |
-| Shared-element library | Clone registry/portal framework | One target wrapper and one canonical disc | The phase has one element and one endpoint; a framework increases swap and cleanup risk. |
-
-**Key insight:** the difficult part is lifecycle correctness, not interpolation. Native geometry, WAAPI, `inert`, and the existing motion store already cover the hard browser behavior.
-
-## Common Pitfalls
-
-### Pitfall 1: A cream strip or layout jump above the opening
-
-**What goes wrong:** The “full-screen sky” starts below the 72px header, or the sun target moves when the header changes from normal flow to overlay.
-
-**Why it happens:** The current sticky header occupies normal-flow space before `<main>`. `[VERIFIED: src/components/layout/Shell.tsx]`
-
-**How to avoid:** Keep header positioning stable and underlap the home main/hero beneath it from the first render.
-
-**Warning sign:** the measured target Y changes by about 72px at reveal.
-
-### Pitfall 2: First-paint flash of copy or sea
-
-**What goes wrong:** The complete hero appears briefly before being hidden.
-
-**Why it happens:** Eligibility is applied in `useEffect`, after a browser paint is possible. `[CITED: https://react.dev/reference/react/useEffect]`
-
-**How to avoid:** Initialize `phase` synchronously and include hidden/inert attributes in the first commit; use the layout effect only for geometry and animation startup.
-
-**Warning sign:** a slowed-network or paused-WAAPI Playwright run captures title or waves before the sun starts.
-
-### Pitfall 3: Double sun transform
-
-**What goes wrong:** The sun lands above/below the target or scales during the descent.
-
-**Why it happens:** The existing `.hero-sun-enter` keyframe also writes `transform`, while WAAPI writes another transform on the same element. `[VERIFIED: src/index.css hero-sun-settle]`
-
-**How to avoid:** Remove the old hero entrance classes and separate wrapper positioning from inner-disc translation.
-
-**Warning sign:** `getAnimations()` returns more than the intended intro animation for the visual disc.
-
-### Pitfall 4: Strict Mode starts two animations
-
-**What goes wrong:** Development shows duplicate finish callbacks, stale listeners, or state updates after unmount.
-
-**Why it happens:** Strict Mode performs an additional development setup/cleanup cycle. `[CITED: https://react.dev/reference/react/StrictMode]`
-
-**How to avoid:** Cancel the frame and animation, null callbacks, remove listeners, and guard completion with a disposed/idempotent flag.
-
-**Warning sign:** one route entry logs two reveal transitions or scroll cancellation runs after leaving `/`.
-
-### Pitfall 5: Invisible focus targets during descent
-
-**What goes wrong:** Tab lands on an invisible header or hero CTA.
-
-**Why it happens:** Opacity does not remove descendants from focus order.
-
-**How to avoid:** Apply `inert` to only the hidden header and hero-interaction group; keep skip link/main/later content outside.
-
-**Warning sign:** the active element is a CTA while its reveal group is still at opacity zero.
-
-### Pitfall 6: Direct fragments replay or fail to scroll
-
-**What goes wrong:** `/#programacao` plays the two-second opening at the top, or ends at the hero instead of the section.
-
-**Why it happens:** Eligibility ignores the initial hash, or the SPA assumes a history update will perform native anchor scrolling.
-
-**How to avoid:** Skip on every initial hash except empty/`#inicio`, then explicitly resolve the section with `getElementById` after commit.
-
-**Warning sign:** `page.goto('/#programacao')` leaves `window.scrollY === 0`.
-
-### Pitfall 7: Scroll cancellation leaves the sun mid-air
-
-**What goes wrong:** Content reveals while the disc remains translated.
-
-**Why it happens:** State changes without first finishing or canceling the WAAPI effect back to the base endpoint.
-
-**How to avoid:** Use one idempotent `finishIntro()` that snaps the disc to endpoint, removes the active animation effect, and then enters `revealing`.
-
-**Warning sign:** after scroll, visual and target rectangles differ by more than one CSS pixel.
-
-### Pitfall 8: Reduced motion still fades
-
-**What goes wrong:** The large descent is skipped but the 260ms reveal still runs.
-
-**Why it happens:** Only the WAAPI start was gated; CSS transitions remain enabled.
-
-**How to avoid:** Initial state is `complete`, and the reduced-motion CSS branch removes intro transitions as well as wave animation.
-
-**Warning sign:** an emulated reduced-motion test observes any active animation on intro elements.
-
-### Pitfall 9: bfcache restores a stale mid-animation frame
-
-**What goes wrong:** Back navigation returns to a paused or already-completed opening even though it is a new entry.
-
-**Why it happens:** bfcache restores the document and JavaScript heap rather than creating a new `Home` mount. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event]`
-
-**How to avoid:** Reset an eligible run on `pageshow.persisted`, with normal effect cleanup preserved.
-
-**Warning sign:** a synthetic persisted `pageshow` event does not change the run generation.
-
-### Pitfall 10: Existing release tests silently stop exercising navigation
-
-**What goes wrong:** Role locators for the inert topbar return no active navigation during the first two seconds, so conditional `isVisible()` branches in `tests/release.spec.ts` skip their assertions.
-
-**Why it happens:** The current keyboard test probes the menu immediately after navigation, while the new intro intentionally removes that menu from the active accessibility tree.
-
-**How to avoid:** Before existing topbar/menu assertions, deterministically finish the intro or wait for `data-intro-phase="complete"`; keep the skip-link assertion before that wait so it still proves first-frame accessibility.
-
-**Warning sign:** the release suite stays green even after deliberately breaking a nav href.
-
-## Code Examples
-
-### Idempotent completion
-
-```typescript
-// Source basis: MDN Animation finish/cancel lifecycle.
-const finishIntro = () => {
-  if (completedRef.current) return
-  completedRef.current = true
-
-  const animation = animationRef.current
-  if (animation && animation.playState !== 'finished') {
-    animation.finish()
-  }
-  animation?.cancel() // base transform is the same visual endpoint
-  animationRef.current = null
-  setPhase('revealing')
+Todos os efeitos finitos devem compartilhar duração nominal de **3000 ms**. Os
+offsets abaixo são ponto de partida para prototipagem, não números a congelar
+antes da aprovação visual.
+
+| Progresso | Tempo | Cena |
+|---:|---:|---|
+| 0.00 | 0 ms | paisagem completa e reconhecível; sol alto/deslocado; céu menos quente; reflexão quase ausente; copy não visível |
+| 0.15 | 450 ms | arco já legível; recuo de câmera começa; nuvens próximas respondem |
+| 0.45 | 1350 ms | luz alcança horizonte; mar ganha separação de planos; arco no trecho de maior velocidade |
+| 0.68 | 2040 ms | câmera perto do enquadramento final; reflexão começa a se conectar ao halo |
+| 0.76 | 2280 ms | desaceleração solar; título/data começam entrada |
+| 0.82 | 2460 ms | horizonte e reflexo formam ponte visual; controles podem sair de `inert` junto com visibilidade |
+| 0.88 | 2640 ms | convite/CTAs iniciam entrada, poucos pixels de deslocamento |
+| 1.00 | 3000 ms | sol em `transform:none`, câmera em `transform:none`, base CSS final idêntica ao hero |
+
+### Arc construction
+
+Não use `offset-path` como fundamento, porque um path fixo seria outra fonte de
+coordenadas responsivas e complicaria o retarget. Calcule keyframes de
+`transform` relativos ao centro do wrapper final:
+
+```ts
+type Point = { x: number; y: number }
+
+type IntroGeometry = {
+  stage: DOMRect
+  target: DOMRect
+  start: Point
+  bend: Point
+  approach: Point
 }
 ```
 
-### Reduced-motion change during an active descent
+O resolver escolhe pontos normalizados do palco para desktop e mobile e os
+converte em deltas relativos ao centro real do alvo. Três ou quatro keyframes
+com easing por segmento aproximam um arco amplo:
 
-```typescript
-// Source basis: existing reactive useReducedMotion store.
-useEffect(() => {
-  if (reducedMotion && phase !== 'complete') {
-    animationRef.current?.cancel()
-    animationRef.current = null
-    setPhase('complete')
-  }
-}, [reducedMotion, phase])
+- início: alto e lateral;
+- bend: maior componente horizontal, aceleração;
+- approach: próximo ao horizonte, menor delta;
+- fim: `translate3d(0,0,0)`.
+
+O lado exato do arco deve ser decidido no checkpoint visual. Mobile deve usar
+valores próprios, não apenas cortar o desktop.
+
+### Camera and parallax
+
+O recuo precisa ser pequeno. Ponto inicial recomendado para experimento:
+
+- `scene-camera`: escala em torno de `1.035–1.055`, leve `translateY`;
+- nuvem distante: 20–30% do delta da câmera;
+- nuvem próxima/palmas: 50–70%;
+- horizonte/mar: 10–20%.
+
+O final de todos é `transform:none`. Se o usuário percebe “zoom”, a amplitude
+está alta; o objetivo é profundidade, não movimento explícito de interface.
+
+### Copy hierarchy
+
+Dividir em dois grupos semânticos:
+
+1. marca/título/data;
+2. frase, CTAs e conteúdo complementar.
+
+Usar deslocamento de poucos pixels, opacidade que não começa necessariamente
+em zero absoluto se a composição pedir integração com a luz, e intervalo curto
+entre grupos. A janela total deve permanecer 500–700 ms. Os botões só saem de
+`inert` quando sua visibilidade começa; nunca deixar um controle invisível
+focável.
+
+## Timeline Architecture
+
+### One clock, many effects
+
+Crie todas as animações com duração total de 3000 ms e offsets internos. Isso
+permite:
+
+- seek determinístico para screenshots;
+- aceleração uniforme;
+- uma única leitura de progresso;
+- conclusão coordenada;
+- testes sem sleeps reais.
+
+Uma pequena camada local pode retornar um controller:
+
+```ts
+type CinematicIntroController = {
+  animations: Animation[]
+  getProgress(): number
+  seek(progress: number): void
+  accelerate(maxRemainingMs?: number): void
+  finishOpen(): void
+  dispose(): void
+}
 ```
 
-### bfcache replay
+Isso não deve virar framework genérico. Deve conhecer as camadas da Fase 10 e
+viver próximo do hero, com matemática pura extraída para
+`src/lib/cinematicIntro.ts` apenas onde for testável.
 
-```typescript
-// Source: https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event
-useEffect(() => {
-  const onPageShow = (event: PageTransitionEvent) => {
-    if (
-      event.persisted &&
-      isEligibleHeroHash(window.location.hash) &&
-      !reducedMotion
-    ) {
-      setRunGeneration((generation) => generation + 1)
-      setPhase('descending')
+### Semantic selectors
+
+Produção deve usar atributos como:
+
+- `data-intro-scene`;
+- `data-intro-layer="cloud-far"`;
+- `data-intro-sun`;
+- `data-intro-copy="primary"`;
+- `data-intro-state="playing|complete"`.
+
+`data-testid` pode coexistir para Playwright, mas não deve controlar CSS nem
+lógica de produção.
+
+### Initial and final CSS invariants
+
+- Estado `complete` e ausência de atributos de intro mostram o hero final.
+- Reduced motion começa em `complete` na primeira renderização.
+- Estado `playing` já mostra todas as camadas ambientais em sua composição
+  inicial; não usa `visibility:hidden` no mar ou no fundo.
+- Keyframe final é idêntico ao estilo base.
+- Ao finalizar, primeiro promover o DOM para `complete`, depois cancelar/remover
+  efeitos; assim o cancelamento não produz flash.
+
+## Responsive Reframing During Playback
+
+Resize é uma exigência explícita e não deve ser reduzido a “medir antes de
+começar”. A solução recomendada combina `ResizeObserver`, progresso preservado
+e FLIP em wrappers separados.
+
+### Algorithm
+
+1. Guardar último `DOMRect` válido do palco e do alvo.
+2. Observar `scene-viewport` e `sun-target` enquanto a timeline estiver ativa.
+3. Ao receber nova geometria:
+   - ler e guardar `currentTime`/progresso;
+   - capturar o retângulo visual atual do sol;
+   - pausar as animações dentro de fronteira segura;
+   - reconstruir keyframes de arco/parallax para a nova composição;
+   - aplicar os novos keyframes e restaurar o mesmo `currentTime`;
+   - medir o retângulo recalculado;
+   - aplicar no wrapper `sun-retarget` uma transformação inversa que o mantenha
+     no retângulo visual anterior;
+   - animar essa correção até identidade em aproximadamente 180 ms;
+   - retomar a timeline sem mudar a geração.
+4. Desconectar observer e cancelar correções no complete/unmount.
+
+ResizeObserver notifica mudança de tamanho do elemento e não é disparado por
+transformações CSS; isso evita loop causado pelo próprio arco.
+
+Fonte: https://www.w3.org/TR/resize-observer/
+
+### Why not merely call `setKeyframes`
+
+Trocar keyframes preservando `currentTime` preserva o progresso lógico, mas
+pode mudar instantaneamente a posição amostrada. A camada FLIP é o que absorve
+essa diferença perceptual. O keyframe effect e a correção precisam estar em
+wrappers diferentes para não disputar `transform`.
+
+### Failure behavior
+
+Se qualquer etapa de retarget falhar, concluir para o hero final. Um resize
+jamais justifica prender o usuário ou reiniciar os 3 segundos.
+
+## Navigation Intent and 150–200 ms Completion
+
+Interrupção não deve chamar `finish()` imediatamente, pois isso criaria o corte
+seco rejeitado. Use aceleração:
+
+1. calcular tempo local restante da timeline;
+2. escolher playback rate suficiente para consumir o restante em no máximo
+   180 ms;
+3. chamar `updatePlaybackRate()` em todas as animações;
+4. não chamar `preventDefault()` no evento que revelou a intenção;
+5. manter scroll/toque/foco/navegação ocorrendo normalmente.
+
+Eventos relevantes, todos temporários e passivos quando aplicável:
+
+- scroll real acima do limiar já existente;
+- `pointerdown`/click em navegação ou CTA;
+- foco/ativação do skip link;
+- navegação de rota/unmount: cleanup sem state update.
+
+WAAPI define `updatePlaybackRate()` como atualização suave da velocidade,
+diferente de sobrescrever `playbackRate` de modo abrupto.
+
+Fonte: https://www.w3.org/TR/web-animations-1/#seamlessly-update-the-playback-rate-of-an-animation
+
+Se aceleração lançar, a fronteira fail-open mostra o frame final
+imediatamente. A ação do usuário continua soberana.
+
+## Fail-Open Lifecycle
+
+Este é gap bloqueante comprovado pela verificação anterior. A nova arquitetura
+tem mais animações, portanto não pode repetir chamadas WAAPI sem proteção.
+
+### Required properties
+
+- conclusão idempotente;
+- callback de complete executado no máximo uma vez;
+- exceção em qualquer `animate`, `pause`, `setKeyframes`,
+  `updatePlaybackRate`, `finish` ou `cancel` termina em hero final;
+- cleanup de unmount não chama state setter;
+- listeners, observers, RAFs e animations pertencem a uma geração;
+- Strict Mode setup → cleanup → setup não deixa handles obsoletos;
+- `animation.finished` sempre recebe rejeição tratada, ou não é usado como
+  único mecanismo de conclusão.
+
+### Recommended boundary
+
+```ts
+function commitFinal(reason: IntroCompletionReason) {
+  if (completed || disposed) return
+  completed = true
+
+  try {
+    promoteDomToFinalState()
+  } finally {
+    try {
+      for (const animation of animations) {
+        animation.onfinish = null
+        animation.cancel()
+      }
+    } catch {
+      // final DOM state is already authoritative
+    } finally {
+      onComplete(reason)
     }
   }
-
-  window.addEventListener('pageshow', onPageShow)
-  return () => window.removeEventListener('pageshow', onPageShow)
-}, [reducedMotion])
+}
 ```
 
-### Deterministic Playwright start/end control
+Na prática, cada operação em um array também deve ser isolada para que uma
+animação defeituosa não impeça cleanup das demais. `AbortController` pode
+agrupar listeners, mas RAF, ResizeObserver e Animation ainda exigem cleanup
+próprio.
 
-```typescript
-// Source basis: https://playwright.dev/docs/api/class-page
-await page.addInitScript(() => {
-  const originalAnimate = Element.prototype.animate
-  Element.prototype.animate = function (...args) {
-    const animation = originalAnimate.apply(this, args)
-    if ((this as HTMLElement).dataset.testid === 'hero-sun-visual') {
-      animation.pause()
-      ;(window as Window & { __introAnimation?: Animation }).__introAnimation =
-        animation
-    }
-    return animation
-  }
-})
+React Strict Mode executa um ciclo extra de setup/cleanup em desenvolvimento;
+isso deve ser usado como teste de simetria, não contornado.
 
-await page.goto('/')
-await expect(page.locator('[data-intro-phase="descending"]')).toBeAttached()
+Fonte: https://react.dev/reference/react/StrictMode
 
-await page.evaluate(() => {
-  ;(window as Window & { __introAnimation?: Animation }).__introAnimation?.finish()
-})
-```
+## Accessibility and Interaction
 
-`page.addInitScript` executes after document creation but before page scripts, so it can pause the intro at its first WAAPI frame without racing the app. Playwright can also emulate reduced motion and resize the viewport through official APIs. `[CITED: https://playwright.dev/docs/api/class-page]`
+### Reduced motion
 
-## State of the Art
+Para `reduce`, a primeira renderização deve ser `complete`; não iniciar WAAPI,
+não usar fade curto e desligar loops de ondas. Se a preferência mudar para
+`reduce` durante a cena, concluir imediatamente no frame final. Se voltar para
+`no-preference`, não reiniciar na mesma montagem.
 
-| Old Approach | Current Approach | When / Support | Impact |
-|--------------|------------------|----------------|--------|
-| Manual `requestAnimationFrame` interpolation | Native `Element.animate()` with an `Animation` handle | Widely available across browsers since March 2020. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/animate]` | Less per-frame application code and direct finish/cancel control. |
-| Per-control focus suppression | Native `inert` on a subtree | Widely available since April 2023. `[CITED: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert]` | Hidden groups are consistently removed from click, focus, tab order, and accessibility tree. |
-| Integer layout dimensions | `getBoundingClientRect()` rendered floating-point geometry | Baseline across browsers; rects are viewport-relative and subpixel. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect]` | Tests should allow a ≤1 CSS-pixel tolerance, not demand integer equality. |
-| Unmount-only re-entry assumptions | `pageshow.persisted` handling for bfcache | Baseline across browsers since July 2015. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event]` | Route replay remains correct when the whole document is restored rather than remounted. |
+### Focus and inert
 
-**Deprecated/outdated for this phase:**
+- Skip link continua primeiro no DOM e fora de `inert`.
+- Camadas ambientais têm `aria-hidden="true"` e `pointer-events:none`.
+- Conteúdo semântico pode permanecer no DOM; apenas grupos visualmente
+  indisponíveis ficam `inert`.
+- Remover `inert` no mesmo momento em que a opacidade do grupo começa a dar
+  leitura suficiente; não apenas no final dos 3 segundos.
+- Topbar não deve ficar invisível e inoperável por toda a abertura. O plano
+  visual deve decidir se ela está presente desde o primeiro frame ou entra
+  cedo, mas qualquer intenção de foco/navegação acelera a cena.
+- Nunca usar `aria-hidden` em ancestral que contenha o elemento focado.
 
-- The current `.hero-sky-enter`, `.hero-sun-enter`, and staggered `.hero-enter--*` choreography must be retired for the hero because D-07 replaces it with one reveal. `[VERIFIED: 10-CONTEXT.md D-07, src/index.css]`
-- `unload` listeners should not be introduced for navigation cleanup; use React cleanup and `pageshow`/`pagehide` lifecycle where needed. `[CITED: https://web.dev/articles/bfcache]`
+O atributo `inert` remove descendentes do clique, foco, tab order e accessibility
+tree, portanto deve corresponder ao estado visível e não ser usado como lock
+global.
 
-## Assumptions Log
+Fontes:
 
-All implementation-affecting claims in this research were verified in the codebase or cited from current official documentation. No `[ASSUMED]` claims remain.
+- HTML Standard: https://html.spec.whatwg.org/multipage/interaction.html#inert
+- MDN inert: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert
 
-## Open Questions (RESOLVED)
+### Contrast
 
-1. **Should direct `/#inicio` play?**
-   - What we know: the locked policy says a new entry “pelo hero” plays, while same-mount wordmark navigation to `#inicio` does not. `[VERIFIED: 10-CONTEXT.md D-08/D-10]`
-   - **RESOLVED:** Initial `/#inicio` is eligible; mount scope prevents the wordmark from replaying.
+O contraste precisa ser verificado nos keyframes intermediários, não apenas no
+hero final. Texto não deve aparecer enquanto o fundo ainda atravessa uma
+combinação que reprove AA. Uma solução segura é colocar a copy sobre uma região
+de plum/cream estável ou usar uma sombra/placa editorial prevista no design,
+sem glassmorphism.
 
-2. **Should an orientation change during the two-second descent restart the clock?**
-   - What we know: the locked requirement explicitly demands correct geometry for resize/orientation before entry; the same wrapper/child endpoint remains correct even if CSS geometry changes during the animation. `[VERIFIED: 10-CONTEXT.md D-23]`
-   - **RESOLVED:** Resize or orientation change does not restart the 2s clock. Re-read the target immediately before animation start; during descent let the responsive wrapper move naturally and verify the final child/wrapper rect equality after a test-time resize.
+## Early Visual Approval Gate
 
-3. **What exact subpixel tolerance should gate INTRO-01?**
-   - What we know: `getBoundingClientRect()` preserves fractional CSS-pixel geometry and the Playwright project includes DPR 2 mobile profiles. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model/Determining_the_dimensions_of_elements]` `[VERIFIED: playwright.config.ts]`
-   - **RESOLVED:** Geometry tolerance is ≤1 CSS px: compare center X, center Y, width, and height with absolute error ≤1 CSS pixel; also assert that the same visual node remains mounted across finish.
+Qualidade subjetiva foi o motivo da rejeição anterior. O plano deve colocar um
+checkpoint humano **antes** da implementação completa de lifecycle e testes.
 
-## Environment Availability
+### Deliverable
 
-| Dependency | Required By | Available | Version | Fallback |
-|------------|-------------|-----------|---------|----------|
-| Node.js | Build, Vitest, Playwright | ✓ | 24.18.0 | — |
-| npm | Existing scripts | ✓ | 12.0.1 | — |
-| React / React DOM | Intro UI | ✓ | 19.2.8 | — |
-| React Router | Entry/hash state | ✓ | 7.18.1 | — |
-| Playwright Test | Browser validation | ✓ | 1.62.0 | — |
-| Vitest | Pure policy tests | ✓ | 4.1.10 | — |
+Construir a cena estratificada e um modo determinístico de seek somente para
+desenvolvimento/teste. Produzir keyframes em:
 
-The existing unit suite passed on 2026-07-26: 31 files and 582 tests via `npm test`. `[VERIFIED: local command output]`
+- desktop 1280×800;
+- mobile 320×760.
 
-**Missing dependencies with no fallback:** none.
+Frames mínimos:
 
-**Missing dependencies with fallback:** none.
+1. `0%` — primeiro frame completo;
+2. `35–45%` — arco e profundidade em movimento;
+3. `68–75%` — halo/reflexo começando o encaixe;
+4. `85–90%` — paisagem formada + primeira hierarquia tipográfica;
+5. `100%` — hero final.
+
+Entregar como duas contact sheets ou dez imagens lado a lado, com nomes de
+progresso. Não pedir aprovação com a animação já inteira e todos os testes
+feitos.
+
+### Approval questions
+
+- A paisagem do frame 0 parece uma cena finalizada ou ainda um fundo de
+  protótipo?
+- O arco é natural e diagonal?
+- O recuo parece câmera ou zoom de interface?
+- Halo e reflexo absorvem o pouso?
+- Desktop e mobile parecem composições dirigidas, não crops?
+- O frame 100% ainda é claramente o hero do convite?
+
+### Blocking rule
+
+Se o visual não for aprovado, revisar as camadas e keyframes sem avançar para
+resize, bfcache e matriz de release. Após aprovação, atualizar `DESIGN.md` com a
+nova regra normativa.
+
+Playwright pode seekar animações por `currentTime`, e seus screenshots podem
+desabilitar animações; para este checkpoint, deve-se primeiro colocar a
+timeline no tempo desejado e então capturar o frame estável.
+
+Fontes:
+
+- Web Animations — testing animations:
+  https://www.w3.org/TR/web-animations-1/#testing-animations
+- Playwright visual comparisons:
+  https://playwright.dev/docs/test-snapshots
+
+## Testing Strategy
+
+### Pure/unit tests
+
+Extrair e testar:
+
+- elegibilidade de hash;
+- resolução da fase inicial por reduced motion;
+- normalização `progress = currentTime / duration`;
+- cálculo de playback rate para terminar em 150–200 ms;
+- pontos normalizados desktop/mobile e conversão para deltas do alvo;
+- limiar de scroll;
+- idempotência do completion reason, se modelada de forma pura.
+
+Não testar layout, transforms computados ou `DOMRect` em jsdom.
+
+### Browser contract tests
+
+Reescrever o spec atual em torno de comportamento novo:
+
+- primeiro frame contém sky + horizon + sea + silhouette layers visíveis;
+- existe exatamente um `[data-intro-sun]`;
+- arco tem deslocamento X e Y e termina no target real com tolerância de
+  subpixel;
+- scene camera termina em `transform:none`;
+- reflection aumenta antes da chegada e termina alinhada ao sol;
+- primary copy precede secondary copy e a janela total fica em 500–700 ms;
+- duração nominal ~3000 ms;
+- intenção de navegação conclui em 150–200 ms sem perder scroll/foco/click;
+- reduced motion monta frame final sem nenhuma animação finita;
+- resize mantém a mesma geração/progresso e não produz salto grande entre dois
+  frames consecutivos;
+- fragmentos pulam intro e chegam à seção;
+- remount e `pageshow.persisted` reiniciam exatamente uma geração;
+- produção não usa `data-testid` como seletor;
+- todas as layers decorativas são pointer-transparent.
+
+### Forced failure matrix
+
+Monkeypatch de browser para lançar em:
+
+- `Element.prototype.animate`;
+- `Animation.prototype.updatePlaybackRate`;
+- `Animation.prototype.finish`;
+- `Animation.prototype.cancel`;
+- `KeyframeEffect.prototype.setKeyframes`, se retarget usar essa API.
+
+Em cada caso provar:
+
+- estado final;
+- header e CTA visíveis;
+- `inert` removido;
+- skip funcional;
+- nenhuma exceção não tratada;
+- scroll/navegação preservados.
+
+### Visual tests
+
+Screenshots não devem congelar cada pixel animado da timeline como gate
+permanente antes da aprovação. Depois de aprovada a direção:
+
+- manter snapshots somente dos keyframes canônicos 0%, ~70% e 100%;
+- gerar em ambiente estável;
+- separar snapshot artístico (Chromium) da matriz comportamental cross-browser;
+- continuar backstop humano em Safari/iPhone reais para halo, mask e
+  rasterização.
+
+### Accessibility and release
+
+- Corrigir o helper Axe atual: se o teste se chama “AA”, não descartar
+  violações `moderate/minor` apenas pelo impact.
+- Verificar tab order antes, durante e depois.
+- Verificar que texto não está disponível ao foco enquanto visualmente
+  oculto.
+- Verificar 320px sem overflow.
+- Testar `forcedColors` se a arte interfere em controles; a cena pode degradar,
+  mas o conteúdo não.
 
 ## Validation Architecture
 
-### Test Framework
+Esta seção deve alimentar diretamente `10-VALIDATION.md`.
 
-| Property | Value |
-|----------|-------|
-| Framework | Playwright Test 1.62.0 for real browser behavior; Vitest 4.1.10 for pure helpers |
-| Config file | `playwright.config.ts`; `vite.config.ts` |
-| Quick run command | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop` |
-| Full suite command | `npm run test:release` |
+### Validation layers
 
-The configured matrix already covers Chromium and WebKit at desktop 1280×800 and mobile 320×760/DPR 2. A phase test should add an explicit tablet viewport (for example 768×1024) using `page.setViewportSize()` inside the geometry test. `[VERIFIED: playwright.config.ts]` `[CITED: https://playwright.dev/docs/api/class-page]`
+| Layer | Tool | What it proves | When |
+|---|---|---|---|
+| Static/type | TypeScript + build | props, controller, refs e imports válidos | toda task |
+| Unit policy | Vitest | hash, reduced motion, progress, rate e geometry math | toda task lógica |
+| Visual checkpoint | Playwright seek + screenshots | direção de arte em frames desktop/mobile | **antes do lifecycle completo** |
+| Focused browser | Playwright `cinematic-intro.spec.ts` | timeline, geometria, resize, intent, failure, focus | por plan |
+| Cross-browser | projetos Chromium/WebKit | composição e lifecycle em desktop/mobile | após aprovação visual |
+| Release regression | `npm run test:release` | convite e rotas existentes não regrediram | último plan |
+| Human hardware | Chrome/Safari reais | percepção sem blink, performance, bfcache real | fase/UAT |
 
-### Phase Requirements → Test Map
+### Proposed commands
 
-| Req ID | Behavior | Test Type | Automated Command | File Exists? |
-|--------|----------|-----------|-------------------|-------------|
-| INTRO-01 | First committed intro state contains stable sky, hidden reveal groups, and disc outside the top edge | Playwright deterministic first-frame | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "first frame"` | ❌ Wave 0 |
-| INTRO-01 | The same sun visual finishes at the measured target within ≤1 CSS px at 320px, tablet, and desktop, including resize before finish | Playwright geometry | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "geometry"` | ❌ Wave 0 |
-| INTRO-01 | Duration is 2000ms, easing is the chosen curve, halo/size remain static, and old hero animations are absent | Playwright computed timing/style | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "timing"` | ❌ Wave 0 |
-| INTRO-02 | Reduced motion shows final hero immediately with no intro animation or fade | Playwright media emulation | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "reduced motion"` | ❌ Wave 0; partial coverage exists in `tests/release.spec.ts` |
-| INTRO-02 | Actual scroll ≥ threshold finishes the sun, starts reveal, and preserves scroll position | Playwright interaction | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "scroll cancellation"` | ❌ Wave 0 |
-| INTRO-02 | Skip link remains first focus target and above the scene; hidden header/hero controls are inert until reveal | Playwright keyboard/accessibility | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "skip link"` | ❌ Wave 0; baseline skip coverage exists in `tests/release.spec.ts` |
-| INTRO-02 | New eligible route mount replays; same-mount `#inicio` does not; direct section fragment skips and scrolls | Playwright navigation | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "route entry"` | ❌ Wave 0 |
-| INTRO-02 | Persisted `pageshow` resets an eligible run; unmount leaves no active callback/listener | Playwright lifecycle + synthetic event | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "bfcache"` | ❌ Wave 0 |
-| INTRO-02 | Eligibility and 4px scroll threshold policy | Vitest unit | `npx vitest run src/lib/cinematicIntro.test.ts` | ❌ Wave 0 if helper is extracted |
+```bash
+npm test -- src/lib/cinematicIntro.test.ts
+npm run build
+npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop
+npx playwright test tests/cinematic-intro.spec.ts
+npm run test:release
+```
 
-### Determinism Strategy
+### Nyquist mapping
 
-1. Install one `page.addInitScript()` before navigation that wraps only `Element.prototype.animate` calls on `[data-testid="hero-sun-visual"]`, pauses the returned animation at time zero, and stores its handle. The API guarantees the init script runs before app scripts. `[CITED: https://playwright.dev/docs/api/class-page]`
-2. Assert initial state/rects while paused; inspect `animation.effect?.getTiming()` for duration and easing.
-3. Call `animation.finish()` rather than waiting two wall-clock seconds for most tests.
-4. Compare target and visual `boundingBox()` values in CSS pixels with ≤1px tolerance. Playwright locator coordinates use viewport-relative CSS pixels, matching `getBoundingClientRect()`. `[CITED: https://playwright.dev/docs/api/class-locator]`
-5. Keep one unpatched smoke test that waits for natural completion, proving the real timer path; do not make every matrix case pay the 2s delay.
-6. Avoid screenshot assertions as the primary geometry oracle: Playwright disables/fast-forwards finite CSS and Web Animations by default for screenshots, which would erase the start-state timing under test. `[CITED: https://playwright.dev/docs/api/class-locatorassertions]`
+| Risk | Cheapest reliable signal |
+|---|---|
+| estética ainda parece protótipo | checkpoint humano de keyframes |
+| arco termina fora do sol final | DOMRect real antes/depois + identidade do nó |
+| resize salta/reinicia | viewport mutation mid-timeline + generation/currentTime |
+| interação cria corte seco | medir tempo entre intent e complete; observar frames intermediários |
+| falha WAAPI prende UI | monkeypatch throwing + operabilidade |
+| reduced motion anima | `emulateMedia` + `getAnimations()` |
+| mobile é crop | screenshot 320×760 aprovado separadamente |
+| regressão de foco | ordem Tab/skip/inert em Playwright |
+| máscara difere em Safari | WebKit em CI + hardware real |
+| bfcache deixa handles | evento sintético automatizado + back/forward real em UAT |
 
-### Sampling Rate
+### Task-level feedback rule
 
-- **Per task commit:** `npx vitest run src/lib/cinematicIntro.test.ts` when the helper exists, plus the focused desktop Playwright grep for the behavior changed.
-- **Per wave merge:** `npm run build && npx playwright test tests/cinematic-intro.spec.ts`
-- **Phase gate:** `npm run test:release` green before `/gsd-verify-work`.
+Nenhuma task de código deve encerrar apenas com `npm run build`. Toda task de
+motion/lifecycle precisa de pelo menos um teste focused que falhe antes e passe
+depois. A task puramente artística encerra com artefatos de keyframes e
+checkpoint humano, não com uma alegação automática de “cinematográfico”.
 
-### Wave 0 Gaps
+### Manual verification that remains legitimate
 
-- [ ] `src/lib/cinematicIntro.test.ts` — eligibility, initial state, and scroll-threshold policy if pure helpers are extracted.
-- [ ] `tests/cinematic-intro.spec.ts` — deterministic first-frame, geometry, resize, reduced motion, focus, scroll, fragment, re-entry, and bfcache coverage for INTRO-01/02.
-- [ ] `tests/release.spec.ts` — retain the first-frame skip-link check, then finish/wait for the intro before existing topbar and mobile-menu assertions so inert content does not silently bypass them.
-- [ ] Add stable intro phase and target/visual selectors (`data-intro-phase`, `data-testid`) solely as observable contracts; do not test internal React state.
-- Existing framework/config is sufficient; no package or config install is needed. `[VERIFIED: vite.config.ts, playwright.config.ts, package.json]`
+1. continuidade perceptual de halo/reflexo em Chrome e Safari reais;
+2. sensação de câmera versus zoom;
+3. qualidade editorial do primeiro frame;
+4. bfcache real;
+5. fluidez em aparelho mobile intermediário/baixo.
 
-## Security Domain
+Esses itens não substituem os contratos automatizáveis; complementam-nos.
 
-`security_enforcement` is enabled at ASVS level 1. This phase adds no network request, secret, persistent data, authentication boundary, or backend mutation. `[VERIFIED: .planning/config.json, phase scope]`
+## Performance Budget and Techniques
 
-### Applicable ASVS Categories
+- Animar somente `transform` e `opacity` nas camadas grandes.
+- Não animar `filter`, gradiente, mask, `background-position`, `top`, `left`,
+  largura ou altura durante os 3 segundos.
+- No máximo duas nuvens agrupadas por profundidade, uma haze, uma reflection,
+  três wave bands e duas silhuetas — evitar dezenas de compositing layers.
+- Usar `will-change` apenas durante `playing`, removendo no complete.
+- Textura estática e pequena.
+- Nenhum vídeo, canvas full-screen ou imagem remota.
+- SVGs devem ter paths simples e `viewBox` previsível.
+- Não atualizar React state por frame; WAAPI controla frames e React recebe
+  somente transições de lifecycle.
+- Resize faz leituras/escritas agrupadas e raras, nunca loop permanente de
+  layout.
 
-| ASVS Category | Applies | Standard Control |
-|---------------|---------|-----------------|
-| V2 Authentication | No | No identity or session behavior changes. |
-| V3 Session Management | No | The no-persistence decision explicitly forbids cookie/session/storage state for the intro. |
-| V4 Access Control | No | Public presentation behavior only. |
-| V5 Input Validation | Limited | Treat `location.hash` as untrusted text; compare against the exact hero allowlist and use `getElementById` for known section IDs, never HTML or selector interpolation. |
-| V6 Cryptography | No | No cryptographic operation or secret. |
+O guia web.dev recomenda limitar animações, quando possível, a transform e
+opacity e verificar o pipeline no profiler.
 
-### Known Threat Patterns for This Stack
+Fonte: https://web.dev/articles/animations-guide
 
-| Pattern | STRIDE | Standard Mitigation |
-|---------|--------|---------------------|
-| URL fragment interpolated into a selector or HTML | Tampering | Exact eligibility comparison; map to stable `SECTION_IDS`; use `document.getElementById`. |
-| Invisible interactive controls receiving input | Spoofing / usability safety | `inert` on hidden header and hero controls; pointer-transparent scene; skip link remains outside. |
-| Leaked animation/listener after route exit | Denial of Service / reliability | Symmetric Strict Mode cleanup of RAF, Animation, timers, scroll, `pageshow`, and media subscriptions. |
+## Anti-Patterns to Avoid
+
+- **Polir a queda antiga:** alterar easing/cor sem reconstruir a paisagem
+  contínua não atende a revisão.
+- **Hero falso sobre hero real:** cria swap e duplica geometria.
+- **Background A → background B:** viola o plano-sequência.
+- **Fade geral no fim:** repete o reveal abrupto rejeitado.
+- **Animar um gradiente full-screen:** gera paint e ainda tende a parecer
+  protótipo.
+- **Filtro blur animado em várias camadas:** caro no mobile.
+- **Canvas ou vídeo:** dificulta responsive target, reduced motion, tokens,
+  acessibilidade e peso.
+- **Path solar com coordenadas fixas em pixels:** quebra mobile/resize.
+- **Mesmo crop para desktop/mobile:** viola direção de arte própria.
+- **`setTimeout(3000)` como fonte de verdade:** perde aceleração, seek e falhas.
+- **`animation.finished` sem catch:** cancelamento rejeita a promise.
+- **`finish()` direto em toda intenção:** cria o corte seco proibido.
+- **`inert` no `<main>` ou no skip:** bloqueia navegação.
+- **Opacidade zero sem `inert`:** deixa controles invisíveis focáveis.
+- **CSS de produção baseado em `data-testid`:** acopla comportamento a teste.
+- **Snapshots antes de aprovação humana:** cristaliza pixels ruins.
+- **Aprovar somente o frame final:** o problema existe no primeiro frame e na
+  ponte de encaixe.
+
+## Common Pitfalls
+
+### Pitfall 1: The landscape is technically present but still looks flat
+
+**Cause:** todas as camadas compartilham contraste, velocidade e plano.
+**Avoid:** pelo menos dois níveis de nuvem, haze de horizonte, plano distante,
+reflexo e diferença de parallax. Validar frame 0 isoladamente.
+
+### Pitfall 2: The arc reads as polyline
+
+**Cause:** poucos keyframes lineares ou easings iguais em todos os segmentos.
+**Avoid:** 3–4 keyframes com easing por trecho e desaceleração longa na
+aproximação. Aprovar o frame intermediário e a animação em velocidade reduzida.
+
+### Pitfall 3: Landing still looks like snapping
+
+**Cause:** sol termina antes de halo/reflexo ou base CSS difere do keyframe
+final.
+**Avoid:** começar a conexão luminosa antes de 70%, terminar todos em base
+styles idênticos e checar o frame anterior/posterior ao complete.
+
+### Pitfall 4: Camera feels like UI zoom
+
+**Cause:** escala inicial excessiva, texto dentro da câmera ou parallax amplo.
+**Avoid:** câmera só na arte, não na copy; amplitude ~3.5–5.5%; texto entra
+separadamente.
+
+### Pitfall 5: Resize preserves time but visibly jumps
+
+**Cause:** reconstruir keyframes sem compensar a amostra visual.
+**Avoid:** wrapper FLIP separado, mesmo `currentTime`, correção ~180 ms.
+
+### Pitfall 6: Acceleration becomes a cut
+
+**Cause:** `finish()` imediato ou rate alto demais com menos de um frame útil.
+**Avoid:** target de 180 ms, nunca desacelerar quando já falta menos, e manter
+keyframe final contínuo.
+
+### Pitfall 7: More animations multiply failure paths
+
+**Cause:** controller conclui somente quando a última `onfinish` acontece.
+**Avoid:** master completion idempotente, failures convergem a `commitFinal`,
+operações isoladas por animation.
+
+### Pitfall 8: Mobile is visually crowded
+
+**Cause:** reaproveitar escala de nuvens, palms, reflection e copy do desktop.
+**Avoid:** CSS variables e art-direction profile mobile; validar 320×760 antes
+da timeline completa.
+
+## Recommended Planning Decomposition
+
+### Plan 10-01 — Art direction prototype and approval
+
+- remover a lógica visual “céu-only/fade”;
+- estruturar camadas reais do hero;
+- desenhar sky overlays, clouds, haze, reflection, waves e silhouettes;
+- manter um sol canônico;
+- criar seek determinístico para 0/40/70/88/100%;
+- produzir contact sheets desktop/mobile;
+- checkpoint humano obrigatório;
+- após aprovação, atualizar `DESIGN.md`.
+
+**Do not** implementar bfcache/resize/release completo antes deste gate.
+
+### Plan 10-02 — Timeline, responsive geometry and fail-open
+
+- implementar arco diagonal e câmera/parallax;
+- timeline única de 3000 ms;
+- hierarquia tipográfica 500–700 ms;
+- retarget FLIP em resize/orientation;
+- aceleração 150–200 ms por intenção;
+- fronteira fail-open cobrindo todas as operações WAAPI;
+- reduced motion final imediato;
+- unit e browser contracts focados.
+
+### Plan 10-03 — Lifecycle, accessibility and release matrix
+
+- remount/hash/bfcache/cleanup;
+- foco, skip, `inert` e pointer transparency;
+- Chromium/WebKit desktop/mobile;
+- failure matrix;
+- snapshots aprovados;
+- corrigir claim Axe AA;
+- release regression e roteiro UAT real.
+
+Essa decomposição mantém o risco maior — qualidade visual — antes do custo de
+engenharia de lifecycle.
+
+## Open Questions for the Planner
+
+Não há decisão de produto bloqueante pendente. Os itens abaixo são escolhas de
+execução dentro de Claude's Discretion e devem ser decididos no protótipo:
+
+- arco parte da esquerda ou direita em desktop/mobile;
+- quantidade exata e desenho das silhuetas;
+- amplitude final de câmera/parallax;
+- composição exata do reflexo;
+- se a topbar fica visível desde o frame 0 ou entra cedo.
+
+Nenhum deles deve ser resolvido por texto apenas; use os keyframes para decisão.
 
 ## Sources
 
-### Primary: codebase (HIGH confidence)
+### Project evidence
 
-- `10-CONTEXT.md` — locked phase behavior and discretion.
-- `.planning/REQUIREMENTS.md` and `.planning/ROADMAP.md` — INTRO-01/02 and success criteria.
-- `src/components/invite/Hero.tsx` — current responsive target, sky, sun, and reveal groups.
-- `src/components/invite/SeaWaves.tsx` and `src/index.css` — wave lifecycle, tokens, old hero entrance, and reduced motion.
-- `src/components/layout/Shell.tsx` — 72px sticky topbar, skip-link order/z-index, and current scroll listener.
-- `src/routes/Home.tsx`, `src/App.tsx`, `src/main.tsx` — composition, route remount boundaries, and Strict Mode.
-- `src/hooks/useReducedMotion.ts` — current reactive media-query store.
-- `playwright.config.ts`, `tests/release.spec.ts`, `vite.config.ts`, `package.json` — validation stack and matrix.
+- `.planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/10-CONTEXT.md`
+- `.planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/10-REVIEW.md`
+- `.planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/10-VERIFICATION.md`
+- `.planning/REQUIREMENTS.md`
+- `.planning/PROJECT.md`
+- `.planning/phases/02-convite-p-blico/02-CONTEXT.md`
+- `DESIGN.md`
+- `src/components/invite/Hero.tsx`
+- `src/components/invite/SeaWaves.tsx`
+- `src/components/layout/Shell.tsx`
+- `src/hooks/useReducedMotion.ts`
+- `src/lib/cinematicIntro.ts`
+- `src/routes/Home.tsx`
+- `src/index.css`
+- `package.json`
+- `playwright.config.ts`
+- `tests/cinematic-intro.spec.ts`
 
-### Official documentation (MEDIUM confidence)
+### Primary and official web references
 
-- https://react.dev/reference/react/useLayoutEffect — pre-paint measurement and cleanup.
-- https://react.dev/reference/react/useEffect — paint timing and flicker guidance.
-- https://react.dev/reference/react/StrictMode — development setup/cleanup stress cycle.
-- https://reactrouter.com/api/hooks/useLocation — current Location hook.
-- https://api.reactrouter.com/v8/interfaces/react-router.Location.html — hash/key fields.
-- https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect — rendered viewport geometry.
-- https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API — element-size observation and lifecycle.
-- https://developer.mozilla.org/en-US/docs/Web/API/Element/animate — native animation creation.
-- https://developer.mozilla.org/en-US/docs/Web/API/Animation — finish/cancel controls.
-- https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API/Using_the_Web_Animations_API — callbacks and canceled `finished` promise.
-- https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert — focus/click/accessibility suppression.
-- https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion — reduced-motion semantics.
-- https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event — bfcache restoration signal.
-- https://web.dev/articles/bfcache — lifecycle guidance and avoiding `unload`.
-- https://web.dev/articles/animations-guide — transform/opacity performance guidance.
-- https://playwright.dev/docs/api/class-page — init scripts, media emulation, and viewport resizing.
-- https://playwright.dev/docs/api/class-locator — CSS-pixel geometry.
-- https://playwright.dev/docs/api/class-locatorassertions — screenshot animation behavior.
+- W3C Web Animations Level 1:
+  https://www.w3.org/TR/web-animations-1/
+- CSSWG Resize Observer:
+  https://www.w3.org/TR/resize-observer/
+- W3C CSS Masking Level 1:
+  https://www.w3.org/TR/css-masking-1/
+- WHATWG HTML inert:
+  https://html.spec.whatwg.org/multipage/interaction.html#inert
+- React `useLayoutEffect`:
+  https://react.dev/reference/react/useLayoutEffect
+- React Strict Mode:
+  https://react.dev/reference/react/StrictMode
+- Playwright visual comparisons:
+  https://playwright.dev/docs/test-snapshots
+- Playwright emulation:
+  https://playwright.dev/docs/emulation
+- web.dev animation performance:
+  https://web.dev/articles/animations-guide
+- web.dev bfcache:
+  https://web.dev/articles/bfcache
 
-### Tertiary (LOW confidence)
+---
 
-- None.
-
-## Metadata
-
-**Confidence breakdown:**
-
-- Standard stack: HIGH — all recommended runtime/test dependencies already exist at exact local versions; no new package is proposed.
-- Architecture: HIGH — based on inspected component boundaries and native APIs whose behavior is cited from official docs.
-- Navigation/bfcache details: MEDIUM — official browser/router documentation is current, but real bfcache restoration remains browser-policy-dependent and should retain a manual smoke in addition to the synthetic automated event.
-- Pitfalls: HIGH — most are direct conflicts visible in current source (`hero-sun-enter`, sticky header flow, Strict Mode, skip-link z-index) or documented lifecycle behavior.
-
-**Research date:** 2026-07-26
-**Valid until:** 2026-08-25 for the stable browser APIs and pinned project versions; re-check if React Router, Playwright, or the hero layout changes before implementation.
+*Phase: 10 — Abertura cinematográfica do pôr do sol*
+*Research revised after visual rejection: 2026-07-26*

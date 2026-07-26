@@ -17,22 +17,23 @@ created: 2026-07-26
 
 | Property | Value |
 |----------|-------|
-| **Framework** | Playwright Test 1.62.0 for browser behavior; Vitest 4.1.10 for pure policy helpers |
-| **Config file** | `playwright.config.ts`; `vite.config.ts` |
-| **Quick run command** | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop` |
+| **Framework** | Vitest 4.1.10 + Playwright 1.62.0 |
+| **Config file** | `vite.config.ts`, `playwright.config.ts` |
+| **Quick run command** | `npm test -- src/lib/cinematicIntro.test.ts` |
+| **Focused browser command** | `npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop` |
 | **Full suite command** | `npm run test:release` |
-| **Estimated runtime** | ~30 seconds focused; ~120 seconds full suite |
+| **Estimated runtime** | ~10 s unit/build; ~1–3 min browser/release |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run the focused Vitest file when a pure helper
-  changes and the focused Playwright grep for the browser behavior changed.
-- **After every plan wave:** Run
-  `npm run build && npx playwright test tests/cinematic-intro.spec.ts`.
-- **Before `/gsd-verify-work`:** `npm run test:release` must be green.
-- **Max feedback latency:** 30 seconds for focused checks.
+- **After every logic task commit:** Run `npm test -- src/lib/cinematicIntro.test.ts && npm run build`.
+- **After every visual/motion task commit:** Run the smallest named Playwright subset proving the changed behavior.
+- **After every plan wave:** Run `npx playwright test tests/cinematic-intro.spec.ts`.
+- **Before phase verification:** `npm run test:release` must be green.
+- **Max quick-feedback latency:** 30 seconds.
+- **Visual quality rule:** the art-direction task cannot be declared complete from build/tests alone; desktop and mobile keyframes require explicit human approval before the lifecycle plans execute.
 
 ---
 
@@ -40,11 +41,12 @@ created: 2026-07-26
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 10-01-01 | 01 | 1 | INTRO-01, INTRO-02 | T-10-01 | Exact allowlist comparison for URL fragments; no selector interpolation | unit | `npx vitest run src/lib/cinematicIntro.test.ts` | ❌ W0 | ⬜ pending |
-| 10-01-02 | 01 | 1 | INTRO-01 | — | Same canonical sun reaches measured target within 1 CSS px | browser | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "geometry"` | ❌ W0 | ⬜ pending |
-| 10-02-01 | 02 | 2 | INTRO-02 | T-10-02 | Hidden controls are inert while skip link remains reachable | browser | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "skip link"` | ❌ W0 | ⬜ pending |
-| 10-02-02 | 02 | 2 | INTRO-02 | T-10-03 | Animation, RAF and listeners are cleaned up on route exit | browser | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "route entry|bfcache"` | ❌ W0 | ⬜ pending |
-| 10-03-01 | 03 | 3 | INTRO-01, INTRO-02 | — | Responsive geometry, reduced motion and scroll cancellation remain correct | browser | `npm run build && npx playwright test tests/cinematic-intro.spec.ts` | ❌ W0 | ⬜ pending |
+| 10-01-01 | 01 | 1 | INTRO-01 | T-10-VISUAL | Rejected sky-only/fade composition is removed | static + browser keyframe | `npm run build && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "keyframe"` | ✅ existing spec, new cases pending | ⬜ pending |
+| 10-01-02 | 01 | 1 | INTRO-01 | T-10-VISUAL | Desktop and 320×760 are separately art-directed | visual checkpoint | deterministic seek/contact sheets at 0/40/70/88/100% | ❌ checkpoint artifacts pending | ⬜ pending |
+| 10-02-01 | 02 | 2 | INTRO-01 | T-10-GEOMETRY | Canonical sun ends at measured target and resize preserves progress | unit + browser | `npm test -- src/lib/cinematicIntro.test.ts && npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "arc|geometry|resize"` | ✅ files exist, cases revised in task | ⬜ pending |
+| 10-02-02 | 02 | 2 | INTRO-02 | T-10-FAILOPEN | Every WAAPI failure reveals operable final UI | browser fault injection | `npx playwright test tests/cinematic-intro.spec.ts --project=emulated-chromium-desktop -g "fail-open|reduced motion|intent"` | ❌ revised cases pending | ⬜ pending |
+| 10-03-01 | 03 | 3 | INTRO-02 | T-10-LIFECYCLE | Hash/remount/bfcache/focus cleanup remain mount-scoped | browser | `npx playwright test tests/cinematic-intro.spec.ts -g "route|fragment|bfcache|skip"` | ✅ existing cases require adaptation | ⬜ pending |
+| 10-03-02 | 03 | 3 | INTRO-01, INTRO-02 | T-10-RELEASE | Approved keyframes and invite regressions pass cross-browser | release | `npm run test:release` | ✅ release suite exists | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,20 +54,11 @@ created: 2026-07-26
 
 ## Wave 0 Requirements
 
-- [ ] `src/lib/cinematicIntro.test.ts` — eligibility and scroll-threshold
-  policy if a pure helper is extracted.
-- [ ] `tests/cinematic-intro.spec.ts` — deterministic first frame, geometry,
-  resize, reduced motion, focus, scroll, fragment, re-entry and bfcache
-  coverage.
-- [ ] Stable observable selectors: `data-intro-phase`,
-  `data-testid="hero-sun-target"` and
-  `data-testid="hero-sun-visual"`.
-- [ ] Update `tests/release.spec.ts` so existing topbar and mobile-menu
-  assertions finish the intro before testing controls that are initially
-  inert.
-
-Existing Playwright/Vitest infrastructure is sufficient; no package or config
-installation is required.
+- [ ] Rewrite `tests/cinematic-intro.spec.ts` keyframe contracts so they reject “sky-only + vertical fall + group fade” and support deterministic seek at 0/40/70/88/100%.
+- [ ] Add desktop and 320×760 contact-sheet/screenshot output for the human art-direction checkpoint.
+- [ ] Add throwing WAAPI fixtures for `animate()`, `finish()`, `cancel()` and playback-rate acceleration.
+- [ ] Extend `src/lib/cinematicIntro.test.ts` with normalized arc geometry, progress preservation and intent acceleration policy.
+- [ ] Keep the existing Chromium/WebKit desktop/mobile projects; no new test framework or dependency is required.
 
 ---
 
@@ -73,35 +66,34 @@ installation is required.
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Perceived absence of a swap or blink at the sun handoff | INTRO-01 | Subpixel equality is automated, but perceptual continuity on real compositing hardware benefits from a visual smoke | On a 320px phone, tablet and desktop, reload `/`, watch one natural 2-second run and confirm the disc/halo remain continuous through reveal |
-| Real bfcache restoration | INTRO-02 | Eligibility for bfcache depends on browser policy and cannot be guaranteed by a synthetic event alone | In Safari/WebKit and Chrome, enter `/`, navigate to `/confirmar`, use browser Back and confirm the eligible intro restarts without stale focus or listeners |
+| Editorial quality of first frame and atmospheric layers | INTRO-01 | “Cinematic” and “not prototype-like” are perceptual art-direction judgments | Review 0/40/70/88/100% desktop and 320×760 contact sheets before approving Plan 10-01 |
+| Camera reads as subtle pull-back, not interface zoom | INTRO-01 | Transform values can be measured but the perceived camera language is subjective | Watch a natural 3 s run on desktop and mobile; reject if UI appears to scale mechanically |
+| Halo/reflection continuity has no blink or dry handoff | INTRO-01 | Rasterization, masks and compositing differ by browser/GPU | Watch Chrome and Safari hardware runs at normal speed and slow-motion recording |
+| Real bfcache restoration cleans handles/listeners | INTRO-02 | Admission into bfcache is controlled by the browser | Navigate `/` → `/confirmar` → Back in Chrome/Safari and confirm exactly one clean replay |
+| Mid/low-range mobile remains fluid | INTRO-02 | CI emulation cannot represent device GPU/compositor cost | Run on a representative phone, observe 3 s sequence and verify responsive interaction |
 
 ---
 
-## Determinism Contract
+## Objective Visual Contracts
 
-- Install `page.addInitScript()` before navigation to wrap only the WAAPI
-  animation on `[data-testid="hero-sun-visual"]`, pause it and expose the
-  `Animation` handle.
-- Use `Animation.finish()` instead of two-second sleeps for ordinary tests;
-  keep one unpatched natural-duration smoke.
-- Compare visual and target rect center, width and height with absolute error
-  no greater than 1 CSS pixel.
-- Exercise 320×760, 768×1024 and 1280×800 viewports, including resize before
-  finish.
-- Use `page.emulateMedia({ reducedMotion: 'reduce' })` for the reduced-motion
-  contract.
-- Do not use screenshots as the primary timing/geometry oracle.
+- The same canonical sun node is connected at all sampled keyframes and finishes at `transform: none`.
+- At 0%, horizon, sea and depth remain recognizable; the frame is never sky-only.
+- At 40–70%, light/haze/reflection progress while landscape layers remain continuous.
+- At 88–100%, halo connects to horizon/reflection and primary then secondary copy follow the approved hierarchy.
+- Desktop and mobile keyframes are independently composed; mobile is not accepted as a crop of desktop.
+- Large animated layers use only `transform` and `opacity`; masks, gradients, blur and texture remain static.
+- No visual layer captures pointer input or becomes a focus ancestor.
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s for focused checks
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [ ] All tasks have `<automated>` verification or explicit Wave 0 dependencies.
+- [ ] Sampling continuity: no three consecutive tasks without automated verification.
+- [ ] The Plan 10-01 human checkpoint blocks full timeline/lifecycle execution until approved.
+- [ ] No watch-mode flags.
+- [ ] Quick feedback latency stays below 30 seconds.
+- [ ] Full Chromium/WebKit and release gates run after visual approval.
+- [ ] `nyquist_compliant: true` set after plans bind exact task commands.
 
 **Approval:** pending
