@@ -299,7 +299,7 @@ test('storyboard tracks are finite, semantic and transform-opacity only', async 
   const contract = await page.evaluate(
     () => window.__pwCinematicIntroTimeline?.contracts() ?? [],
   )
-  expect(contract.length).toBeGreaterThanOrEqual(10)
+  expect(contract.length).toBeGreaterThanOrEqual(7)
   for (const track of contract) {
     expect(track.duration).toBe(INTRO_DURATION_MS)
     expect(track.iterations).toBe(1)
@@ -587,7 +587,18 @@ test('generates deterministic desktop and mobile cinematic contact sheets', asyn
   await expect(page.locator('[data-intro-layer="sky-base"]')).toBeVisible()
   await expect(page.locator('[data-intro-layer="horizon-depth"]')).toBeVisible()
   await expect(page.locator('[data-intro-layer="sea"]')).toBeVisible()
-  await expect(page.locator('[data-intro-layer="palm-left"]')).toBeVisible()
+  for (const removedLayer of [
+    'cloud-far',
+    'cloud-near',
+    'reflection',
+    'wave-light',
+    'palm-left',
+    'palm-right',
+  ]) {
+    await expect(
+      page.locator(`[data-intro-layer="${removedLayer}"]`),
+    ).toHaveCount(0)
+  }
   await expect(page.locator('[data-intro-sun]')).toHaveCount(1)
   await expect(page.locator('[data-intro-scene]')).toHaveCSS(
     'pointer-events',

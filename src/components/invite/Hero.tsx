@@ -18,35 +18,6 @@ export type HeroProps = {
 const PRIMARY_COPY_ONSET = 0.76
 const SECONDARY_COPY_ONSET = 0.88
 
-type PalmSilhouetteProps = {
-  side: 'left' | 'right'
-}
-
-function PalmSilhouette({ side }: PalmSilhouetteProps) {
-  return (
-    <svg
-      viewBox="0 0 120 260"
-      preserveAspectRatio="xMidYMax meet"
-      className={`cinematic-palm cinematic-palm--${side}`}
-      aria-hidden="true"
-    >
-      <path
-        d="M58 260 C56 205 57 145 68 75 C70 62 73 52 77 41 L86 44 C79 66 75 94 73 126 C70 176 72 222 78 260 Z"
-        fill="currentColor"
-      />
-      <g className="cinematic-palm__crown" fill="currentColor">
-        <path d="M82 47 C60 31 35 25 7 31 C34 34 57 43 80 52 Z" />
-        <path d="M82 46 C62 21 43 10 18 9 C41 18 60 32 82 51 Z" />
-        <path d="M83 45 C79 19 69 4 52 1 C66 15 76 31 83 51 Z" />
-        <path d="M85 45 C93 21 107 8 120 6 C109 21 98 35 86 51 Z" />
-        <path d="M86 47 C102 31 113 26 120 27 L120 36 C106 37 96 43 86 53 Z" />
-        <path d="M85 49 C103 49 115 58 120 70 C106 62 95 58 84 55 Z" />
-        <path d="M82 49 C65 60 54 74 49 91 C63 76 73 66 84 55 Z" />
-      </g>
-    </svg>
-  )
-}
-
 /**
  * O hero é o próprio plano-sequência: todas as camadas existem do primeiro
  * ao último frame, e o único disco solar termina naturalmente no seu wrapper
@@ -182,32 +153,6 @@ export function Hero({
           ],
         },
         {
-          track: 'cloud-far',
-          keyframes: [
-            {
-              offset: 0,
-              opacity: 0.58,
-              transform: mobile
-                ? 'translate3d(-3%, 2%, 0) scale(1.03)'
-                : 'translate3d(2.5%, 2%, 0) scale(1.04)',
-            },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'cloud-near',
-          keyframes: [
-            {
-              offset: 0,
-              opacity: 0.42,
-              transform: mobile
-                ? 'translate3d(7%, 4%, 0) scale(1.06)'
-                : 'translate3d(-7%, 4%, 0) scale(1.08)',
-            },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
           track: 'sun-arc',
           keyframes: [
             {
@@ -233,46 +178,6 @@ export function Hero({
           keyframes: [
             { offset: 0, opacity: 0.2, transform: 'scale3d(.72, .62, 1)' },
             { offset: 0.7, opacity: 0.72, transform: 'scale3d(.94, .9, 1)' },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'reflection',
-          keyframes: [
-            { offset: 0, opacity: 0.04, transform: 'scale3d(.34, .16, 1)' },
-            { offset: 0.4, opacity: 0.12, transform: 'scale3d(.46, .26, 1)' },
-            { offset: 0.7, opacity: 0.56, transform: 'scale3d(.78, .68, 1)' },
-            { offset: 0.88, opacity: 0.9, transform: 'scale3d(.96, .94, 1)' },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'wave-light',
-          keyframes: [
-            { offset: 0, opacity: 0.08, transform: 'translate3d(0, 6px, 0)' },
-            { offset: 0.7, opacity: 0.58, transform: 'translate3d(0, 2px, 0)' },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'palm-left',
-          keyframes: [
-            {
-              offset: 0,
-              opacity: mobile ? 0.62 : 0.3,
-              transform: 'translate3d(-2.5%, 1.5%, 0) scale(1.025)',
-            },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'palm-right',
-          keyframes: [
-            {
-              offset: 0,
-              opacity: mobile ? 0.58 : 0.26,
-              transform: 'translate3d(2.5%, 2%, 0) scale(1.03)',
-            },
             { offset: 1, opacity: 1, transform: 'none' },
           ],
         },
@@ -396,17 +301,6 @@ export function Hero({
           />
 
           <div
-            data-intro-layer="cloud-far"
-            data-intro-track="cloud-far"
-            className="cinematic-cloud cinematic-cloud--far absolute"
-          />
-          <div
-            data-intro-layer="cloud-near"
-            data-intro-track="cloud-near"
-            className="cinematic-cloud cinematic-cloud--near absolute"
-          />
-
-          <div
             data-intro-sun-target
             className="cinematic-sun-target absolute"
           >
@@ -429,36 +323,10 @@ export function Hero({
             className="cinematic-horizon-depth absolute inset-x-0"
           />
           <div
-            data-intro-layer="reflection"
-            data-intro-track="reflection"
-            className="cinematic-reflection absolute"
-          />
-
-          <div
             data-intro-layer="sea"
             className="absolute inset-0"
           >
             <SeaWaves />
-          </div>
-          <div
-            data-intro-layer="wave-light"
-            data-intro-track="wave-light"
-            className="cinematic-wave-light absolute"
-          />
-
-          <div
-            data-intro-layer="palm-left"
-            data-intro-track="palm-left"
-            className="cinematic-palm-wrap cinematic-palm-wrap--left absolute"
-          >
-            <PalmSilhouette side="left" />
-          </div>
-          <div
-            data-intro-layer="palm-right"
-            data-intro-track="palm-right"
-            className="cinematic-palm-wrap cinematic-palm-wrap--right absolute"
-          >
-            <PalmSilhouette side="right" />
           </div>
 
           <div

@@ -132,7 +132,6 @@ body {
   --intro-sun-x: 56%;
   --intro-sun-y: 59%;
   --intro-sun-size: clamp(17rem, 29vw, 30rem);
-  --intro-reflection-width: clamp(5.5rem, 11vw, 9.5rem);
 }
 
 .cinematic-camera {
@@ -185,33 +184,6 @@ body {
       color-mix(in srgb, var(--color-peach) 48%, transparent) 32%,
       transparent 68%
     );
-}
-
-.cinematic-cloud {
-  z-index: 2;
-  border-radius: 50%;
-  background:
-    radial-gradient(ellipse at 18% 58%, currentColor 0 12%, transparent 31%),
-    radial-gradient(ellipse at 38% 42%, currentColor 0 19%, transparent 42%),
-    radial-gradient(ellipse at 61% 49%, currentColor 0 21%, transparent 45%),
-    radial-gradient(ellipse at 83% 63%, currentColor 0 13%, transparent 34%);
-  filter: blur(5px);
-}
-
-.cinematic-cloud--far {
-  top: 11%;
-  left: 4%;
-  width: min(49vw, 42rem);
-  height: clamp(5rem, 12vw, 10rem);
-  color: color-mix(in srgb, var(--color-cream) 34%, transparent);
-}
-
-.cinematic-cloud--near {
-  top: 28%;
-  right: -5%;
-  width: min(43vw, 35rem);
-  height: clamp(5rem, 11vw, 9rem);
-  color: color-mix(in srgb, var(--color-peach) 48%, transparent);
 }
 
 .cinematic-sun-target {
@@ -286,82 +258,6 @@ body {
   z-index: 6;
 }
 
-.cinematic-reflection {
-  top: var(--intro-horizon-y);
-  left: var(--intro-sun-x);
-  z-index: 7;
-  width: var(--intro-reflection-width);
-  height: calc(100% - var(--intro-horizon-y));
-  transform: translateX(-50%);
-  transform-origin: top center;
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      color-mix(in srgb, var(--color-sun-soft) 44%, transparent) 20%,
-      color-mix(in srgb, var(--color-sun) 86%, transparent) 50%,
-      color-mix(in srgb, var(--color-sun-soft) 44%, transparent) 80%,
-      transparent 100%
-    );
-  mask-image:
-    repeating-linear-gradient(
-      180deg,
-      var(--color-ink) 0 .4rem,
-      transparent .4rem .75rem
-    ),
-    linear-gradient(180deg, var(--color-ink), transparent 94%);
-  mask-composite: intersect;
-}
-
-.cinematic-wave-light {
-  top: calc(var(--intro-horizon-y) + 4%);
-  left: var(--intro-sun-x);
-  z-index: 8;
-  width: calc(var(--intro-reflection-width) * 1.9);
-  height: calc(100% - var(--intro-horizon-y) - 4%);
-  transform: translateX(-50%);
-  background:
-    repeating-linear-gradient(
-      176deg,
-      transparent 0 .8rem,
-      color-mix(in srgb, var(--color-cream) 40%, transparent) .8rem .94rem,
-      transparent .94rem 1.7rem
-    );
-  mask-image: radial-gradient(ellipse at 50% 0%, var(--color-ink), transparent 72%);
-}
-
-.cinematic-palm-wrap {
-  bottom: -1%;
-  z-index: 9;
-  width: clamp(8.5rem, 15vw, 14rem);
-  height: min(56%, 34rem);
-  color: color-mix(in srgb, var(--color-plum) 82%, transparent);
-  transform-origin: bottom center;
-}
-
-.cinematic-palm-wrap--left {
-  left: -2.5%;
-}
-
-.cinematic-palm-wrap--right {
-  right: -2.5%;
-  transform: scaleX(-1);
-}
-
-.cinematic-palm {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.cinematic-palm--right {
-  transform: rotate(-4deg);
-}
-
-.cinematic-palm--left {
-  transform: rotate(3deg);
-}
-
 .cinematic-texture {
   z-index: 10;
   background-image:
@@ -396,21 +292,6 @@ body {
     --intro-sun-x: 52%;
     --intro-sun-y: 64%;
     --intro-sun-size: clamp(12.5rem, 65vw, 15rem);
-    --intro-reflection-width: clamp(3.2rem, 21vw, 4.8rem);
-  }
-
-  .cinematic-cloud--far {
-    top: 9%;
-    left: -28%;
-    width: 100vw;
-    height: 7.5rem;
-  }
-
-  .cinematic-cloud--near {
-    top: 31%;
-    right: -46%;
-    width: 112vw;
-    height: 8.5rem;
   }
 
   .cinematic-haze {
@@ -421,21 +302,6 @@ body {
   .cinematic-horizon-depth {
     top: calc(var(--intro-horizon-y) - 5%);
     height: 6%;
-  }
-
-  .cinematic-palm-wrap {
-    bottom: -2%;
-    width: 10.5rem;
-    height: 48%;
-    color: color-mix(in srgb, var(--color-plum) 90%, transparent);
-  }
-
-  .cinematic-palm-wrap--left {
-    left: -22%;
-  }
-
-  .cinematic-palm-wrap--right {
-    right: -24%;
   }
 
   .cinematic-copy {
