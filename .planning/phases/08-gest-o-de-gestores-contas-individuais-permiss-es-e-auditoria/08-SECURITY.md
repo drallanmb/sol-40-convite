@@ -18,7 +18,7 @@ created: 2026-07-25
 |----------|-------------|---------------|
 | Navegador → Convex | Capability passa pela guarda, sessão e conta autoritativa | token de sessão |
 | Senha → action Node | scrypt e comparação timing-safe antes do finalizer Web-runtime | senha humana e hash |
-| URL → link one-time | Capability permanece em memória e é consumida transacionalmente | token de ativação/reset |
+| URL → link one-time | Fragmento é lido antes do mount, removido da barra e consumido transacionalmente | token de ativação/reset |
 | Senha-mestra → recovery | Recuperação isolada resolve somente a conta proprietária | segredo de recuperação |
 | Papel/rota → backend | Matriz fixa de capacidades autoriza cada endpoint | papel, rota e IDs |
 | Vinho privado → catálogo | DTO público allowlisted remove metadados privados | estado público do presente |
@@ -37,7 +37,7 @@ created: 2026-07-25
 | T08-02-S | Spoofing | links de acesso | high | mitigate | token hash, TTL, finalidade e single-use | closed |
 | T08-02-T | Tampering | ativação/reset | high | mitigate | revalidação e consumo transacional | closed |
 | T08-02-E | Elevation | recovery | high | mitigate | alvo fixo em `ownerAccountId`, sem target do cliente | closed |
-| T08-02-I | Information disclosure | URL/token | high | mitigate | token em memória, `replaceState` e `no-referrer` | closed |
+| T08-02-I | Information disclosure | URL/token | high | mitigate | fragmento canônico, parser síncrono, memória apenas e `no-referrer` estático | closed |
 | T08-03-S | Spoofing | login | high | mitigate | rate limit global/e-mail, envelope dummy e erro neutro | closed |
 | T08-03-E | Elevation | sessões | high | mitigate | revogação self-or-owner no backend | closed |
 | T08-03-R | Repudiation | sessões/senha | high | mitigate | ator derivado e auditoria atômica | closed |
@@ -58,6 +58,11 @@ created: 2026-07-25
 | T08-07-T | Tampering | smoke Preview | high | mitigate | abort de Production antes de subprocesso ou write | closed |
 | T08-07-E | Elevation | navegador/backend | high | mitigate | ausência de request pré-auth e matriz backend completa | closed |
 | T08-07-D | Denial of service | probes | high | mitigate | amostras bounded, cleanup em `finally` e ambiente isolado | closed |
+| T08-08-I | Information disclosure | URL → documento/CDN/Referer | high | mitigate | `#token=`, meta antes de recursos e header Vercel `Referrer-Policy: no-referrer` | closed |
+| T08-08-E | Elevation | reset → senha anterior | high | mitigate | remoção atômica de `passwordHash`, incremento de versão e revogação de sessões na emissão | closed |
+| T08-08-T | Tampering | geração concorrente | high | mitigate | CAS por `updatedAt`, escrito em cada geração/invalidação | closed |
+| T08-08-D | Denial of service | link público → scrypt | high | mitigate | token desconhecido falha barato; link válido consome limites global/hash antes do KDF | closed |
+| T08-08-I2 | Information disclosure | retenção de capabilities | medium | mitigate | deleção agendada no TTL, sweep diário paginado e leitura sempre fail-closed | closed |
 
 ## Accepted Risks Log
 
@@ -68,6 +73,14 @@ No accepted risks.
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-07-25 | 28 | 28 | 0 | Codex / gsd-security-auditor |
+| 2026-07-26 | 33 | 33 | 0 | Codex / gap closure + revisão adversarial |
+
+O incidente de 2026-07-26 mostrou que `replaceState` executado depois do mount
+não bastava: uma capability em query string já participava da requisição do
+documento. Os planos 08-08/08-09 tornam o fragmento o formato canônico; query
+string permanece aceita apenas para consumir links legados e é removida
+sincronamente. Links legados já compartilhados precisam ser invalidados e
+regenerados, pois compatibilidade de leitura não equivale a revogação.
 
 ## Sign-Off
 

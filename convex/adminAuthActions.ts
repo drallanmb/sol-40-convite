@@ -46,16 +46,36 @@ const finishBootstrap = makeFunctionReference<
 const finishMasterRecovery = makeFunctionReference<
   'mutation',
   {
+      expectedAccountId: Id<'adminAccounts'>
+      expectedCredentialVersion: number
+      expectedUpdatedAt: number
       tokenHash: string
       now: number
   },
-  { kind: 'created' | 'unavailable' }
+  { kind: 'created' | 'conflict' | 'unavailable' }
 >('adminBootstrap:finishMasterRecovery')
 const regenerateBootstrapActivation = makeFunctionReference<
   'mutation',
-  { tokenHash: string; now: number },
-  { kind: 'created' | 'unavailable' }
+  {
+    expectedAccountId: Id<'adminAccounts'>
+    expectedCredentialVersion: number
+    expectedUpdatedAt: number
+    tokenHash: string
+    now: number
+  },
+  { kind: 'created' | 'conflict' | 'unavailable' }
 >('adminBootstrap:regenerateBootstrapActivation')
+const readOwnerLinkGenerationSnapshot = makeFunctionReference<
+  'query',
+  { purpose: 'activation' | 'reset' },
+  | { kind: 'unavailable' }
+  | {
+      kind: 'ready'
+      accountId: Id<'adminAccounts'>
+      credentialVersion: number
+      updatedAt: number
+    }
+>('adminBootstrap:readOwnerLinkGenerationSnapshot')
 const prepareIndividualLogin = makeFunctionReference<
   'mutation',
   { email: string },
@@ -365,10 +385,19 @@ export const recoverOwner = action({
     if (!validMasterPassword(args.masterPassword)) {
       return { kind: 'invalid_credentials' } as const
     }
+    const snapshot = await ctx.runQuery(readOwnerLinkGenerationSnapshot, {
+      purpose: 'reset',
+    })
+    if (snapshot.kind !== 'ready') {
+      return { kind: 'unavailable' } as const
+    }
     const capability = createCapability()
     const result = await ctx.runMutation(
       finishMasterRecovery,
       {
+        expectedAccountId: snapshot.accountId,
+        expectedCredentialVersion: snapshot.credentialVersion,
+        expectedUpdatedAt: snapshot.updatedAt,
         tokenHash: capability.tokenHash,
         now: Date.now(),
       },
@@ -397,8 +426,17 @@ export const regenerateOwnerActivation = action({
     if (!validMasterPassword(args.masterPassword)) {
       return { kind: 'invalid_credentials' } as const
     }
+    const snapshot = await ctx.runQuery(readOwnerLinkGenerationSnapshot, {
+      purpose: 'activation',
+    })
+    if (snapshot.kind !== 'ready') {
+      return { kind: 'unavailable' } as const
+    }
     const capability = createCapability()
     const result = await ctx.runMutation(regenerateBootstrapActivation, {
+      expectedAccountId: snapshot.accountId,
+      expectedCredentialVersion: snapshot.credentialVersion,
+      expectedUpdatedAt: snapshot.updatedAt,
       tokenHash: capability.tokenHash,
       now: Date.now(),
     })

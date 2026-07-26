@@ -438,7 +438,7 @@ da sessão. A UI pública permanece intocada além de testes de regressão.
   -> cria owner pending se ainda não existe
   -> revoga link anterior e grava novo tokenHash/72h
   -> devolve o token/link uma única vez
-  -> Allan abre /admin/ativar?token=...
+  -> Allan abre /admin/ativar#token=...
   -> action scrypt + finalizer atômico
   -> owner active + link consumed + legacyDisabledAt/bootstrapCompletedAt
   -> sessões legadas falham imediatamente na guarda
@@ -472,7 +472,7 @@ status query. A senha-mestra deixa esse fluxo após bootstrap.
 owner gera capability 32 bytes
   -> banco recebe somente hash, purpose, conta, timestamps
   -> URL é exibida uma vez
-  -> página lê token em memória e remove query string
+  -> página lê fragmento em memória e remove fragmento/query legada
   -> status público mínimo valid/invalid
   -> password + confirmação
   -> scrypt action

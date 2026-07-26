@@ -2,16 +2,24 @@ import { v } from 'convex/values'
 import type { Id } from './_generated/dataModel'
 import {
   internalMutation,
+  internalQuery,
   query,
   type MutationCtx,
 } from './_generated/server'
 import { appendAuditEvent, buildAuditChanges } from './adminAuditModel'
-import { ADMIN_ACCESS_LINK_TTL_MS } from './adminAccessLinks'
+import {
+  ADMIN_ACCESS_LINK_TTL_MS,
+  scheduleAdminAccessLinkExpiration,
+} from './adminAccessLinks'
 import { normalizeAdminEmail } from './adminAccountModel'
 import { adminRateLimiter } from './adminRateLimits'
 
 export const BOOTSTRAP_OWNER_EMAIL = 'allanmesquitab@gmail.com'
 export const BOOTSTRAP_OWNER_NAME = 'Allan'
+
+function nextAccountUpdatedAt(current: number, now: number) {
+  return Math.max(now, current + 1)
+}
 
 export const getBootstrapStatus = query({
   args: {},
@@ -112,14 +120,16 @@ export const finishBootstrap = internalMutation({
       key: 'primary',
       ownerAccountId,
     })
-    await ctx.db.insert('adminAccessLinks', {
+    const expiresAt = args.now + ADMIN_ACCESS_LINK_TTL_MS
+    const linkId = await ctx.db.insert('adminAccessLinks', {
       accountId: ownerAccountId,
       purpose: 'activation',
       tokenHash: args.tokenHash,
       credentialVersion: 0,
       createdAt: args.now,
-      expiresAt: args.now + ADMIN_ACCESS_LINK_TTL_MS,
+      expiresAt,
     })
+    await scheduleAdminAccessLinkExpiration(ctx, linkId, expiresAt)
     await appendAuditEvent(ctx, {
       actorKind: 'system',
       subjectAccountId: ownerAccountId,
@@ -136,11 +146,15 @@ export const finishBootstrap = internalMutation({
 
 export const regenerateBootstrapActivation = internalMutation({
   args: {
+    expectedAccountId: v.id('adminAccounts'),
+    expectedCredentialVersion: v.number(),
+    expectedUpdatedAt: v.number(),
     tokenHash: v.string(),
     now: v.number(),
   },
   returns: v.union(
     v.object({ kind: v.literal('created') }),
+    v.object({ kind: v.literal('conflict') }),
     v.object({ kind: v.literal('unavailable') }),
   ),
   handler: async (ctx, args) => {
@@ -164,6 +178,21 @@ export const regenerateBootstrapActivation = internalMutation({
     ) {
       return { kind: 'unavailable' } as const
     }
+    if (
+      owner._id !== args.expectedAccountId ||
+      owner.credentialVersion !== args.expectedCredentialVersion ||
+      owner.updatedAt !== args.expectedUpdatedAt
+    ) {
+      return { kind: 'conflict' } as const
+    }
+    const collision = await ctx.db
+      .query('adminAccessLinks')
+      .withIndex('by_token_hash', (query) =>
+        query.eq('tokenHash', args.tokenHash),
+      )
+      .first()
+    if (collision) return { kind: 'conflict' } as const
+
     const links = await ctx.db
       .query('adminAccessLinks')
       .withIndex('by_account_purpose', (query) =>
@@ -175,13 +204,18 @@ export const regenerateBootstrapActivation = internalMutation({
         await ctx.db.patch(link._id, { revokedAt: args.now })
       }
     }
-    await ctx.db.insert('adminAccessLinks', {
+    const expiresAt = args.now + ADMIN_ACCESS_LINK_TTL_MS
+    const linkId = await ctx.db.insert('adminAccessLinks', {
       accountId: owner._id,
       purpose: 'activation',
       tokenHash: args.tokenHash,
       credentialVersion: owner.credentialVersion,
       createdAt: args.now,
-      expiresAt: args.now + ADMIN_ACCESS_LINK_TTL_MS,
+      expiresAt,
+    })
+    await scheduleAdminAccessLinkExpiration(ctx, linkId, expiresAt)
+    await ctx.db.patch(owner._id, {
+      updatedAt: nextAccountUpdatedAt(owner.updatedAt, args.now),
     })
     await appendAuditEvent(ctx, {
       actorKind: 'system',
@@ -211,11 +245,15 @@ async function deleteAccountSessions(
 
 export const finishMasterRecovery = internalMutation({
   args: {
+    expectedAccountId: v.id('adminAccounts'),
+    expectedCredentialVersion: v.number(),
+    expectedUpdatedAt: v.number(),
     tokenHash: v.string(),
     now: v.number(),
   },
   returns: v.union(
     v.object({ kind: v.literal('created') }),
+    v.object({ kind: v.literal('conflict') }),
     v.object({ kind: v.literal('unavailable') }),
   ),
   handler: async (ctx, args) => {
@@ -239,6 +277,20 @@ export const finishMasterRecovery = internalMutation({
     ) {
       return { kind: 'unavailable' } as const
     }
+    if (
+      owner._id !== args.expectedAccountId ||
+      owner.credentialVersion !== args.expectedCredentialVersion ||
+      owner.updatedAt !== args.expectedUpdatedAt
+    ) {
+      return { kind: 'conflict' } as const
+    }
+    const collision = await ctx.db
+      .query('adminAccessLinks')
+      .withIndex('by_token_hash', (query) =>
+        query.eq('tokenHash', args.tokenHash),
+      )
+      .first()
+    if (collision) return { kind: 'conflict' } as const
 
     const nextVersion = owner.credentialVersion + 1
     const links = await ctx.db
@@ -253,18 +305,21 @@ export const finishMasterRecovery = internalMutation({
       }
     }
     await ctx.db.patch(owner._id, {
+      passwordHash: undefined,
       credentialVersion: nextVersion,
-      updatedAt: args.now,
+      updatedAt: nextAccountUpdatedAt(owner.updatedAt, args.now),
     })
     const revokedSessions = await deleteAccountSessions(ctx, owner._id)
-    await ctx.db.insert('adminAccessLinks', {
+    const expiresAt = args.now + ADMIN_ACCESS_LINK_TTL_MS
+    const linkId = await ctx.db.insert('adminAccessLinks', {
       accountId: owner._id,
       purpose: 'reset',
       tokenHash: args.tokenHash,
       credentialVersion: nextVersion,
       createdAt: args.now,
-      expiresAt: args.now + ADMIN_ACCESS_LINK_TTL_MS,
+      expiresAt,
     })
+    await scheduleAdminAccessLinkExpiration(ctx, linkId, expiresAt)
     await appendAuditEvent(ctx, {
       actorKind: 'system',
       subjectAccountId: owner._id,
@@ -291,5 +346,53 @@ export const finishMasterRecovery = internalMutation({
       occurredAt: args.now,
     })
     return { kind: 'created' } as const
+  },
+})
+
+export const readOwnerLinkGenerationSnapshot = internalQuery({
+  args: {
+    purpose: v.union(v.literal('activation'), v.literal('reset')),
+  },
+  returns: v.union(
+    v.object({ kind: v.literal('unavailable') }),
+    v.object({
+      kind: v.literal('ready'),
+      accountId: v.id('adminAccounts'),
+      credentialVersion: v.number(),
+      updatedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const configs = await ctx.db
+      .query('adminAuthConfig')
+      .withIndex('by_key', (query) => query.eq('key', 'primary'))
+      .take(2)
+    const config = configs.length === 1 ? configs[0] : null
+    const expectsCompletedBootstrap = args.purpose === 'reset'
+    if (
+      config === null ||
+      config.ownerAccountId === undefined ||
+      (expectsCompletedBootstrap
+        ? config.bootstrapCompletedAt === undefined
+        : config.bootstrapCompletedAt !== undefined)
+    ) {
+      return { kind: 'unavailable' } as const
+    }
+    const owner = await ctx.db.get(config.ownerAccountId)
+    const expectedState =
+      args.purpose === 'activation' ? 'pending' : 'active'
+    if (
+      owner === null ||
+      owner.role !== 'owner' ||
+      owner.state !== expectedState
+    ) {
+      return { kind: 'unavailable' } as const
+    }
+    return {
+      kind: 'ready',
+      accountId: owner._id,
+      credentialVersion: owner.credentialVersion,
+      updatedAt: owner.updatedAt,
+    } as const
   },
 })

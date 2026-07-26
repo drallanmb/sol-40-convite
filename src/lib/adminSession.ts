@@ -127,6 +127,21 @@ export function generateAdminCapability(
   return encodeBase64Url(bytes)
 }
 
+export function buildAdminAccessUrl(
+  origin: string,
+  token: string,
+  purpose: 'activation' | 'reset',
+) {
+  if (!isAdminCapability(token)) {
+    throw new Error('Invalid admin access capability')
+  }
+  const path =
+    purpose === 'activation' ? '/admin/ativar' : '/admin/redefinir'
+  const url = new URL(path, origin)
+  url.hash = new URLSearchParams({ token }).toString()
+  return url.toString()
+}
+
 export function takeAdminAccessTokenFromUrl(
   href: string,
   replaceUrl: (safeUrl: string) => void,
@@ -137,10 +152,18 @@ export function takeAdminAccessTokenFromUrl(
   } catch {
     return null
   }
-  const candidate = url.searchParams.get('token')
-  replaceUrl(`${url.pathname}${url.hash}`)
-  return candidate !== null && isAdminCapability(candidate)
-    ? candidate
+  const fragment = new URLSearchParams(url.hash.replace(/^#/u, ''))
+  const fragmentCandidate = fragment.get('token')
+  const queryCandidate = url.searchParams.get('token')
+  replaceUrl(url.pathname)
+  if (
+    fragmentCandidate !== null &&
+    isAdminCapability(fragmentCandidate)
+  ) {
+    return fragmentCandidate
+  }
+  return queryCandidate !== null && isAdminCapability(queryCandidate)
+    ? queryCandidate
     : null
 }
 

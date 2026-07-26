@@ -26,6 +26,16 @@ export const ADMIN_RATE_LIMITS = {
     rate: 5,
     period: FIFTEEN_MINUTES_MS,
   },
+  accessLinkGlobal: {
+    kind: 'fixed window',
+    rate: 10,
+    period: FIFTEEN_MINUTES_MS,
+  },
+  accessLinkToken: {
+    kind: 'fixed window',
+    rate: 5,
+    period: FIFTEEN_MINUTES_MS,
+  },
 } as const
 
 export const adminRateLimiter = new RateLimiter(

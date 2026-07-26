@@ -1,9 +1,9 @@
 ---
-status: complete
+status: human_needed
 phase: 08-gest-o-de-gestores-contas-individuais-permiss-es-e-auditoria
 source: [08-VERIFICATION.md]
 started: 2026-07-25T18:12:28Z
-updated: 2026-07-25T20:12:10Z
+updated: 2026-07-26T14:36:13Z
 ---
 
 ## Current Test
@@ -50,3 +50,21 @@ skipped: 0
 blocked: 0
 
 ## Gaps
+
+Os sete cenários originais permanecem aprovados. O incidente de link mobile
+reabriu uma integração específica que não era demonstrada pela UAT anterior.
+
+## Reteste do incidente de links mobile — 2026-07-26
+
+| Cenário | Estado | Evidência/ação |
+|---|---|---|
+| Link novo usa `#token=`, é uma âncora real e não transborda em 320 px | pass | Testes de componente e Playwright em Chromium/WebKit mobile |
+| Capability não aparece na requisição inicial nem no `Referer` | pass | Interceptação Playwright e política estática no HTML |
+| Link revogado, regenerado, desativado ou expirado deixa de ser oferecido | pass | Validação reativa, expiração agendada e regressões de componente/backend |
+| Cópia pendente não confirma um link que já mudou | pass | Regressões de revisão assíncrona em Gestores e Setup |
+| Header `Referrer-Policy: no-referrer` está ativo em produção | pending | Confirmar por inspeção HTTP após o deploy |
+| Link novo abre no WebView real do WhatsApp, conclui e recusa replay | pending | Executar em aparelho real sem registrar nem fotografar a capability |
+
+O status permanece `human_needed` até o último cenário ser confirmado pelo
+usuário. Links compartilhados antes do deploy devem ser invalidados e
+regenerados; aceitar query string legada não revoga uma capability existente.

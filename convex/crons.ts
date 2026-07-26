@@ -59,6 +59,17 @@ const startExpiredAuditEventsSweep = (internal as unknown as {
   }
 }).adminInternal.startExpiredAuditEventsSweep
 
+const startExpiredAccessLinksSweep = (internal as unknown as {
+  adminInternal: {
+    startExpiredAccessLinksSweep: FunctionReference<
+      'mutation',
+      'internal',
+      Record<string, never>,
+      unknown
+    >
+  }
+}).adminInternal.startExpiredAccessLinksSweep
+
 const crons = cronJobs()
 
 crons.daily(
@@ -93,6 +104,13 @@ crons.daily(
   'daily expired admin audit sweep',
   { hourUTC: 3, minuteUTC: 45 },
   startExpiredAuditEventsSweep,
+  {},
+)
+
+crons.daily(
+  'daily expired admin access link sweep',
+  { hourUTC: 3, minuteUTC: 40 },
+  startExpiredAccessLinksSweep,
   {},
 )
 

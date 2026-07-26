@@ -13,7 +13,7 @@ test('D-29–D-33: evidência sanitizada nunca contém senha, token, link ou has
     durationMs: 42,
     token: AUDIT_SECRET_CANARY,
     password: AUDIT_SECRET_CANARY,
-    activationUrl: `https://example.test/admin/ativar?token=${AUDIT_SECRET_CANARY}`,
+    activationUrl: `https://example.test/admin/ativar#token=${AUDIT_SECRET_CANARY}`,
     nested: { tokenHash: AUDIT_SECRET_CANARY, count: 3 },
   })
   expect(sanitized).toEqual({

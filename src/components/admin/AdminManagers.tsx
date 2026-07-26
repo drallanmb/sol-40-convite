@@ -1,9 +1,12 @@
 import { useMutation, useQuery } from 'convex/react'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { generateAdminCapability } from '../../lib/adminSession'
+import {
+  buildAdminAccessUrl,
+  generateAdminCapability,
+} from '../../lib/adminSession'
 import { copyTextToClipboard } from '../../lib/clipboard'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
@@ -24,6 +27,13 @@ type ManagedAccount = {
   updatedAt: number
 }
 
+type OneTimeLink = {
+  accountId: Id<'adminAccounts'>
+  purpose: 'activation' | 'reset'
+  token: string
+  url: string
+}
+
 const ROLE_LABELS = {
   owner: 'Proprietário',
   manager: 'Gestor',
@@ -35,11 +45,6 @@ const STATE_LABELS = {
   active: 'Ativa',
   disabled: 'Desativada',
 } as const
-
-function activationUrl(accessToken: string, purpose: 'activation' | 'reset') {
-  const path = purpose === 'activation' ? '/admin/ativar' : '/admin/redefinir'
-  return `${window.location.origin}${path}?token=${encodeURIComponent(accessToken)}`
-}
 
 function AccountSessions({
   account,
@@ -100,16 +105,65 @@ export function AdminManagers({
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'manager' | 'seller'>('manager')
   const [busy, setBusy] = useState(false)
+  const [copyBusy, setCopyBusy] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
-  const [oneTimeLink, setOneTimeLink] = useState<string | null>(null)
+  const [oneTimeLink, setOneTimeLink] = useState<OneTimeLink | null>(null)
   const [selected, setSelected] = useState<ManagedAccount | null>(null)
   const [disableTarget, setDisableTarget] =
     useState<ManagedAccount | null>(null)
+  const linkRevision = useRef(0)
   const roleId = useId()
+  const linkStatus = useQuery(
+    api.adminAccessLinks.getStatus,
+    oneTimeLink
+      ? { token: oneTimeLink.token, purpose: oneTimeLink.purpose }
+      : 'skip',
+  )
 
   useEffect(() => {
     if (accountsResult?.kind === 'unauthorized') onUnauthorized()
   }, [accountsResult, onUnauthorized])
+
+  useEffect(() => {
+    if (!oneTimeLink || linkStatus?.kind !== 'invalid') return
+    const invalidatedUrl = oneTimeLink.url
+    linkRevision.current += 1
+    setOneTimeLink((current) => {
+      if (current?.url !== invalidatedUrl) return current
+      return null
+    })
+    setFeedback(
+      'O link exibido deixou de ser válido. Gere um novo antes de compartilhar.',
+    )
+  }, [linkStatus?.kind, oneTimeLink])
+
+  function clearOneTimeLink(accountId?: Id<'adminAccounts'>) {
+    linkRevision.current += 1
+    setOneTimeLink((current) => {
+      if (current === null || (accountId && current.accountId !== accountId)) {
+        return current
+      }
+      return null
+    })
+  }
+
+  function publishOneTimeLink(
+    accountId: Id<'adminAccounts'>,
+    purpose: 'activation' | 'reset',
+    accessToken: string,
+  ) {
+    linkRevision.current += 1
+    setOneTimeLink({
+      accountId,
+      purpose,
+      token: accessToken,
+      url: buildAdminAccessUrl(
+        window.location.origin,
+        accessToken,
+        purpose,
+      ),
+    })
+  }
 
   function handleDenied(kind: string) {
     if (kind === 'unauthorized') onUnauthorized()
@@ -123,7 +177,7 @@ export function AdminManagers({
     if (busy) return
     setBusy(true)
     setFeedback(null)
-    setOneTimeLink(null)
+    clearOneTimeLink()
     try {
       const accessToken = generateAdminCapability()
       const result = await createAccount({
@@ -136,7 +190,11 @@ export function AdminManagers({
       if (result.kind === 'created') {
         setDisplayName('')
         setEmail('')
-        setOneTimeLink(activationUrl(result.accessToken, 'activation'))
+        publishOneTimeLink(
+          result.account.id,
+          'activation',
+          result.accessToken,
+        )
         setFeedback('Conta criada. Copie o link antes de sair desta tela.')
       } else {
         handleDenied(result.kind)
@@ -159,7 +217,8 @@ export function AdminManagers({
   ) {
     if (busy) return
     setBusy(true)
-    setOneTimeLink(null)
+    setFeedback(null)
+    clearOneTimeLink()
     try {
       const accessToken = generateAdminCapability()
       const result = await generateLink({
@@ -170,7 +229,7 @@ export function AdminManagers({
         accessToken,
       })
       if (result.kind === 'created') {
-        setOneTimeLink(activationUrl(result.accessToken, purpose))
+        publishOneTimeLink(account.id, purpose, result.accessToken)
         setFeedback('Novo link gerado. O link anterior deixou de funcionar.')
       } else {
         handleDenied(result.kind)
@@ -188,7 +247,8 @@ export function AdminManagers({
   async function reactivate(account: ManagedAccount) {
     if (busy) return
     setBusy(true)
-    setOneTimeLink(null)
+    setFeedback(null)
+    clearOneTimeLink()
     try {
       const accessToken = generateAdminCapability()
       const result = await reactivateAccount({
@@ -198,7 +258,11 @@ export function AdminManagers({
         accessToken,
       })
       if (result.kind === 'updated') {
-        setOneTimeLink(activationUrl(result.accessToken, 'activation'))
+        publishOneTimeLink(
+          result.account.id,
+          'activation',
+          result.accessToken,
+        )
         setFeedback('Conta reativada. Compartilhe o novo link de ativação.')
       } else {
         handleDenied(result.kind)
@@ -213,6 +277,7 @@ export function AdminManagers({
   async function confirmDisable() {
     if (!disableTarget || busy) return
     setBusy(true)
+    setFeedback(null)
     try {
       const result = await disableAccount({
         token,
@@ -221,9 +286,13 @@ export function AdminManagers({
       })
       setDisableTarget(null)
       if (result.kind === 'updated') {
+        clearOneTimeLink(result.account.id)
         setFeedback('Conta desativada e sessões encerradas.')
       } else {
         handleDenied(result.kind)
+        if (result.kind === 'conflict') {
+          setFeedback('A conta mudou. Atualize a página e tente novamente.')
+        }
       }
     } catch {
       setFeedback('Não foi possível desativar a conta agora.')
@@ -233,13 +302,56 @@ export function AdminManagers({
   }
 
   async function copyOneTimeLink() {
-    if (!oneTimeLink) return
-    const copied = await copyTextToClipboard(oneTimeLink)
-    setFeedback(
-      copied
-        ? 'Link copiado.'
-        : 'Não foi possível copiar automaticamente. Abra o link abaixo ou mantenha-o pressionado para copiar.',
-    )
+    if (copyBusy) return
+    if (!oneTimeLink || linkStatus?.kind !== 'valid') {
+      setFeedback('Aguarde a verificação do link antes de copiar.')
+      return
+    }
+    const snapshot = oneTimeLink
+    const revision = linkRevision.current
+    setCopyBusy(true)
+    try {
+      const copied = await copyTextToClipboard(snapshot.url)
+      if (revision !== linkRevision.current) return
+      setFeedback(
+        copied
+          ? 'Link copiado.'
+          : 'Não foi possível copiar automaticamente. Abra o link abaixo ou mantenha-o pressionado para copiar.',
+      )
+    } finally {
+      setCopyBusy(false)
+    }
+  }
+
+  async function revokeAccessLinks(account: ManagedAccount) {
+    if (busy) return
+    setBusy(true)
+    setFeedback(null)
+    try {
+      const result = await revokeLinks({
+        token,
+        accountId: account.id,
+        expectedUpdatedAt: account.updatedAt,
+      })
+      if (result.kind === 'revoked') {
+        clearOneTimeLink(account.id)
+        setFeedback('Links pendentes invalidados.')
+      } else {
+        handleDenied(result.kind)
+        if (result.kind === 'conflict') {
+          setFeedback('A conta mudou. Atualize a página e tente novamente.')
+        } else if (
+          result.kind !== 'unauthorized' &&
+          result.kind !== 'forbidden'
+        ) {
+          setFeedback('Não foi possível invalidar os links agora.')
+        }
+      }
+    } catch {
+      setFeedback('Não foi possível invalidar os links agora.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (accountsResult === undefined) {
@@ -279,21 +391,35 @@ export function AdminManagers({
             Envie somente este link pelo WhatsApp. Ele expira em 72 horas e,
             se outro for gerado para esta conta, este deixa de funcionar.
           </p>
-          <a
-            href={oneTimeLink}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Abrir link de uso único"
-            className="mt-4 block break-all rounded bg-cream p-3 text-sm text-sea underline decoration-sea/50 underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-plum"
-          >
-            <code>{oneTimeLink}</code>
-          </a>
+          {linkStatus?.kind === 'valid' ? (
+            <a
+              href={oneTimeLink.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Abrir link de uso único"
+              className="mt-4 block break-all rounded bg-cream p-3 text-sm text-sea underline decoration-sea/50 underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-plum"
+            >
+              <code>{oneTimeLink.url}</code>
+            </a>
+          ) : (
+            <p role="status" className="mt-3 text-sm text-ink/70">
+              Verificando se este é o link mais recente…
+            </p>
+          )}
           <Button
             className="mt-4"
             variant="adminPrimary"
+            disabled={
+              busy || copyBusy || linkStatus?.kind !== 'valid'
+            }
+            aria-busy={copyBusy || linkStatus === undefined}
             onClick={() => void copyOneTimeLink()}
           >
-            Copiar link
+            {linkStatus === undefined
+              ? 'Verificando…'
+              : copyBusy
+                ? 'Copiando…'
+                : 'Copiar link'}
           </Button>
         </Card>
       ) : null}
@@ -394,17 +520,8 @@ export function AdminManagers({
                       <Button
                         variant="adminSecondary"
                         disabled={busy}
-                        onClick={() =>
-                          void revokeLinks({
-                            token,
-                            accountId: account.id,
-                          }).then((result) => {
-                            handleDenied(result.kind)
-                            if (result.kind === 'revoked') {
-                              setFeedback('Links pendentes invalidados.')
-                            }
-                          })
-                        }
+                        aria-busy={busy}
+                        onClick={() => void revokeAccessLinks(account)}
                       >
                         Invalidar links
                       </Button>

@@ -12,12 +12,23 @@ O `vercel.json` (raiz do repo) define:
 {
   "buildCommand": "npx convex deploy --cmd 'npm run build'",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Referrer-Policy", "value": "no-referrer" }
+      ]
+    }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
 ```
 
 - **`buildCommand`**: `npx convex deploy` primeiro empurra `convex/schema.ts` e as funções para o backend Convex correspondente, **injeta automaticamente `VITE_CONVEX_URL`** com a URL desse deployment, e só então roda `npm run build` (o `tsc -b && vite build` definido em `package.json`). Não é preciso setar `VITE_CONVEX_URL` manualmente na Vercel — o `--cmd` já cuida disso.
 - **`outputDirectory`**: `dist` — pasta gerada pelo `vite build`.
+- **`headers`**: aplica `Referrer-Policy: no-referrer` inclusive na resposta
+  inicial, antes de qualquer JavaScript. O `index.html` repete a política em
+  meta antes dos recursos como defesa em profundidade.
 - **`rewrites`**: fallback de SPA. Como não há framework SSR, qualquer rota (`/admin`, `/mural`, etc.) precisa cair em `index.html` para o React Router resolver a navegação no client. Sem isso, um refresh (F5) em `/admin` retornaria 404 direto do servidor da Vercel.
 
 ## Passo-a-passo
@@ -50,10 +61,13 @@ Importante:
 - `CONVEX_DEPLOY_KEY` é **server-only / build-time**. Nunca prefixe com `VITE_` — isso a colocaria no bundle JS entregue ao navegador do convidado.
 - Não é preciso configurar `VITE_CONVEX_URL` manualmente aqui — o `npx convex deploy --cmd` (passo anterior) já injeta a URL correta durante o build, para cada ambiente (produção ou preview).
 
-### 4. Provisionar o `ADMIN_PASSWORD` no backend Convex
+### 4. Provisionar a credencial-mestra de recuperação
 
-A senha única do dashboard dos donos (`/admin`) deve existir no deployment
-Convex de produção. Confirme primeiro somente os nomes já configurados:
+`ADMIN_PASSWORD` deve existir no deployment Convex de produção, mas não é
+mais o login cotidiano do dashboard. Desde a Fase 8, cada gestor entra com sua
+conta individual; a credencial-mestra fica restrita ao bootstrap e à
+recuperação da conta proprietária. Confirme primeiro somente os nomes já
+configurados:
 
 ```bash
 npx convex env list --names-only --prod
@@ -67,11 +81,15 @@ npx convex env set --prod ADMIN_PASSWORD
 - Para um preview, use explicitamente
   `npx convex env set --deployment <deployment-preview> ADMIN_PASSWORD`; não
   reutilize a senha de produção.
+- Gestores não recebem nem compartilham essa credencial. Criação, ativação,
+  redefinição, revogação e papéis são operados pelas contas individuais em
+  `/admin`.
 - Esta versão do app Convex (`defineApp()` em `convex/convex.config.ts`) não
   oferece uma declaração geral de variável obrigatória para todas as
   functions. Não invente uma API de configuração: a ausência da senha falha
-  fechada em `adminAuth`, e o gate de produção exige a verificação
-  `--names-only --prod` mais o smoke real de login.
+  fechada nos fluxos de bootstrap/recuperação, e o gate de produção exige a
+  verificação `--names-only --prod` mais os smokes de recuperação e login
+  individual.
 
 ### 5. Preview por branch/PR — isolado da produção
 
@@ -95,11 +113,12 @@ Depois do primeiro deploy de produção bem-sucedido:
 |---|---|---|
 | `VITE_CONVEX_URL` | Injetada automaticamente pelo `npx convex deploy --cmd` durante o build (produção e preview); localmente, em `.env.local` (via `npx convex dev`) | Não é segredo — pode aparecer no bundle do cliente, é a URL pública do backend reativo |
 | `CONVEX_DEPLOY_KEY` | Vercel → Environment Variables, chaves distintas nos escopos Production e Preview correspondentes | `.env.example` (valor real), `.env.local`, qualquer arquivo versionado, qualquer código em `src/` |
-| `ADMIN_PASSWORD` | Somente no deployment Convex correspondente; produção via `npx convex env set --prod ADMIN_PASSWORD` | Vercel, `.env.example` (valor real), `.env.local`, `vercel.json`, argumentos de shell, qualquer código em `src/` |
+| `ADMIN_PASSWORD` | Somente no deployment Convex correspondente, como credencial-mestra de bootstrap/recuperação; produção via `npx convex env set --prod ADMIN_PASSWORD` | Vercel, `.env.example` (valor real), `.env.local`, `vercel.json`, argumentos de shell, qualquer código em `src/`, compartilhamento entre gestores |
 
 ## Verificação segura de produção
 
-Antes do smoke de login, verifique presença sem imprimir valores:
+Antes dos smokes de recuperação e login individual, verifique presença sem
+imprimir valores:
 
 ```bash
 npx convex env list --names-only --prod
@@ -111,3 +130,24 @@ Preview Deploy Key fica apenas no escopo **Preview**. Nunca troque as chaves
 entre esses escopos e nunca use uma chave de preview para publicar produção.
 
 Ver `.env.example` para a documentação inline de cada variável com placeholders.
+
+## Links administrativos pós-deploy
+
+- O formato canônico para ativação e redefinição é
+  `/admin/ativar#token=…` ou `/admin/redefinir#token=…`. Fragmentos não são
+  enviados na requisição HTTP inicial.
+- Query string é aceita somente para entrada legada e removida imediatamente.
+  Não gere nem compartilhe links novos com `?token=`.
+- Depois de cada deploy deste fluxo, confirme o header sem usar capability:
+
+  ```bash
+  curl -sSI https://www.sol40.com.br/admin/ativar \
+    | grep -i '^referrer-policy: no-referrer'
+  ```
+
+- Faça o smoke mobile com um link recém-gerado, em conversa privada, sem
+  screenshot, trace, log ou gravação da URL. Confirme ativação/reset, entrada
+  no painel e rejeição de replay.
+- Qualquer link compartilhado antes desta correção deve ser invalidado pela
+  conta correspondente e regenerado depois do deploy. Nunca reutilize um token
+  citado em mensagem, issue ou evidência.

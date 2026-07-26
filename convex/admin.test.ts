@@ -2,6 +2,7 @@ import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, internal } from './_generated/api'
+import type { Id } from './_generated/dataModel'
 import {
   hasAdminCapability,
   normalizeAdminEmail,
@@ -12,7 +13,9 @@ import {
   buildAuditChanges,
 } from './adminAuditModel'
 import {
+  expireAdminAccessLinkRecord,
   expireAuditEventRecord,
+  sweepExpiredAccessLinksHandler,
   sweepExpiredAuditEventsHandler,
 } from './adminInternal'
 import {
@@ -50,8 +53,10 @@ function makeAdminTest() {
 
 const TOKEN_A = 'A'.repeat(43)
 const TOKEN_B = `${'B'.repeat(42)}E`
+const TOKEN_C = `${'C'.repeat(42)}I`
 const ACCESS_TOKEN_A = 'A'.repeat(43)
 const ACCESS_TOKEN_B = `${'D'.repeat(42)}Q`
+const ACCESS_TOKEN_C = `${'F'.repeat(42)}Y`
 const previousPassword = process.env.ADMIN_PASSWORD
 
 declare const process: {
@@ -91,6 +96,11 @@ async function insertActiveAdminAccount(
     displayName = 'Allan',
     role = 'owner' as const,
     password = 'Uma frase segura para o painel',
+  }: {
+    email?: string
+    displayName?: string
+    role?: 'owner' | 'manager' | 'seller'
+    password?: string
   } = {},
 ) {
   const hashed = await t.action(
@@ -145,6 +155,34 @@ async function insertRoleSession(
     })
   })
   return accountId
+}
+
+async function insertAccessLinkFixture(
+  t: ReturnType<typeof makeAdminTest>,
+  {
+    accountId,
+    purpose,
+    token,
+    createdAt = Date.now(),
+  }: {
+    accountId: Id<'adminAccounts'>
+    purpose: 'activation' | 'reset'
+    token: string
+    createdAt?: number
+  },
+) {
+  return t.run(async (ctx) => {
+    const account = await ctx.db.get(accountId)
+    if (!account) throw new Error('account missing for access link fixture')
+    return ctx.db.insert('adminAccessLinks', {
+      accountId,
+      purpose,
+      tokenHash: await hashAdminToken(token),
+      credentialVersion: account.credentialVersion,
+      createdAt,
+      expiresAt: createdAt + 72 * 60 * 60 * 1_000,
+    })
+  })
 }
 
 async function insertOverviewWine(
@@ -943,13 +981,14 @@ describe('admin access link activation and reset', () => {
         updatedAt: 1_000,
       }),
     )
-    const created = await t.action(
-      internal.adminAccessLinkActions.createAccessLink,
-      { accountId, purpose: 'activation', token: ACCESS_TOKEN_A },
-    )
-    expect(created).toEqual({ kind: 'created' })
+    await insertAccessLinkFixture(t, {
+      accountId,
+      purpose: 'activation',
+      token: ACCESS_TOKEN_A,
+      createdAt: 1_000,
+    })
 
-    vi.setSystemTime(created.kind === 'created' ? 1_000 + 72 * 60 * 60 * 1_000 - 1 : 0)
+    vi.setSystemTime(1_000 + 72 * 60 * 60 * 1_000 - 1)
     await expect(
       t.query(api.adminAccessLinks.getStatus, {
         token: ACCESS_TOKEN_A,
@@ -972,22 +1011,35 @@ describe('admin access link activation and reset', () => {
     expect([first.kind, second.kind].sort()).toEqual(['completed', 'invalid'])
 
     vi.setSystemTime(1_000)
-    await t.action(internal.adminAccessLinkActions.createAccessLink, {
-      accountId,
-      purpose: 'reset',
+    const expiringAccountId = await t.run((ctx) =>
+      ctx.db.insert('adminAccounts', {
+        email: 'outra-gestora@example.com',
+        displayName: 'Outra gestora',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 0,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      }),
+    )
+    await insertAccessLinkFixture(t, {
+      accountId: expiringAccountId,
+      purpose: 'activation',
       token: ACCESS_TOKEN_B,
+      createdAt: 1_000,
     })
     vi.setSystemTime(1_000 + 72 * 60 * 60 * 1_000)
     await expect(
       t.query(api.adminAccessLinks.getStatus, {
         token: ACCESS_TOKEN_B,
-        purpose: 'reset',
+        purpose: 'activation',
       }),
     ).resolves.toEqual({ kind: 'invalid' })
   })
 
   it('regeneration revokes the prior purpose-bound link and reset leaves zero sessions', async () => {
     const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
     const accountId = await t.run(async (ctx) => {
       const id = await ctx.db.insert('adminAccounts', {
         email: 'gestora@example.com',
@@ -1001,7 +1053,7 @@ describe('admin access link activation and reset', () => {
         activatedAt: 1_000,
       })
       await ctx.db.insert('adminSessions', {
-        tokenHash: await hashAdminToken(TOKEN_A),
+        tokenHash: await hashAdminToken(TOKEN_B),
         accountId: id,
         credentialVersion: 2,
         createdAt: 1_000,
@@ -1010,16 +1062,28 @@ describe('admin access link activation and reset', () => {
       return id
     })
 
-    await t.action(internal.adminAccessLinkActions.createAccessLink, {
-      accountId,
-      purpose: 'reset',
-      token: ACCESS_TOKEN_A,
-    })
-    await t.action(internal.adminAccessLinkActions.createAccessLink, {
-      accountId,
-      purpose: 'reset',
-      token: ACCESS_TOKEN_B,
-    })
+    const original = await t.run((ctx) => ctx.db.get(accountId))
+    if (!original) throw new Error('manager missing')
+    await expect(
+      t.mutation(api.adminAccounts.generateManagedAccessLink, {
+        token: TOKEN_A,
+        accountId,
+        expectedUpdatedAt: original.updatedAt,
+        purpose: 'reset',
+        accessToken: ACCESS_TOKEN_A,
+      }),
+    ).resolves.toMatchObject({ kind: 'created' })
+    const afterFirst = await t.run((ctx) => ctx.db.get(accountId))
+    if (!afterFirst) throw new Error('manager missing after reset')
+    await expect(
+      t.mutation(api.adminAccounts.generateManagedAccessLink, {
+        token: TOKEN_A,
+        accountId,
+        expectedUpdatedAt: afterFirst.updatedAt,
+        purpose: 'reset',
+        accessToken: ACCESS_TOKEN_B,
+      }),
+    ).resolves.toMatchObject({ kind: 'created' })
     await expect(
       t.query(api.adminAccessLinks.getStatus, {
         token: ACCESS_TOKEN_A,
@@ -1044,10 +1108,13 @@ describe('admin access link activation and reset', () => {
     const stored = await t.run(async (ctx) => ({
       account: await ctx.db.get(accountId),
       links: await ctx.db.query('adminAccessLinks').collect(),
-      sessions: await ctx.db.query('adminSessions').collect(),
+      sessions: await ctx.db
+        .query('adminSessions')
+        .withIndex('by_account', (query) => query.eq('accountId', accountId))
+        .collect(),
       audit: await ctx.db.query('adminAuditEvents').collect(),
     }))
-    expect(stored.account?.credentialVersion).toBe(3)
+    expect(stored.account?.credentialVersion).toBe(5)
     expect(stored.sessions).toEqual([])
     expect(stored.links.filter((link) => link.consumedAt !== undefined)).toHaveLength(1)
     expect(JSON.stringify(stored)).not.toContain(ACCESS_TOKEN_A)
@@ -1056,6 +1123,422 @@ describe('admin access link activation and reset', () => {
       expect.arrayContaining(['password_reset', 'sessions_revoked']),
     )
     expect(JSON.stringify(stored.audit)).not.toContain('old-envelope')
+  })
+
+  it('keeps the account CAS revision monotonic when link consumption sees an older clock', async () => {
+    const t = makeAdminTest()
+    const seeded = await t.run(async (ctx) => {
+      const accountId = await ctx.db.insert('adminAccounts', {
+        email: 'monotonic@example.com',
+        displayName: 'Gestora Monotônica',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 3,
+        createdAt: 1_000,
+        updatedAt: 9_000,
+      })
+      const tokenHash = await hashAdminToken(ACCESS_TOKEN_A)
+      const linkId = await ctx.db.insert('adminAccessLinks', {
+        accountId,
+        purpose: 'activation',
+        tokenHash,
+        credentialVersion: 3,
+        createdAt: 4_000,
+        expiresAt: 20_000,
+      })
+      return { accountId, linkId, tokenHash }
+    })
+
+    await expect(
+      t.mutation(internal.adminAccessLinks.finishAccessLink, {
+        linkId: seeded.linkId,
+        tokenHash: seeded.tokenHash,
+        purpose: 'activation',
+        expectedCredentialVersion: 3,
+        passwordHash: 'test-password-envelope',
+        now: 5_000,
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+    await expect(
+      t.run(async (ctx) => (await ctx.db.get(seeded.accountId))?.updatedAt),
+    ).resolves.toBe(9_001)
+  })
+
+  it('allows only one generation from a stale activation snapshot and keeps the winner usable', async () => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
+    const created = await t.mutation(
+      api.adminAccounts.createManagedAccount,
+      {
+        token: TOKEN_A,
+        displayName: 'Gestora concorrente',
+        email: 'concorrente@example.com',
+        role: 'manager',
+        accessToken: ACCESS_TOKEN_A,
+      },
+    )
+    if (created.kind !== 'created') throw new Error('account not created')
+
+    const first = await t.mutation(
+      api.adminAccounts.generateManagedAccessLink,
+      {
+        token: TOKEN_A,
+        accountId: created.account.id,
+        expectedUpdatedAt: created.account.updatedAt,
+        purpose: 'activation',
+        accessToken: ACCESS_TOKEN_B,
+      },
+    )
+    const second = await t.mutation(
+      api.adminAccounts.generateManagedAccessLink,
+      {
+        token: TOKEN_A,
+        accountId: created.account.id,
+        expectedUpdatedAt: created.account.updatedAt,
+        purpose: 'activation',
+        accessToken: ACCESS_TOKEN_C,
+      },
+    )
+
+    expect(first.kind).toBe('created')
+    expect(second).toEqual({ kind: 'conflict' })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_B,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'valid' })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_C,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+
+    await expect(
+      t.mutation(api.adminAccounts.revokeManagedAccessLinks, {
+        token: TOKEN_A,
+        accountId: created.account.id,
+        expectedUpdatedAt: created.account.updatedAt,
+      }),
+    ).resolves.toEqual({ kind: 'conflict' })
+    const current = await t.run((ctx) => ctx.db.get(created.account.id))
+    if (!current) throw new Error('account disappeared')
+    await expect(
+      t.mutation(api.adminAccounts.revokeManagedAccessLinks, {
+        token: TOKEN_A,
+        accountId: created.account.id,
+        expectedUpdatedAt: current.updatedAt,
+      }),
+    ).resolves.toEqual({ kind: 'revoked' })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_B,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+  })
+
+  it('blocks the old password immediately and leaves no partial writes when reset link creation fails', async () => {
+    const t = makeAdminTest()
+    await insertRoleSession(t, TOKEN_A, 'owner')
+    const oldPassword = 'Brisa antiga segura sobre o mar 2026'
+    const manager = await insertActiveAdminAccount(t, {
+      email: 'reset@example.com',
+      displayName: 'Gestora Reset',
+      role: 'manager',
+      password: oldPassword,
+    })
+    const beforeLogin = await t.action(api.adminAuthActions.login, {
+      email: 'reset@example.com',
+      password: oldPassword,
+      token: TOKEN_B,
+      deviceLabel: 'Antes do reset',
+    })
+    expect(beforeLogin.kind).toBe('authenticated')
+    await insertAccessLinkFixture(t, {
+      accountId: manager.accountId,
+      purpose: 'activation',
+      token: ACCESS_TOKEN_C,
+    })
+    const before = await t.run(async (ctx) => ({
+      account: await ctx.db.get(manager.accountId),
+      sessions: await ctx.db
+        .query('adminSessions')
+        .withIndex('by_account', (query) =>
+          query.eq('accountId', manager.accountId),
+        )
+        .collect(),
+      links: await ctx.db.query('adminAccessLinks').collect(),
+      audit: await ctx.db.query('adminAuditEvents').collect(),
+    }))
+    if (!before.account) throw new Error('manager missing')
+
+    await expect(
+      t.mutation(api.adminAccounts.generateManagedAccessLink, {
+        token: TOKEN_A,
+        accountId: manager.accountId,
+        expectedUpdatedAt: before.account.updatedAt,
+        purpose: 'reset',
+        accessToken: ACCESS_TOKEN_C,
+      }),
+    ).resolves.toMatchObject({ kind: 'invalid' })
+    const afterFailure = await t.run(async (ctx) => ({
+      account: await ctx.db.get(manager.accountId),
+      sessions: await ctx.db
+        .query('adminSessions')
+        .withIndex('by_account', (query) =>
+          query.eq('accountId', manager.accountId),
+        )
+        .collect(),
+      links: await ctx.db.query('adminAccessLinks').collect(),
+      audit: await ctx.db.query('adminAuditEvents').collect(),
+    }))
+    expect(afterFailure).toEqual(before)
+
+    await expect(
+      t.mutation(api.adminAccounts.generateManagedAccessLink, {
+        token: TOKEN_A,
+        accountId: manager.accountId,
+        expectedUpdatedAt: before.account.updatedAt,
+        purpose: 'reset',
+        accessToken: ACCESS_TOKEN_A,
+      }),
+    ).resolves.toMatchObject({ kind: 'created' })
+    const resetPending = await t.run((ctx) =>
+      ctx.db.get(manager.accountId),
+    )
+    expect(resetPending?.passwordHash).toBeUndefined()
+    expect(resetPending?.credentialVersion).toBe(
+      before.account.credentialVersion + 1,
+    )
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('adminSessions')
+          .withIndex('by_account', (query) =>
+            query.eq('accountId', manager.accountId),
+          )
+          .collect(),
+      ),
+    ).toEqual([])
+
+    await expect(
+      t.action(api.adminAuthActions.login, {
+        email: 'reset@example.com',
+        password: oldPassword,
+        token: TOKEN_C,
+        deviceLabel: 'Depois do reset',
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+
+    const newPassword = 'Brisa nova segura sobre o mar 2026'
+    await expect(
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'reset',
+        password: newPassword,
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+    await expect(
+      t.action(api.adminAuthActions.login, {
+        email: 'reset@example.com',
+        password: newPassword,
+        token: TOKEN_C,
+        deviceLabel: 'Depois da redefinição',
+      }),
+    ).resolves.toMatchObject({ kind: 'authenticated' })
+  })
+
+  it('keeps public status aligned with account state and credential version', async () => {
+    const t = makeAdminTest()
+    const accountId = await t.run((ctx) =>
+      ctx.db.insert('adminAccounts', {
+        email: 'status@example.com',
+        displayName: 'Gestora Status',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 2,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      }),
+    )
+    await insertAccessLinkFixture(t, {
+      accountId,
+      purpose: 'activation',
+      token: ACCESS_TOKEN_A,
+    })
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'valid' })
+
+    await t.run((ctx) =>
+      ctx.db.patch(accountId, { credentialVersion: 3 }),
+    )
+    await expect(
+      t.query(api.adminAccessLinks.getStatus, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+      }),
+    ).resolves.toEqual({ kind: 'invalid' })
+  })
+
+  it('rejects unknown tokens without exhausting valid access and rate limits before password hashing', async () => {
+    const t = makeAdminTest()
+    const accountId = await t.run((ctx) =>
+      ctx.db.insert('adminAccounts', {
+        email: 'limit@example.com',
+        displayName: 'Gestora Limitada',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 0,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      }),
+    )
+    const linkId = await insertAccessLinkFixture(t, {
+      accountId,
+      purpose: 'activation',
+      token: ACCESS_TOKEN_A,
+    })
+
+    const unknownToken = ACCESS_TOKEN_C
+    for (
+      let index = 0;
+      index < ADMIN_RATE_LIMITS.accessLinkGlobal.rate;
+      index += 1
+    ) {
+      await expect(
+        t.action(api.adminAccessLinkActions.consumeAccessLink, {
+          token: unknownToken,
+          purpose: 'activation',
+          password: 'curta',
+        }),
+      ).resolves.toEqual({ kind: 'invalid' })
+    }
+
+    for (
+      let index = 0;
+      index < ADMIN_RATE_LIMITS.accessLinkToken.rate;
+      index += 1
+    ) {
+      await expect(
+        t.action(api.adminAccessLinkActions.consumeAccessLink, {
+          token: ACCESS_TOKEN_A,
+          purpose: 'activation',
+          password: 'curta',
+        }),
+      ).resolves.toEqual({ kind: 'invalid_password' })
+    }
+    await expect(
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: ACCESS_TOKEN_A,
+        purpose: 'activation',
+        password: 'curta',
+      }),
+    ).resolves.toMatchObject({ kind: 'rate_limited' })
+
+    const storedLink = await t.run((ctx) => ctx.db.get(linkId))
+    expect(storedLink?.consumedAt).toBeUndefined()
+    expect(storedLink?.revokedAt).toBeUndefined()
+    expect((await t.run((ctx) => ctx.db.get(accountId)))?.passwordHash)
+      .toBeUndefined()
+  })
+
+  it('sweeps expired access links without deleting active rows and is idempotent', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(50_000)
+    const t = makeAdminTest()
+    const { expiredId, activeId } = await t.run(async (ctx) => {
+      const accountId = await ctx.db.insert('adminAccounts', {
+        email: 'retention@example.com',
+        displayName: 'Gestora Retenção',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 0,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      })
+      const expired = await ctx.db.insert('adminAccessLinks', {
+        accountId,
+        purpose: 'activation',
+        tokenHash: await hashAdminToken(ACCESS_TOKEN_A),
+        credentialVersion: 0,
+        createdAt: 1_000,
+        expiresAt: 49_999,
+      })
+      const active = await ctx.db.insert('adminAccessLinks', {
+        accountId,
+        purpose: 'activation',
+        tokenHash: await hashAdminToken(ACCESS_TOKEN_B),
+        credentialVersion: 0,
+        createdAt: 2_000,
+        expiresAt: 50_001,
+      })
+      return { expiredId: expired, activeId: active }
+    })
+
+    await expect(
+      t.run((ctx) => sweepExpiredAccessLinksHandler(ctx)),
+    ).resolves.toMatchObject({ scanned: 1, deleted: 1, done: true })
+    expect(await t.run((ctx) => ctx.db.get(expiredId))).toBeNull()
+    expect(await t.run((ctx) => ctx.db.get(activeId))).not.toBeNull()
+    await expect(
+      t.run((ctx) => sweepExpiredAccessLinksHandler(ctx)),
+    ).resolves.toMatchObject({ scanned: 0, deleted: 0, done: true })
+  })
+
+  it('expires an access link at its deadline so reactive status cannot remain stale', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(60_000)
+    const t = makeAdminTest()
+    const { linkId, expiresAt } = await t.run(async (ctx) => {
+      const accountId = await ctx.db.insert('adminAccounts', {
+        email: 'reactive-expiry@example.com',
+        displayName: 'Gestora Expiração',
+        role: 'manager',
+        state: 'pending',
+        credentialVersion: 0,
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      })
+      const expiresAt = 60_100
+      const linkId = await ctx.db.insert('adminAccessLinks', {
+        accountId,
+        purpose: 'activation',
+        tokenHash: await hashAdminToken(ACCESS_TOKEN_A),
+        credentialVersion: 0,
+        createdAt: 1_000,
+        expiresAt,
+      })
+      return { linkId, expiresAt }
+    })
+
+    await expect(
+      t.run((ctx) =>
+        expireAdminAccessLinkRecord(ctx, { linkId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'ignored' })
+    vi.setSystemTime(expiresAt)
+    await expect(
+      t.run((ctx) =>
+        expireAdminAccessLinkRecord(ctx, { linkId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'expired' })
+    await expect(
+      t.run((ctx) =>
+        expireAdminAccessLinkRecord(ctx, { linkId, expectedExpiresAt: expiresAt }),
+      ),
+    ).resolves.toEqual({ kind: 'ignored' })
   })
 })
 
@@ -1177,6 +1660,7 @@ describe('admin bootstrap, legacy cutoff and master recovery', () => {
       audit: await ctx.db.query('adminAuditEvents').collect(),
     }))
     expect(after.owner?.credentialVersion).toBe(owner.credentialVersion + 1)
+    expect(after.owner?.passwordHash).toBeUndefined()
     expect(after.manager?.credentialVersion).toBe(7)
     expect(after.sessions).toEqual([])
     expect(after.audit.map((event) => event.action)).toEqual(
@@ -1185,6 +1669,31 @@ describe('admin bootstrap, legacy cutoff and master recovery', () => {
         'sessions_revoked',
       ]),
     )
+    await expect(
+      t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: 'Brisa dourada sobre o mar 2026',
+        token: TOKEN_A,
+        deviceLabel: 'Senha anterior',
+      }),
+    ).resolves.toEqual({ kind: 'invalid_credentials' })
+    if (recovery.kind !== 'created') return
+    const newPassword = 'Horizonte seguro depois da chuva 2026'
+    await expect(
+      t.action(api.adminAccessLinkActions.consumeAccessLink, {
+        token: recovery.token,
+        purpose: 'reset',
+        password: newPassword,
+      }),
+    ).resolves.toEqual({ kind: 'completed' })
+    await expect(
+      t.action(api.adminAuthActions.login, {
+        email: 'allanmesquitab@gmail.com',
+        password: newPassword,
+        token: TOKEN_A,
+        deviceLabel: 'Senha nova',
+      }),
+    ).resolves.toMatchObject({ kind: 'authenticated' })
   })
 })
 
@@ -1640,6 +2149,16 @@ describe('admin login rate limit policy', () => {
     expect(ADMIN_RATE_LIMITS.loginGlobal).toEqual({
       kind: 'fixed window',
       rate: 10,
+      period: 15 * 60 * 1_000,
+    })
+    expect(ADMIN_RATE_LIMITS.accessLinkGlobal).toEqual({
+      kind: 'fixed window',
+      rate: 10,
+      period: 15 * 60 * 1_000,
+    })
+    expect(ADMIN_RATE_LIMITS.accessLinkToken).toEqual({
+      kind: 'fixed window',
+      rate: 5,
       period: 15 * 60 * 1_000,
     })
   })

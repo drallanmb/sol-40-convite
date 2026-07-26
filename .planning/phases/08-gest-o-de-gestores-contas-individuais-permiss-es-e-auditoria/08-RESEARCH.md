@@ -566,6 +566,10 @@ retenção não gera outro evento.
 
 ## Frontend and Routing
 
+> Errata 2026-07-26: os planos 08-08/08-09 substituem o transporte em query
+> string. Fragmento é o formato canônico; query permanece somente como entrada
+> legada para permitir sanitização e revogação operacional de links antigos.
+
 Rotas sugeridas:
 
 ```text
@@ -577,8 +581,8 @@ Rotas sugeridas:
 /admin/gestores                owner
 /admin/auditoria               owner
 /admin/minha-conta             todos
-/admin/ativar?token=...        pública, token-scoped
-/admin/redefinir?token=...     pública, token-scoped
+/admin/ativar#token=...        pública, token-scoped
+/admin/redefinir#token=...     pública, token-scoped
 /admin/configurar              bootstrap master, antes da ativação
 /admin/recuperar-proprietario  master recovery, depois da ativação
 ```
@@ -597,8 +601,9 @@ Rotas sugeridas:
   estreita de Presentes, não quatro itens vazios.
 - Nome/papel vêm do status backend e aparecem no shell; e-mail só em Minha
   conta.
-- Tokens de ativação/reset não devem sobreviver em localStorage. Após ler,
-  mantenha em memória e remova da URL com `history.replaceState` quando seguro.
+- Tokens de ativação/reset não devem sobreviver em localStorage. Leia
+  fragmento (ou query legada) sincronamente, mantenha em memória e remova da
+  URL com `history.replaceState` antes do mount.
 
 ## Common Pitfalls
 

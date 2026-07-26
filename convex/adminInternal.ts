@@ -5,6 +5,7 @@ import { internalMutation, type MutationCtx } from './_generated/server'
 import { ADMIN_AUDIT_SCHEDULE_HOP_MS } from './adminAuditModel'
 
 const AUDIT_SWEEP_PAGE_SIZE = 50
+const ACCESS_LINK_SWEEP_PAGE_SIZE = 50
 
 export async function expireAdminSessionRecord(
   ctx: Pick<MutationCtx, 'db'>,
@@ -35,6 +36,41 @@ export const expireAdminSession = internalMutation({
     v.object({ kind: v.literal('ignored') }),
   ),
   handler: expireAdminSessionRecord,
+})
+
+export async function expireAdminAccessLinkRecord(
+  ctx: Pick<MutationCtx, 'db'>,
+  {
+    linkId,
+    expectedExpiresAt,
+  }: {
+    linkId: Id<'adminAccessLinks'>
+    expectedExpiresAt: number
+  },
+) {
+  const link = await ctx.db.get(linkId)
+  if (
+    !link ||
+    link.expiresAt !== expectedExpiresAt ||
+    Date.now() < expectedExpiresAt
+  ) {
+    return { kind: 'ignored' } as const
+  }
+
+  await ctx.db.delete(linkId)
+  return { kind: 'expired' } as const
+}
+
+export const expireAdminAccessLink = internalMutation({
+  args: {
+    linkId: v.id('adminAccessLinks'),
+    expectedExpiresAt: v.number(),
+  },
+  returns: v.union(
+    v.object({ kind: v.literal('expired') }),
+    v.object({ kind: v.literal('ignored') }),
+  ),
+  handler: expireAdminAccessLinkRecord,
 })
 
 const purgeLegacyRef = makeFunctionReference<
@@ -194,6 +230,81 @@ export const continueExpiredAuditEventsSweep = internalMutation({
   returns: auditSweepResultValidator,
   handler: (ctx, args) =>
     sweepExpiredAuditEventsPage(ctx, {
+      cursor: args.cursor,
+      cutoff: args.cutoff,
+    }),
+})
+
+const continueAccessLinkSweepRef = makeFunctionReference<
+  'mutation',
+  { cursor: string; cutoff: number },
+  unknown
+>('adminInternal:continueExpiredAccessLinksSweep')
+
+async function sweepExpiredAccessLinksPage(
+  ctx: MutationCtx,
+  {
+    cursor,
+    cutoff,
+  }: {
+    cursor: string | null
+    cutoff: number
+  },
+) {
+  const page = await ctx.db
+    .query('adminAccessLinks')
+    .withIndex('by_expires_at', (query) =>
+      query.lte('expiresAt', cutoff),
+    )
+    .order('asc')
+    .paginate({ cursor, numItems: ACCESS_LINK_SWEEP_PAGE_SIZE })
+  let deleted = 0
+  for (const candidate of page.page) {
+    const current = await ctx.db.get(candidate._id)
+    if (current && current.expiresAt <= cutoff) {
+      await ctx.db.delete(current._id)
+      deleted += 1
+    }
+  }
+  if (!page.isDone) {
+    await ctx.scheduler.runAfter(0, continueAccessLinkSweepRef, {
+      cursor: page.continueCursor,
+      cutoff,
+    })
+  }
+  return {
+    scanned: page.page.length,
+    deleted,
+    done: page.isDone,
+    ...(page.isDone ? {} : { nextCursor: page.continueCursor }),
+  }
+}
+
+export async function sweepExpiredAccessLinksHandler(ctx: MutationCtx) {
+  return sweepExpiredAccessLinksPage(ctx, {
+    cursor: null,
+    cutoff: Date.now(),
+  })
+}
+
+const accessLinkSweepResultValidator = v.object({
+  scanned: v.number(),
+  deleted: v.number(),
+  done: v.boolean(),
+  nextCursor: v.optional(v.string()),
+})
+
+export const startExpiredAccessLinksSweep = internalMutation({
+  args: {},
+  returns: accessLinkSweepResultValidator,
+  handler: sweepExpiredAccessLinksHandler,
+})
+
+export const continueExpiredAccessLinksSweep = internalMutation({
+  args: { cursor: v.string(), cutoff: v.number() },
+  returns: accessLinkSweepResultValidator,
+  handler: (ctx, args) =>
+    sweepExpiredAccessLinksPage(ctx, {
       cursor: args.cursor,
       cutoff: args.cutoff,
     }),

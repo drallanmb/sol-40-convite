@@ -6,12 +6,12 @@ describe('copyTextToClipboard', () => {
     const writeText = vi.fn(async () => undefined)
 
     await expect(
-      copyTextToClipboard('https://www.sol40.com.br/admin/ativar?token=valid', {
+      copyTextToClipboard('https://www.sol40.com.br/admin/ativar#token=valid', {
         writeText,
       }),
     ).resolves.toBe(true)
     expect(writeText).toHaveBeenCalledWith(
-      'https://www.sol40.com.br/admin/ativar?token=valid',
+      'https://www.sol40.com.br/admin/ativar#token=valid',
     )
   })
 

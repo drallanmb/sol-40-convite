@@ -10,7 +10,7 @@ approved: 2026-07-25
 
 # Phase 08 — Validation Strategy
 
-> Contrato Nyquist sincronizado com os sete planos executáveis. “Existente”
+> Contrato Nyquist sincronizado com os nove planos executáveis. “Existente”
 > significa arquivo/suíte já presente antes da fase; “novo no plano” significa
 > evidência criada e executada na mesma task que implementa o comportamento.
 
@@ -56,6 +56,10 @@ approved: 2026-07-25
 | 08-07-01 | 7 | D-01–D-38 / T08-07-I,E | `tests/release.spec.ts` harness | `tests/admin-accounts.spec.ts`, `tests/admin-rbac.spec.ts`, `tests/admin-audit.spec.ts`, role fixtures | `npm run test:browser -- tests/admin-accounts.spec.ts tests/admin-rbac.spec.ts tests/admin-audit.spec.ts` |
 | 08-07-02 | 7 | ADMIN-01–06 / T08-07-I,T,D | full Vitest/build/browser suites | Preview smoke guard and release regressions | `npm test -- --run && npm run build && npm run test:browser` |
 | 08-07-03 | 7 | D-01–D-38 / T08-07-I,T,D | none; runtime-only boundary | `scripts/phase8-preview-smoke.mjs --check-only` plus sanitized human evidence | `node scripts/phase8-preview-smoke.mjs --check-only` |
+| 08-08-01 | 8 | ADMIN-01–03 / T08-08-E,T | link/account regressions | geração CAS, rollback, bloqueio da senha anterior e status stale em `convex/admin.test.ts` | `npm test -- --run convex/admin.test.ts` |
+| 08-08-02 | 8 | ADMIN-01–03 / T08-08-I,D,I2 | rate-limit e retenção existentes | fragmento/header, rejeição barata de token desconhecido, limite pré-KDF e sweep paginado | `npm test -- --run convex/admin.test.ts && npm run build` |
+| 08-09-01 | 9 | ADMIN-01–03 / T08-02-I,T08-08-I | reducers/clipboard existentes | builder/parser e testes de `AdminManagers`/`AdminSetup` | `npm test -- --run src/lib/adminSession.test.ts src/lib/clipboard.test.ts src/components/admin/AdminManagers.test.tsx src/components/admin/AdminSetup.test.tsx` |
+| 08-09-02 | 9 | ADMIN-01–03 / T08-08-I,D | Playwright da fase | estados de `AdminAccessLink` e ausência da capability em request/Referer | `npm test -- --run src/components/admin/AdminAccessLink.test.tsx && npm run test:browser -- tests/admin-accounts.spec.ts` |
 
 ## Wave 0 Resolution
 
@@ -81,7 +85,7 @@ approved: 2026-07-25
 | Custo real de scrypt | D-01–D-05 | convex-test não reproduz runtime/memória Node do deployment | Medir p50/p95 de senha correta/incorreta no Preview e confirmar login utilizável |
 | Cutoff de sessão legada ao vivo | D-19–D-22 | Exige duas sessões/browser e deployment real | Manter sessão legada e conta nova em browsers distintos; ativar Allan e confirmar queda reativa da legada |
 | Scheduler e retenção | D-29–D-33 | convex-test não executa cron/scheduler real | No Preview, criar eventos com datas controladas, executar cleanup e verificar limite de 120 dias |
-| Link compartilhado | D-02–D-04 | Copy/paste, histórico e janela privada são integrações do navegador | Abrir link em janela privada, definir senha e confirmar que replay e URL antigo falham sem expor token |
+| Link compartilhado | D-02–D-04 | Copy/paste, WebView do WhatsApp, histórico e janela privada são integrações do navegador | Abrir link canônico com fragmento em aparelho real, definir senha e confirmar que replay e link invalidado falham sem expor token |
 
 ## Validation Sign-Off
 
@@ -94,7 +98,7 @@ approved: 2026-07-25
 
 **Approval:** approved — 2026-07-25
 
-## Validation Audit 2026-07-25
+## Validation Audit 2026-07-25 — evidência original
 
 | Metric | Count |
 |--------|-------|
@@ -102,8 +106,25 @@ approved: 2026-07-25
 | Resolved | 0 |
 | Escalated | 0 |
 
-Todos os requisitos e decisões permanecem cobertos por 581 testes Vitest,
-80 jornadas Playwright, build de produção, smoke protegido e UAT 7/7.
+A auditoria original registrou zero gaps com 581 testes Vitest, 80 jornadas
+Playwright, build, smoke protegido e UAT 7/7. O incidente mobile posterior
+demonstrou que essa conclusão não cobria a requisição inicial com query string
+nem os estados assíncronos dos componentes.
+
+## Gap-closure validation — 2026-07-26
+
+| Metric | Count |
+|--------|-------|
+| Gaps encontrados após o incidente | 13 |
+| Resolvidos em código/testes | 13 |
+| Escalados como gap de implementação | 0 |
+| Verificação humana restante | 1 |
+
+Evidência atual: 36 arquivos/634 testes Vitest, build TypeScript/Vite e 120
+jornadas Playwright aprovadas. A revisão adversarial também provou e corrigiu
+um vetor de negação de serviço no qual tokens aleatórios poderiam esgotar o
+bucket global. Resta confirmar o fluxo completo no WebView real do WhatsApp;
+essa observação é UAT, não um gap de implementação aberto.
 
 ## Orchestrator Handoff
 

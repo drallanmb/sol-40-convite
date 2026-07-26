@@ -3,6 +3,7 @@ import {
   ADMIN_SESSION_STORAGE_KEY,
   adminDeadlineAction,
   adminStorageEventAction,
+  buildAdminAccessUrl,
   generateAdminCapability,
   takeAdminAccessTokenFromUrl,
   readAdminSession,
@@ -46,6 +47,7 @@ class MemoryStorage implements Storage {
 }
 
 const TOKEN_A = 'A'.repeat(43)
+const TOKEN_SPECIAL = `${'A'.repeat(20)}-${'B'.repeat(20)}_A`
 const PRINCIPAL = {
   id: 'account-1',
   displayName: 'Allan',
@@ -130,7 +132,39 @@ describe('admin capability persistence', () => {
 })
 
 describe('admin activation and reset URL privacy', () => {
-  it('takes a capability once and removes the complete query string', () => {
+  it('builds canonical activation and reset URLs with a fragment', () => {
+    expect(
+      buildAdminAccessUrl(
+        'https://www.sol40.com.br',
+        TOKEN_SPECIAL,
+        'activation',
+      ),
+    ).toBe(
+      `https://www.sol40.com.br/admin/ativar#token=${TOKEN_SPECIAL}`,
+    )
+    expect(
+      buildAdminAccessUrl(
+        'https://www.sol40.com.br/',
+        TOKEN_A,
+        'reset',
+      ),
+    ).toBe(
+      `https://www.sol40.com.br/admin/redefinir#token=${TOKEN_A}`,
+    )
+  })
+
+  it('takes a fragment capability once and removes it from the address', () => {
+    const replaced: string[] = []
+    const token = takeAdminAccessTokenFromUrl(
+      `https://www.sol40.com.br/admin/ativar#token=${TOKEN_SPECIAL}`,
+      (safeUrl) => replaced.push(safeUrl),
+    )
+
+    expect(token).toBe(TOKEN_SPECIAL)
+    expect(replaced).toEqual(['/admin/ativar'])
+  })
+
+  it('keeps temporary compatibility with query links and strips all private URL data', () => {
     const replaced: string[] = []
     const token = takeAdminAccessTokenFromUrl(
       `https://www.sol40.com.br/admin/ativar?token=${TOKEN_A}&utm_source=private#form`,
@@ -138,7 +172,18 @@ describe('admin activation and reset URL privacy', () => {
     )
 
     expect(token).toBe(TOKEN_A)
-    expect(replaced).toEqual(['/admin/ativar#form'])
+    expect(replaced).toEqual(['/admin/ativar'])
+  })
+
+  it('prefers a valid fragment capability over a legacy query capability', () => {
+    const replaced: string[] = []
+    const token = takeAdminAccessTokenFromUrl(
+      `https://www.sol40.com.br/admin/redefinir?token=${TOKEN_A}#token=${TOKEN_SPECIAL}`,
+      (safeUrl) => replaced.push(safeUrl),
+    )
+
+    expect(token).toBe(TOKEN_SPECIAL)
+    expect(replaced).toEqual(['/admin/redefinir'])
   })
 
   it('rejects malformed capabilities without writing any browser storage', () => {

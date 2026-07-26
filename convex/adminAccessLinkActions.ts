@@ -4,30 +4,23 @@ import { createHash } from 'node:crypto'
 import { makeFunctionReference } from 'convex/server'
 import { v } from 'convex/values'
 import type { Id } from './_generated/dataModel'
-import { action, internalAction } from './_generated/server'
+import { action } from './_generated/server'
 import { adminAccessPurposeValidator } from './adminAccessLinks'
 import { validateAdminToken } from './adminSecurity'
 
-const prepareAccessLink = makeFunctionReference<
+const prepareAccessLinkConsumption = makeFunctionReference<
   'mutation',
   {
-      accountId: Id<'adminAccounts'>
-      purpose: 'activation' | 'reset'
-      tokenHash: string
-      now: number
-  },
-  { kind: 'created' | 'invalid' }
->('adminAccessLinks:prepareAccessLink')
-const readAccessLinkSnapshot = makeFunctionReference<
-  'query',
-  {
-      tokenHash: string
-      purpose: 'activation' | 'reset'
-      now: number
+    purpose: 'activation' | 'reset'
+    tokenHash: string
+    now: number
   },
   {
-      kind: 'invalid'
-    } | {
+    kind: 'invalid'
+  } | {
+    kind: 'rate_limited'
+    retryAfterSeconds: number
+  } | {
       kind: 'ready'
       linkId: Id<'adminAccessLinks'>
       accountId: Id<'adminAccounts'>
@@ -35,7 +28,7 @@ const readAccessLinkSnapshot = makeFunctionReference<
       email: string
       displayName: string
   }
->('adminAccessLinks:readAccessLinkSnapshot')
+>('adminAccessLinks:prepareAccessLinkConsumption')
 const finishAccessLink = makeFunctionReference<
   'mutation',
   {
@@ -61,27 +54,6 @@ function tokenHash(token: string) {
   return createHash('sha256').update(token, 'utf8').digest('hex')
 }
 
-export const createAccessLink = internalAction({
-  args: {
-    accountId: v.id('adminAccounts'),
-    purpose: adminAccessPurposeValidator,
-    token: v.string(),
-  },
-  returns: v.union(
-    v.object({ kind: v.literal('created') }),
-    v.object({ kind: v.literal('invalid') }),
-  ),
-  handler: async (ctx, args) => {
-    if (!validateAdminToken(args.token)) return { kind: 'invalid' } as const
-    return ctx.runMutation(prepareAccessLink, {
-      accountId: args.accountId,
-      purpose: args.purpose,
-      tokenHash: tokenHash(args.token),
-      now: Date.now(),
-    })
-  },
-})
-
 export const consumeAccessLink = action({
   args: {
     token: v.string(),
@@ -92,16 +64,20 @@ export const consumeAccessLink = action({
     v.object({ kind: v.literal('completed') }),
     v.object({ kind: v.literal('invalid') }),
     v.object({ kind: v.literal('invalid_password') }),
+    v.object({
+      kind: v.literal('rate_limited'),
+      retryAfterSeconds: v.number(),
+    }),
   ),
   handler: async (ctx, args) => {
     if (!validateAdminToken(args.token)) return { kind: 'invalid' } as const
     const hash = tokenHash(args.token)
-    const snapshot = await ctx.runQuery(readAccessLinkSnapshot, {
+    const snapshot = await ctx.runMutation(prepareAccessLinkConsumption, {
       tokenHash: hash,
       purpose: args.purpose,
       now: Date.now(),
     })
-    if (snapshot.kind !== 'ready') return { kind: 'invalid' } as const
+    if (snapshot.kind !== 'ready') return snapshot
     const password = await ctx.runAction(hashAdminPassword, {
       password: args.password,
       context: {

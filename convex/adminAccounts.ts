@@ -25,7 +25,10 @@ import {
   requireAdminSession,
   validateAdminToken,
 } from './adminSecurity'
-import { ADMIN_ACCESS_LINK_TTL_MS } from './adminAccessLinks'
+import {
+  ADMIN_ACCESS_LINK_TTL_MS,
+  scheduleAdminAccessLinkExpiration,
+} from './adminAccessLinks'
 
 const DUMMY_PASSWORD_ENVELOPE =
   '$scrypt$v=1$ln=17,r=8,p=1$c29sNDAtZHVtbXktc2FsdC12MQ$yqumS5Mk1kDVII_FwzUTp7AD6tcYOeDuXStq-me6o0k'
@@ -155,14 +158,16 @@ async function insertManagedAccessLink(
     .first()
   if (collision) return false
   await revokePendingLinks(ctx, account._id, now, purpose)
-  await ctx.db.insert('adminAccessLinks', {
+  const expiresAt = now + ADMIN_ACCESS_LINK_TTL_MS
+  const linkId = await ctx.db.insert('adminAccessLinks', {
     accountId: account._id,
     purpose,
     tokenHash,
     credentialVersion: account.credentialVersion,
     createdAt: now,
-    expiresAt: now + ADMIN_ACCESS_LINK_TTL_MS,
+    expiresAt,
   })
+  await scheduleAdminAccessLinkExpiration(ctx, linkId, expiresAt)
   return true
 }
 
@@ -310,28 +315,20 @@ export const generateManagedAccessLink = mutation({
     }
     if (
       (args.purpose === 'activation' && account.state !== 'pending') ||
-      (args.purpose === 'reset' && account.state !== 'active')
+      (args.purpose === 'reset' && account.state !== 'active') ||
+      !validateAdminToken(args.accessToken)
     ) {
       return { kind: 'invalid', message: 'Este link não serve para o estado atual.' } as const
     }
     const now = Date.now()
-    let linkAccount = account
-    let revokedSessions = 0
-    if (args.purpose === 'reset') {
-      const credentialVersion = account.credentialVersion + 1
-      const updatedAt = nextAccountUpdatedAt(account.updatedAt, now)
-      await ctx.db.patch(account._id, { credentialVersion, updatedAt })
-      const sessions = await ctx.db
-        .query('adminSessions')
-        .withIndex('by_account', (index) =>
-          index.eq('accountId', account._id),
-        )
-        .collect()
-      revokedSessions = sessions.length
-      for (const session of sessions) await ctx.db.delete(session._id)
-      const updated = await ctx.db.get(account._id)
-      if (!updated) throw new Error('Conta desapareceu durante a redefinição.')
-      linkAccount = updated
+    const updatedAt = nextAccountUpdatedAt(account.updatedAt, now)
+    const credentialVersion =
+      args.purpose === 'reset'
+        ? account.credentialVersion + 1
+        : account.credentialVersion
+    const linkAccount = {
+      _id: account._id,
+      credentialVersion,
     }
     if (
       !(await insertManagedAccessLink(
@@ -344,6 +341,26 @@ export const generateManagedAccessLink = mutation({
     ) {
       return { kind: 'invalid', message: 'Não foi possível gerar o link.' } as const
     }
+
+    let revokedSessions = 0
+    if (args.purpose === 'reset') {
+      await ctx.db.patch(account._id, {
+        passwordHash: undefined,
+        credentialVersion,
+        updatedAt,
+      })
+      const sessions = await ctx.db
+        .query('adminSessions')
+        .withIndex('by_account', (index) =>
+          index.eq('accountId', account._id),
+        )
+        .collect()
+      revokedSessions = sessions.length
+      for (const session of sessions) await ctx.db.delete(session._id)
+    } else {
+      await ctx.db.patch(account._id, { updatedAt })
+    }
+
     if (args.purpose === 'reset') {
       await appendAuditEvent(ctx, {
         principal: authorization.principal,
@@ -379,6 +396,7 @@ export const revokeManagedAccessLinks = mutation({
   args: {
     token: v.string(),
     accountId: v.id('adminAccounts'),
+    expectedUpdatedAt: v.optional(v.number()),
   },
   returns: v.union(
     managedAccountFailureValidator,
@@ -389,8 +407,15 @@ export const revokeManagedAccessLinks = mutation({
     if (authorization.kind !== 'authorized') return authorization
     const account = await ctx.db.get(args.accountId)
     if (account === null) return { kind: 'not_found' } as const
-    const now = Date.now()
+    if (
+      args.expectedUpdatedAt !== undefined &&
+      account.updatedAt !== args.expectedUpdatedAt
+    ) {
+      return { kind: 'conflict' } as const
+    }
+    const now = nextAccountUpdatedAt(account.updatedAt)
     await revokePendingLinks(ctx, account._id, now)
+    await ctx.db.patch(account._id, { updatedAt: now })
     await appendAuditEvent(ctx, {
       principal: authorization.principal,
       subjectAccountId: account._id,

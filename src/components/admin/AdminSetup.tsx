@@ -1,7 +1,9 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useAction } from 'convex/react'
+import { useAction, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { buildAdminAccessUrl } from '../../lib/adminSession'
+import { copyTextToClipboard } from '../../lib/clipboard'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
 import Feedback from '../ui/Feedback'
@@ -21,19 +23,41 @@ export function AdminSetup({
   const [masterPassword, setMasterPassword] = useState('')
   const [token, setToken] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [copyState, setCopyState] = useState<
+    'idle' | 'copying' | 'copied' | 'failed'
+  >('idle')
   const [error, setError] = useState<string | null>(null)
   const errorId = useId()
   const passwordRef = useRef<HTMLInputElement>(null)
+  const linkRevision = useRef(0)
   const bootstrap = useAction(api.adminAuthActions.bootstrapOwner)
   const regenerate = useAction(
     api.adminAuthActions.regenerateOwnerActivation,
   )
   const recover = useAction(api.adminAuthActions.recoverOwner)
-  const path = mode === 'bootstrap' ? '/admin/ativar' : '/admin/redefinir'
+  const linkPurpose = mode === 'bootstrap' ? 'activation' : 'reset'
   const activationUrl =
     token === null
       ? null
-      : `${window.location.origin}${path}?token=${encodeURIComponent(token)}`
+      : buildAdminAccessUrl(
+          window.location.origin,
+          token,
+          linkPurpose,
+        )
+  const linkStatus = useQuery(
+    api.adminAccessLinks.getStatus,
+    token ? { token, purpose: linkPurpose } : 'skip',
+  )
+
+  useEffect(() => {
+    if (token === null || linkStatus?.kind !== 'invalid') return
+    linkRevision.current += 1
+    setToken(null)
+    setCopyState('idle')
+    setError(
+      'O link deixou de ser válido. Confirme a senha-mestra para gerar outro.',
+    )
+  }, [linkStatus?.kind, token])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -52,7 +76,9 @@ export function AdminSetup({
           : await recover({ masterPassword })
       setMasterPassword('')
       if (result.kind === 'created') {
+        linkRevision.current += 1
         setToken(result.token)
+        setCopyState('idle')
       } else {
         setError(
           result.kind === 'rate_limited'
@@ -73,8 +99,18 @@ export function AdminSetup({
   }
 
   const copyLink = async () => {
-    if (!activationUrl) return
-    await navigator.clipboard.writeText(activationUrl)
+    if (
+      !activationUrl ||
+      linkStatus?.kind !== 'valid' ||
+      copyState === 'copying'
+    ) {
+      return
+    }
+    const revision = linkRevision.current
+    setCopyState('copying')
+    const copied = await copyTextToClipboard(activationUrl)
+    if (revision !== linkRevision.current) return
+    setCopyState(copied ? 'copied' : 'failed')
   }
 
   return (
@@ -95,14 +131,46 @@ export function AdminSetup({
         {activationUrl ? (
           <Feedback className="mt-7" tone="success" role="status">
             <p className="font-bold">Copie este link agora.</p>
-            <p className="mt-2 break-all text-sm">{activationUrl}</p>
+            {linkStatus?.kind === 'valid' ? (
+              <a
+                href={activationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block break-all rounded bg-cream p-3 text-sm underline decoration-sea/50 underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-plum"
+              >
+                {activationUrl}
+              </a>
+            ) : (
+              <p className="mt-2 text-sm">
+                Verificando se este é o link mais recente…
+              </p>
+            )}
             <Button
               className="mt-4"
               variant="adminSecondary"
-              onClick={copyLink}
+              disabled={
+                copyState === 'copying' ||
+                linkStatus?.kind !== 'valid'
+              }
+              aria-busy={
+                copyState === 'copying' || linkStatus === undefined
+              }
+              onClick={() => void copyLink()}
             >
-              Copiar link
+              {linkStatus === undefined
+                ? 'Verificando…'
+                : copyState === 'copying'
+                  ? 'Copiando…'
+                  : 'Copiar link'}
             </Button>
+            {copyState === 'copied' ? (
+              <p className="mt-3 text-sm font-bold">Link copiado.</p>
+            ) : copyState === 'failed' ? (
+              <p className="mt-3 text-sm text-wine">
+                Não foi possível copiar automaticamente. Abra o link acima ou
+                mantenha-o pressionado para copiar.
+              </p>
+            ) : null}
             <p className="mt-3 text-sm">
               Ele expira em 72 horas e não será exibido novamente.
             </p>

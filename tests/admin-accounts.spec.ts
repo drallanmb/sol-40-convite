@@ -43,12 +43,32 @@ test('D-01–D-06: contas iniciais e links mantêm o contrato individual', async
 test('D-13–D-22: ativação sanitiza URL e superfícies anônimas não montam o painel', async ({
   page,
 }) => {
-  const token = 'A'.repeat(43)
-  await page.goto(`/admin/ativar?token=${token}`)
+  const token = `${'A'.repeat(20)}-${'B'.repeat(20)}_A`
+  const leakedRequests: string[] = []
+  page.on('request', (request) => {
+    const referer = request.headers().referer ?? ''
+    if (request.url().includes(token) || referer.includes(token)) {
+      leakedRequests.push(`${request.method()} ${request.resourceType()}`)
+    }
+  })
+
+  await page.goto(`/admin/ativar#token=${token}`)
   await expect(page).toHaveURL(/\/admin\/ativar$/u)
   await expect(page.getByRole('heading', { name: 'Ativar acesso' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Seções do painel' })).toHaveCount(0)
   await expect(page.getByText(token, { exact: false })).toHaveCount(0)
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute(
+    'content',
+    'no-referrer',
+  )
+  expect(leakedRequests).toEqual([])
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    ),
+  ).toBeLessThanOrEqual(1)
   expect(DECISION_COVERAGE.sessionsAndMigration).toEqual([
     'D-13', 'D-14', 'D-15', 'D-16', 'D-17', 'D-18',
     'D-19', 'D-20', 'D-21', 'D-22',
