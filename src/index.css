@@ -139,25 +139,13 @@ body {
 }
 
 .cinematic-sky-base {
-  background:
-    radial-gradient(
-      ellipse at 76% 16%,
-      color-mix(in srgb, var(--color-cream) 28%, transparent) 0,
-      transparent 24%
-    ),
-    radial-gradient(
-      ellipse at var(--intro-sun-x) var(--intro-sun-y),
-      var(--color-sky-halo) 0,
-      color-mix(in srgb, var(--color-sky-halo) 52%, transparent) 18%,
-      transparent 42%
-    ),
-    linear-gradient(
-      176deg,
-      color-mix(in srgb, var(--color-plum) 48%, var(--color-sky-dusk)) 0%,
-      var(--color-sky-dusk) 28%,
-      var(--color-sky-apricot) 62%,
-      var(--color-sky-coral) 100%
-    );
+  background: linear-gradient(
+    176deg,
+    color-mix(in srgb, var(--color-plum) 48%, var(--color-sky-dusk)) 0%,
+    var(--color-sky-dusk) 28%,
+    var(--color-sky-apricot) 62%,
+    var(--color-sky-coral) 100%
+  );
 }
 
 .cinematic-cool-veil {

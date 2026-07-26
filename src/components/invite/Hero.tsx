@@ -17,6 +17,8 @@ export type HeroProps = {
 
 const PRIMARY_COPY_ONSET = 0.76
 const SECONDARY_COPY_ONSET = 0.88
+const SUN_SETTLE_OFFSET = 0.82
+const AMBIENT_GLOW_ONSET = 0.83
 
 /**
  * O hero é o próprio plano-sequência: todas as camadas existem do primeiro
@@ -147,8 +149,13 @@ export function Hero({
         {
           track: 'warm-horizon',
           keyframes: [
-            { offset: 0, opacity: 0.28, transform: 'scale3d(.72, .72, 1)' },
-            { offset: 0.68, opacity: 0.78, transform: 'scale3d(.94, .9, 1)' },
+            { offset: 0, opacity: 0, transform: 'scale3d(.72, .72, 1)' },
+            {
+              offset: AMBIENT_GLOW_ONSET,
+              opacity: 0,
+              transform: 'scale3d(.82, .78, 1)',
+            },
+            { offset: 0.88, opacity: 0.58, transform: 'scale3d(.95, .92, 1)' },
             { offset: 1, opacity: 1, transform: 'none' },
           ],
         },
@@ -170,14 +177,20 @@ export function Hero({
               transform: `translate3d(${approachX}px, ${approachY}px, 0) scale(.975)`,
               easing: 'cubic-bezier(.16,.76,.16,1)',
             },
+            { offset: SUN_SETTLE_OFFSET, transform: 'none' },
             { offset: 1, transform: 'none' },
           ],
         },
         {
           track: 'haze',
           keyframes: [
-            { offset: 0, opacity: 0.2, transform: 'scale3d(.72, .62, 1)' },
-            { offset: 0.7, opacity: 0.72, transform: 'scale3d(.94, .9, 1)' },
+            { offset: 0, opacity: 0, transform: 'scale3d(.72, .62, 1)' },
+            {
+              offset: AMBIENT_GLOW_ONSET,
+              opacity: 0,
+              transform: 'scale3d(.82, .74, 1)',
+            },
+            { offset: 0.88, opacity: 0.54, transform: 'scale3d(.95, .9, 1)' },
             { offset: 1, opacity: 1, transform: 'none' },
           ],
         },

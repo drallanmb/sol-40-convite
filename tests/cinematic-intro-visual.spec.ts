@@ -317,10 +317,24 @@ test('storyboard tracks are finite, semantic and transform-opacity only', async 
   }
 
   const sunContract = contract.find(({ track }) => track === 'sun-arc')
-  expect(sunContract?.keyframes).toHaveLength(4)
+  expect(sunContract?.keyframes).toHaveLength(5)
   expect(String(sunContract?.keyframes[0]?.transform)).toMatch(
     /translate3d\([^,]+px,\s*-[^,]+px/,
   )
+  expect(sunContract?.keyframes.at(-2)?.offset).toBe(0.82)
+  expect(sunContract?.keyframes.at(-2)?.transform).toBe('none')
+
+  for (const glowTrack of ['warm-horizon', 'haze']) {
+    const glowContract = contract.find(({ track }) => track === glowTrack)
+    expect(glowContract?.keyframes.map(({ offset }) => offset)).toEqual([
+      0,
+      0.83,
+      0.88,
+      1,
+    ])
+    expect(Number(glowContract?.keyframes[0]?.opacity)).toBe(0)
+    expect(Number(glowContract?.keyframes[1]?.opacity)).toBe(0)
+  }
 })
 
 test('copy groups unlock at their own visible onset without blocking chrome', async ({
@@ -605,6 +619,58 @@ test('generates deterministic desktop and mobile cinematic contact sheets', asyn
     'none',
   )
   await expectNoDocumentOverflow(page)
+
+  const warmHorizon = page.locator('[data-intro-layer="warm-horizon"]')
+  const haze = page.locator('[data-intro-layer="haze-horizon"]')
+  for (const preArrivalProgress of [0, 0.4, 0.7]) {
+    await seekIntro(page, preArrivalProgress)
+    await expect(warmHorizon).toHaveCSS('opacity', '0')
+    await expect(haze).toHaveCSS('opacity', '0')
+  }
+
+  await seekIntro(page, 0.82)
+  await expect(warmHorizon).toHaveCSS('opacity', '0')
+  await expect(haze).toHaveCSS('opacity', '0')
+
+  const settledGeometry = await page.evaluate(() => {
+    const target = document.querySelector<HTMLElement>(
+      '[data-intro-sun-target]',
+    )
+    const sun = document.querySelector<HTMLElement>('[data-intro-sun]')
+    if (!target || !sun) throw new Error('Canonical sun geometry is absent')
+    const targetRect = target.getBoundingClientRect()
+    const sunRect = sun.getBoundingClientRect()
+    return {
+      centerDeltaX: Math.abs(
+        targetRect.left + targetRect.width / 2 -
+          (sunRect.left + sunRect.width / 2),
+      ),
+      centerDeltaY: Math.abs(
+        targetRect.top + targetRect.height / 2 -
+          (sunRect.top + sunRect.height / 2),
+      ),
+      sizeDelta: Math.abs(targetRect.width - sunRect.width),
+    }
+  })
+  expect(settledGeometry.centerDeltaX).toBeLessThanOrEqual(1)
+  expect(settledGeometry.centerDeltaY).toBeLessThanOrEqual(1)
+  expect(settledGeometry.sizeDelta).toBeLessThanOrEqual(1)
+
+  await seekIntro(page, 0.88)
+  await expect
+    .poll(() =>
+      warmHorizon.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      haze.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeGreaterThan(0)
 
   await seekIntro(page, 1)
   const geometry = await page.evaluate(() => {
