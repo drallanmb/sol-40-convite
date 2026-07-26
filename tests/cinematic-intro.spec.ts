@@ -15,7 +15,19 @@ declare global {
   interface Window {
     __cinematicIntroAnimations: Animation[]
     __cinematicIntroSunNodes: Element[]
+    __cinematicIntroNaturalPhases?: string[]
   }
+}
+
+async function expectNoDocumentOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => ({
+    document:
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+    body: document.body.scrollWidth - document.body.clientWidth,
+  }))
+  expect(overflow.document).toBeLessThanOrEqual(1)
+  expect(overflow.body).toBeLessThanOrEqual(1)
 }
 
 export async function installCinematicIntroControl(page: Page): Promise<void> {
@@ -112,6 +124,50 @@ test('first frame shows only the final sky while the sun starts above the viewpo
   const { visual } = await readSunGeometry(page)
   expect(visual.bottom).toBeLessThanOrEqual(0)
   await expect(hero.locator('h1')).toBeHidden()
+  await expect(page.locator('header')).toHaveCSS('visibility', 'hidden')
+  await expect(page.locator('header')).toHaveCSS('opacity', '0')
+  await expectNoDocumentOverflow(page)
+
+  const initialSunStyle = await page
+    .locator('[data-testid="hero-sun-visual"]')
+    .evaluate((element) => {
+      const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return {
+        width: rect.width,
+        height: rect.height,
+        background: style.backgroundColor,
+        boxShadow: style.boxShadow,
+      }
+    })
+
+  await finishLatestCinematicIntro(page)
+  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
+  await expect(page.locator('header')).toBeVisible()
+  await expect(page.locator('.wave-band').first()).toBeVisible()
+  await expect(hero.locator('h1')).toBeVisible()
+  await expect(
+    hero.getByRole('link', { name: 'Confirmar presença' }),
+  ).toBeEnabled()
+  await expectNoDocumentOverflow(page)
+
+  const finalSunStyle = await page
+    .locator('[data-testid="hero-sun-visual"]')
+    .evaluate((element) => {
+      const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return {
+        width: rect.width,
+        height: rect.height,
+        background: style.backgroundColor,
+        boxShadow: style.boxShadow,
+        animationCount: element.getAnimations().length,
+      }
+    })
+  expect(finalSunStyle).toEqual({
+    ...initialSunStyle,
+    animationCount: 0,
+  })
 })
 
 test('geometry lands the same canonical sun on its responsive target', async ({
@@ -148,6 +204,80 @@ test('geometry lands the same canonical sun on its responsive target', async ({
     })
     expect(visualRemainedCanonical).toBe(true)
   }
+})
+
+test('resize keeps one canonical animation and lands on the new responsive target', async ({
+  page,
+}) => {
+  await installCinematicIntroControl(page)
+  await page.setViewportSize({ width: 320, height: 760 })
+  await page.goto('/')
+  await page.waitForFunction(
+    () => window.__cinematicIntroAnimations?.length === 1,
+  )
+
+  const initialNodeIsConnected = await page.evaluate(
+    () => window.__cinematicIntroSunNodes[0]?.isConnected,
+  )
+  expect(initialNodeIsConnected).toBe(true)
+
+  await page.setViewportSize({ width: 768, height: 1024 })
+  const resizedState = await page.evaluate(() => ({
+    animationCount: window.__cinematicIntroAnimations.length,
+    nodeCount: window.__cinematicIntroSunNodes.length,
+    sameNode:
+      window.__cinematicIntroSunNodes[0] ===
+      document.querySelector('[data-testid="hero-sun-visual"]'),
+    connected: window.__cinematicIntroSunNodes[0]?.isConnected,
+  }))
+  expect(resizedState).toEqual({
+    animationCount: 1,
+    nodeCount: 1,
+    sameNode: true,
+    connected: true,
+  })
+
+  await finishLatestCinematicIntro(page)
+  await expectSunGeometryAligned(page)
+  await expectNoDocumentOverflow(page)
+})
+
+test('natural duration observes descending, revealing and complete near the 2s contract', async ({
+  page,
+}) => {
+  const startedAt = Date.now()
+  await page.goto('/')
+
+  const hero = page.locator('#inicio')
+  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
+  await page.evaluate(() => {
+    const intro = document.querySelector('[data-intro-phase]')
+    if (!intro) throw new Error('Intro phase root must exist')
+
+    window.__cinematicIntroNaturalPhases = [
+      intro.getAttribute('data-intro-phase') ?? '',
+    ]
+    new MutationObserver(() => {
+      const phase = intro.getAttribute('data-intro-phase') ?? ''
+      const phases = window.__cinematicIntroNaturalPhases ?? []
+      if (phases.at(-1) !== phase) phases.push(phase)
+    }).observe(intro, {
+      attributes: true,
+      attributeFilter: ['data-intro-phase'],
+    })
+  })
+
+  await expect(hero).toHaveAttribute('data-intro-phase', 'revealing')
+  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
+
+  const elapsed = Date.now() - startedAt
+  expect(elapsed).toBeGreaterThanOrEqual(1_800)
+  expect(elapsed).toBeLessThanOrEqual(3_500)
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__cinematicIntroNaturalPhases),
+    )
+    .toEqual(['descending', 'revealing', 'complete'])
 })
 
 test('timing uses one transform-only descent and a 260ms reveal', async ({
@@ -199,6 +329,13 @@ test('timing uses one transform-only descent and a 260ms reveal', async ({
     'transition-duration',
     '0s',
   )
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-testid="hero-sun-visual"]')
+        .evaluate((element) => element.getAnimations().length),
+    )
+    .toBe(0)
 })
 
 test('skip link stays first and outside inert while hidden controls reveal together', async ({
