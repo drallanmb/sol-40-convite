@@ -5,91 +5,90 @@
 
 **Date:** 2026-07-26
 **Phase:** 10-Abertura cinematográfica do pôr do sol
-**Areas discussed:** Trajetória e ritmo, Primeira visita e repetição, Pular e
-interagir, Revelação do convite
+**Areas discussed:** Diagnóstico da tentativa rejeitada, Direção visual e
+revelação da paisagem, Encaixe do sol e continuidade, Adaptação mobile e
+movimento reduzido
 
 ---
 
-## Trajetória e ritmo
+## Diagnóstico da tentativa rejeitada
 
-| Pergunta | Opções consideradas | Escolha |
-|----------|---------------------|---------|
-| Composição inicial | Céu sem conteúdo / céu e mar / fundo neutro | Céu do hero em tela cheia, sem mar ou conteúdo |
-| Origem do sol | Fora da tela / visível no topo / brilho pequeno | Totalmente fora da tela, entrando pela borda superior |
-| Reveal final | Fade conjunto / imediato / sequência | Fade conjunto de 250–300 ms |
-| Ritmo | Cinematográfico suave / constante / queda dramática | Cinematográfico suave |
-| Tamanho | Tamanho final / cresce / diminui | Mesmo tamanho final durante todo o percurso |
-| Céu | Gradiente estável / aquece / escurece | Gradiente final estável |
-| Halo | Constante / surge no fim / pulsa | Constante e igual ao hero |
-| Motion atual | Substituir / combinar / rodar depois | Substituir pelo novo reveal |
+| Problema apresentado | Selecionado |
+|---|---|
+| Conceito inteiro não ficou cinematográfico | ✓ |
+| Movimento do sol artificial | |
+| Primeiro frame parece loading | |
+| Encaixe e reveal abruptos/desconexos | ✓ |
 
-**User's choice:** Sol vindo de cima até a posição real do hero, em cerca de
-2 segundos, seguido por revelação curta e conjunta.
+**User's choice:** Recomeçar a direção conceitual; fundo, encaixe e reveal
+parecem secos, desconexos e com acabamento de protótipo.
 
-**Notes:** O usuário pediu uma sequência simples, sem complexidade que pareça
-loading. Depois de quatro perguntas iniciais, escolheu aprofundar a área e
-removeu variações de tamanho, cor, halo e uma segunda coreografia.
+**Notes:** A versão implementada tratava a abertura como gradiente estático,
+objeto em queda e fade de grupos. O usuário rejeitou essa gramática visual por
+inteiro.
 
 ---
 
-## Primeira visita e repetição
+## Direção visual e revelação da paisagem
 
-| Pergunta | Opções consideradas | Escolha |
-|----------|---------------------|---------|
-| Frequência | Nova entrada na rota / reentrada no viewport / só reload | Toda nova entrada elegível na rota `/` |
-| Símbolo da topbar | Só rolar / repetir / não agir | Só rolar para o hero |
-| Retorno após interrupção | Recomeçar / retomar / revelar direto | Recomeçar |
-| Fragmento direto | Ir direto / animar e depois rolar / ignorar fragmento | Ir direto sem abertura |
+| Decisão | Opções consideradas | Escolha |
+|---|---|---|
+| Conceito de cena | Plano-sequência atmosférico / câmera afastando do sol / paisagem despertando | Plano-sequência atmosférico |
+| Motor da revelação | Luz desperta a paisagem / névoa dissipa / parallax | Luz desperta a paisagem |
+| Entrada do conteúdo | Hierarquia curta / nasce da luz / máscara do horizonte | Hierarquia cinematográfica curta |
+| Acabamento | Ilustração editorial / pintura digital / gráfico abstrato | Ilustração editorial cinematográfica |
 
-**User's choice:** “Aparece sempre ao entrar na hero.”
+**User's choice:** Uma paisagem contínua já presente no primeiro frame,
+transformada pela iluminação do sol e finalizada com riqueza editorial.
 
-**Notes:** “Entrar” foi concretizado como uma nova montagem/acesso da rota
-pelo início. A mesma montagem não repete por rolagem ou pelo link `#inicio`.
-
----
-
-## Pular e interagir
-
-| Pergunta | Opções consideradas | Escolha |
-|----------|---------------------|---------|
-| Captura de entrada | Não capturar / travar scroll / interação encerra | Não capturar clique, toque ou teclado |
-| Skip link | Acima da cena / só depois / atrás da cena | Disponível e visível ao foco |
-| Scroll durante a cena | Encerrar / continuar fixa / acompanhar hero | Encerrar imediatamente |
-| Reduced motion | Hero imediato / só fade / movimento mínimo | Hero final imediato |
-
-**User's choice:** Sem botão “Pular” e sem interação própria porque a cena é
-curta.
-
-**Notes:** A ausência de controle não bloqueia os mecanismos normais da
-página. Scroll conclui a cena; foco e skip link permanecem operáveis.
+**Notes:** Nuvens, névoa, reflexo no mar, profundidade e textura sutil eliminam
+a aparência de fundo plano. Título/data entram antes de convite/CTAs em
+aproximadamente 500–700 ms.
 
 ---
 
-## Revelação do convite
+## Encaixe do sol e continuidade
 
-| Pergunta | Opções consideradas | Escolha |
-|----------|---------------------|---------|
-| Ativação dos links | Início do fade / fim / após pausa | Início do fade |
-| Primeiro frame | Só céu / cream / flash do hero | Só céu |
-| Handoff do sol | Contínuo / participa do fade / some e volta | Contínuo, sem piscar |
-| Entrada do mar | Já em movimento / move após fade / pausa estática | Já em movimento |
+| Decisão | Opções consideradas | Escolha |
+|---|---|---|
+| Trajetória | Arco diagonal / descida orgânica / movimento da câmera | Arco diagonal natural |
+| Chegada | Luz conecta à paisagem / bloom breve / horizonte mascara | Luz conecta à paisagem |
+| Câmera | Recuo sutil / fixa / aproximação | Recuo sutil |
+| Duração | ~3 s / ~2 s / 4–5 s | Cerca de 3 segundos |
 
-**User's choice:** O hero aparece depois da animação, com reveal suave e
-rápido.
+**User's choice:** Arco solar amplo e desacelerado, acompanhado por recuo de
+câmera e parallax mínimo.
 
-**Notes:** O sol fica fora do fade; os demais elementos aparecem ao redor
-dele em 250–300 ms.
+**Notes:** Halo e reflexo no mar absorvem o momento final; quando o sol para, a
+cena já é o hero, sem corte ou troca de background.
+
+---
+
+## Adaptação mobile e movimento reduzido
+
+| Decisão | Opções consideradas | Escolha |
+|---|---|---|
+| Mobile | Composição vertical própria / simplificada / recorte desktop | Composição vertical própria |
+| Resize/orientação | Reenquadrar sem reiniciar / concluir / reiniciar | Reenquadrar suavemente |
+| Reduced motion | Hero imediato / luz curta / atmosfera mínima | Cena final imediata |
+| Interrupção | Conclusão acelerada / instantânea / continua ao fundo | Conclusão cinematográfica acelerada |
+
+**User's choice:** Preservar a narrativa em mobile com enquadramento desenhado
+para o formato, sem reduzir a experiência a um crop.
+
+**Notes:** Resize preserva progresso; movimento reduzido elimina toda a
+coreografia; scroll, toque, teclado ou navegação aceleram a timeline para o
+final em 150–200 ms.
 
 ---
 
 ## Claude's Discretion
 
-- Técnica de medição/shared-element e organização interna dos estados.
-- Curva exata de easing dentro do ritmo aprovado.
-- Valor exato do reveal entre 250 e 300 ms.
-- Limiar técnico que diferencia ruído de uma intenção real de scroll.
-- Estratégia de testes e necessidade de dependência de animação, com
-  preferência por manter a solução leve.
+- Lado de origem do arco conforme a composição final.
+- Desenho e densidade de nuvens, névoa, reflexos e textura.
+- Easing e intensidade exata do recuo/parallax.
+- Técnica de composição leve para manter a paisagem contínua.
+- Microtiming dentro da hierarquia tipográfica de 500–700 ms.
 
 ## Deferred Ideas
 

@@ -1,104 +1,129 @@
 # Phase 10: Abertura cinematográfica do pôr do sol - Context
 
 **Gathered:** 2026-07-26
-**Status:** Ready for planning
+**Status:** Ready for replanning
 
 <domain>
 ## Phase Boundary
 
-Entrega uma abertura visual para entradas elegíveis na rota `/`: o céu do
-hero ocupa a tela, o mesmo sol da composição final entra pela borda superior
-e desce até a geometria real do sol renderizado. Quando os dois estados se
-encaixam sem salto, mar, textos, ações e navegação do hero são revelados.
+Entrega uma abertura visual para entradas elegíveis na rota `/`: uma paisagem
+editorial contínua já existe no primeiro frame, o sol percorre um arco natural
+enquanto sua luz desperta céu, horizonte, mar e silhuetas, e a câmera recua
+discretamente até formar o enquadramento real do hero.
 
-A abertura não é uma tela de loading, não adiciona controles próprios e não
-cria uma segunda arte do hero. Links diretos para outras seções, rotas
-secundárias e retornos ao hero por rolagem permanecem fora da sequência.
+A cena termina no próprio hero, sem troca de fundo ou handoff perceptível. A
+abertura não é loading, não adiciona controles próprios e não bloqueia
+navegação. Links diretos para outras seções e rotas secundárias continuam fora
+da sequência.
+
+**Este contexto substitui integralmente a direção visual anterior.** O conceito
+“céu vazio + sol em queda vertical + fade conjunto do hero” foi implementado,
+avaliado pelo usuário como seco, abrupto e com aparência de protótipo, e NÃO
+deve ser preservado por compatibilidade com os planos ou testes anteriores.
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
-### Cena, trajetória e ritmo
+### Direção visual e atmosfera
 
-- **D-01:** O primeiro frame mostra imediatamente apenas o céu do próprio
-  hero em tela cheia, com o gradiente final estável. Não pode haver flash do
-  hero completo antes da abertura.
-- **D-02:** O sol começa totalmente fora da tela, entra pela borda superior e
-  desce pelo eixo central até a posição real medida do sol do hero.
-- **D-03:** O disco mantém exatamente o tamanho final e a mesma intensidade de
-  halo durante todo o percurso. Céu, tamanho e halo não mudam durante a
-  descida.
-- **D-04:** A descida dura aproximadamente **2 segundos** e usa movimento
-  cinematográfico suave: começa devagar, ganha velocidade e desacelera ao
-  encaixar.
-- **D-05:** A abertura não apresenta spinner, progresso, copy de espera ou
-  qualquer estado que pareça loading.
-- **D-06:** Ao pousar, o sol permanece continuamente visível e passa a ser o
-  sol real do hero sem piscar, desaparecer ou reduzir opacidade.
-- **D-07:** Mar, textos, CTAs, metadados e navegação surgem juntos em um fade
-  curto de **250–300 ms**. As animações escalonadas atuais do hero são
-  substituídas por esse único reveal.
+- **D-01:** A abertura é um **plano-sequência atmosférico**. Céu, horizonte,
+  mar e silhuetas já pertencem à mesma paisagem desde o primeiro frame.
+- **D-02:** Não existe troca de fundo, tela vazia ou estado composto somente
+  pelo gradiente do céu. A continuidade ambiental é o fundamento da cena.
+- **D-03:** A revelação é conduzida pela **luz do sol**: o horizonte aquece, o
+  mar recebe reflexos, as ondas ganham brilho e as silhuetas adquirem contraste
+  conforme o sol percorre a cena.
+- **D-04:** O acabamento é de **ilustração editorial cinematográfica**,
+  enriquecendo a identidade atual com nuvens suaves, névoa luminosa,
+  profundidade em camadas, reflexo solar no mar e textura sutil.
+- **D-05:** O resultado deve parecer uma direção de arte finalizada, não uma
+  demonstração técnica de elementos DOM animados. Gradientes secos, fundos
+  planos e fades genéricos são insuficientes.
 
-### Frequência e navegação
+### Trajetória, câmera e encaixe
 
-- **D-08:** A abertura roda sempre que a rota `/` é carregada ou acessada
-  novamente pelo hero. Não existe persistência de “já viu” em storage,
-  cookie, sessão ou perfil.
-- **D-09:** Rolar para baixo e voltar ao hero na mesma montagem não repete a
-  abertura.
-- **D-10:** Tocar no símbolo da topbar enquanto a pessoa já está na página
-  apenas volta a `#inicio`; não reinicia a cena.
-- **D-11:** Se a pessoa sair durante a animação e depois retornar à rota `/`,
-  a abertura recomeça desde o início.
-- **D-12:** Links diretos para outra seção, como `/#programacao`, respeitam o
-  fragmento e não executam a abertura.
+- **D-06:** O sol percorre um **arco diagonal amplo e natural**, não uma queda
+  vertical. Ele começa alto e deslocado e desacelera ao se aproximar do
+  horizonte/posição final.
+- **D-07:** O enquadramento faz um recuo sutil de câmera durante a sequência.
+  Nuvens, horizonte, mar e palmeiras respondem com parallax mínimo.
+- **D-08:** O recuo termina exatamente no enquadramento responsivo real do hero;
+  a sensação deve ser de câmera, nunca de zoom evidente da interface.
+- **D-09:** O instante final não parece um objeto encaixando numa coordenada.
+  Nos últimos momentos, o halo se conecta ao horizonte e cria/reforça o reflexo
+  no mar enquanto o sol desacelera.
+- **D-10:** Quando o sol para, a paisagem já é o hero final. Não há corte,
+  substituição de elemento, troca de background ou fade usado como cortina para
+  esconder o encaixe.
+- **D-11:** A coreografia completa dura aproximadamente **3 segundos**,
+  permitindo que arco, transformação de luz, recuo de câmera e reflexo tenham
+  respiração sem parecer loading.
 
-### Interação e acessibilidade
+### Revelação do conteúdo
 
-- **D-13:** Não existe botão “Pular”, gesto próprio ou controle específico da
-  abertura.
-- **D-14:** A camada visual não captura clique, toque ou teclado. A página
-  continua tecnicamente navegável e rolável durante os 2 segundos.
-- **D-15:** Uma rolagem iniciada durante a descida conclui imediatamente a
-  abertura e libera a página no ponto escolhido pela pessoa.
-- **D-16:** O skip link existente permanece como primeiro elemento focável,
-  aparece acima da abertura ao receber foco e continua funcional.
-- **D-17:** `prefers-reduced-motion: reduce` recebe o hero final
-  imediatamente, sem descida e sem fade.
+- **D-12:** O conteúdo não aparece todo junto num fade genérico. A entrada usa
+  uma hierarquia cinematográfica curta.
+- **D-13:** Primeiro surgem “Sol faz 40” e a data; em seguida entram convite e
+  CTAs, com movimento mínimo e foco progressivo.
+- **D-14:** A entrada tipográfica completa ocupa aproximadamente **500–700 ms**
+  e acontece quando a paisagem já está quase formada.
+- **D-15:** A navegação e os controles tornam-se operáveis sem esperar uma
+  animação decorativa terminar; visibilidade e interatividade permanecem
+  coordenadas.
 
-### Revelação do hero
+### Mobile, resize e movimento reduzido
 
-- **D-18:** Links e botões ficam interativos assim que o fade de revelação
-  começa; não esperam os 250–300 ms terminarem.
-- **D-19:** O sol não participa do fade. Somente mar, conteúdo e navegação
-  ganham opacidade ao redor do disco já encaixado.
-- **D-20:** O mar aparece já em movimento durante o fade, sem uma etapa
-  estática posterior.
-- **D-21:** A composição inicial usa a própria linguagem visual do hero;
-  nenhuma tela neutra ou escura antecede o céu.
+- **D-16:** Mobile recebe direção de arte própria, não um recorte automático do
+  desktop: arco mais alto e compacto, horizonte mais baixo, reflexo em faixa
+  vertical e palmeiras como moldura lateral.
+- **D-17:** Resize ou mudança de orientação durante a abertura preserva o
+  progresso e reenquadra suavemente a composição, sem reiniciar e sem salto.
+- **D-18:** `prefers-reduced-motion: reduce` recebe imediatamente a cena final
+  completa, sem arco, zoom, parallax ou fade.
+- **D-19:** A geometria final continua derivada do hero realmente renderizado
+  em cada viewport, não de coordenadas duplicadas.
 
-### Decisões herdadas
+### Frequência, navegação e interrupção
 
-- **D-22:** O alvo é a geometria realmente renderizada em cada viewport, não
-  coordenadas duplicadas ou breakpoints paralelos.
-- **D-23:** Resize ou mudança de orientação antes do início precisa produzir o
-  alvo correto para 320 px, tablet e desktop.
-- **D-24:** A cena reutiliza a arte e os tokens atuais do hero e preserva
-  contraste AA, desempenho mobile, foco e a navegação existente.
+- **D-20:** A abertura roda em cada nova entrada elegível na rota `/` ou
+  `/#inicio`; não existe persistência de “já viu” em storage, cookie ou perfil.
+- **D-21:** Rolar para baixo e voltar ao hero ou tocar no wordmark `#inicio` na
+  mesma montagem não reinicia a cena.
+- **D-22:** Links diretos para seções conhecidas, como `/#programacao`, pulam a
+  abertura e respeitam o fragmento.
+- **D-23:** Não existe botão exclusivo “Pular”. Skip link, teclado, toque,
+  scroll e navegação normal permanecem funcionais.
+- **D-24:** Uma intenção de navegação durante a abertura acelera sol, luz,
+  câmera e conteúdo para o estado final em aproximadamente **150–200 ms**.
+  Não há corte seco nem espera forçada.
+- **D-25:** Sair durante a abertura e retornar por uma nova montagem elegível
+  reinicia a cena; uma restauração real por bfcache deve limpar handles e
+  listeners anteriores.
+
+### Acessibilidade e segurança
+
+- **D-26:** Nenhuma camada decorativa captura pointer, toque ou teclado; a cena
+  nunca funciona como modal ou overlay bloqueante.
+- **D-27:** O skip link existente continua sendo o primeiro foco, aparece acima
+  da composição e permanece funcional.
+- **D-28:** Falhas da Web Animations API ou de qualquer etapa visual são
+  **fail-open**: o hero final e todos os controles ficam imediatamente visíveis
+  e operáveis.
+- **D-29:** Contraste AA, ausência de overflow horizontal e desempenho mobile
+  permanecem invariantes da fase.
 
 ### Claude's Discretion
 
-- Técnica exata de medição e transição shared-element, desde que exista um
-  único sol visual no encaixe e nenhum salto perceptível.
-- Curva de easing concreta que materializa o ritmo decidido.
-- Valor final dentro da faixa de 250–300 ms e tolerância de arredondamento
-  subpixel.
-- Limiar mínimo de rolagem que encerra a abertura, evitando cancelamento por
-  ruído sem atrasar uma intenção real de navegação.
-- Organização dos estados e testes, sem introduzir uma biblioteca pesada de
-  animação por necessidade presumida.
+- Lado exato de origem do arco, escolhido a partir da composição final e da
+  leitura visual em cada formato.
+- Quantidade, desenho e distribuição de nuvens, névoa, reflexos e textura,
+  desde que permaneçam editoriais e coerentes com a identidade existente.
+- Curvas de easing e proporção exata do recuo/parallax dentro do ritmo aprovado.
+- Técnica de composição/máscaras/camadas que mantenha uma cena contínua e
+  responsiva sem transformar a abertura em vídeo pesado ou loading.
+- Microtiming da hierarquia tipográfica dentro da faixa de 500–700 ms.
 
 </decisions>
 
@@ -110,32 +135,34 @@ secundárias e retornos ao hero por rolagem permanecem fora da sequência.
 ### Escopo e requisitos
 
 - `.planning/ROADMAP.md` § “Phase 10: Abertura cinematográfica do pôr do sol”
-  — objetivo, dependência e critérios de sucesso.
+  — objetivo e critérios de sucesso.
 - `.planning/REQUIREMENTS.md` § “Abertura Cinematográfica” — INTRO-01 e
   INTRO-02.
-- `.planning/PROJECT.md` § “Constraints” e § “Key Decisions” — medição da
-  geometria real, motion reduzido e transição shared-element.
-- `.planning/phases/02-convite-p-blico/02-CONTEXT.md` § “Hero e arte” — arte
-  canônica do hero e decisões originais de céu, sol, mar e motion.
+- `.planning/PROJECT.md` § “Constraints” e § “Key Decisions” — identidade,
+  geometria real, movimento reduzido e acessibilidade.
+- `.planning/phases/02-convite-p-blico/02-CONTEXT.md` § “Hero e arte” —
+  composição canônica da paisagem e decisões originais do convite.
 
-### Sistema visual
+### Sistema visual e composição
 
-- `DESIGN.md` — regras normativas de cor, tipografia, motion, profundidade e
-  acessibilidade do convite.
-- `src/index.css` — tokens do céu/sol/halo, animações atuais do hero e motion
-  global que a fase deve substituir ou coordenar.
+- `DESIGN.md` — regras normativas de cor, tipografia, profundidade, motion e
+  acessibilidade.
+- `src/index.css` — tokens e implementação visual atual; a direção seca da
+  primeira tentativa deve ser substituída, não refinada superficialmente.
+- `src/components/invite/Hero.tsx` — composição, geometria e sol canônico do
+  hero final.
+- `src/components/invite/SeaWaves.tsx` — camadas de mar/ondas que participam da
+  iluminação e profundidade.
+- `src/components/layout/Shell.tsx` — topbar, skip link e navegação.
+- `src/routes/Home.tsx` — elegibilidade e coordenação da rota.
+- `src/hooks/useReducedMotion.ts` — preferência reativa de movimento.
 
-### Composição e acessibilidade atuais
+### Evidência da tentativa rejeitada
 
-- `src/components/invite/Hero.tsx` — sol real, gradiente, mar, conteúdo e
-  geometria responsiva que formam o estado final.
-- `src/components/invite/SeaWaves.tsx` — mar que deve aparecer já em movimento
-  durante o reveal.
-- `src/components/layout/Shell.tsx` — topbar, navegação, skip link, foco e
-  countdown rail existentes.
-- `src/routes/Home.tsx` — montagem da rota `/` e ordem das seções.
-- `src/hooks/useReducedMotion.ts` — store reativo existente para
-  `prefers-reduced-motion`.
+- `.planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/10-REVIEW.md` —
+  achados técnicos úteis, especialmente o requisito fail-open.
+- `.planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/10-VERIFICATION.md`
+  — testes existentes e gap WAAPI; não usar seu conceito visual como referência.
 
 </canonical_refs>
 
@@ -144,50 +171,48 @@ secundárias e retornos ao hero por rolagem permanecem fora da sequência.
 
 ### Reusable Assets
 
-- `Hero`: já contém o único sol canônico, com largura responsiva, posição por
-  breakpoint, halo e gradiente final.
-- `SeaWaves`: mantém as três bandas de onda e pode ser revelado já com a
-  animação ativa.
-- `useReducedMotion`: fornece a preferência do sistema sem criar outro
-  listener de media query.
-- `Shell`: já mantém o skip link acima do conteúdo, a topbar e o gerenciamento
-  de foco/navegação móvel.
+- `Hero`: contém a geometria final responsiva e o sol canônico; deve continuar
+  sendo o destino real da cena.
+- `SeaWaves`: fornece as bandas marítimas existentes e pode receber iluminação,
+  profundidade e reflexo sem criar uma segunda paisagem.
+- `useReducedMotion`: fornece o fallback imediato já integrado à aplicação.
+- `Shell`: preserva skip link, topbar e comportamento de foco.
+- `cinematicIntro.ts`: reúne políticas úteis de elegibilidade, fase, fragmento
+  e scroll, embora durações e coreografia precisem ser revistas.
 
 ### Established Patterns
 
-- Motion decorativo nunca é requisito para revelar ou operar conteúdo.
-- CSS e React usam `prefers-reduced-motion`; conteúdo não parte de um estado
-  inacessível quando a animação falha.
-- O hero é mobile-first e sua geometria usa `clamp()` e breakpoints, portanto
-  coordenadas hardcoded fora do elemento divergiriam.
-- As ondas atuais são CSS/SVG, sem vídeo ou biblioteca de animação.
-- Foco visível, alvos mínimos e contraste AA são invariantes do projeto.
+- A arte é construída em CSS/SVG e deve permanecer leve; nenhuma camada visual
+  pode ser condição para acessar conteúdo.
+- O hero é mobile-first e usa geometria fluida; a nova direção precisa modelar
+  composições desktop e vertical sem coordenadas paralelas frágeis.
+- Testes Playwright existentes já cobrem identidade do sol, viewports,
+  fragmentos, foco, reduced motion e release; devem ser reescritos onde
+  codificam a estética rejeitada.
 
 ### Integration Points
 
-- A rota `src/routes/Home.tsx` decide se a entrada atual é elegível,
-  especialmente diante de um fragmento diferente de `#inicio`.
-- `src/components/invite/Hero.tsx` expõe o alvo mensurável do sol e os grupos
-  visuais que ficam ocultos até o reveal.
-- `src/components/layout/Shell.tsx` precisa coordenar a visibilidade da
-  navegação sem cobrir o skip link ou tornar elementos invisíveis focáveis.
-- `src/index.css` substitui a entrada escalonada atual por estados da nova
-  sequência e mantém o fallback de reduced motion.
-- Testes de componente/browser devem cobrir entrada, retorno de rota,
-  fragmento direto, cancelamento por scroll, foco, reduced motion e viewports
-  representativos.
+- `Home.tsx` continua responsável por elegibilidade, lifecycle e aceleração da
+  conclusão por intenção de navegação.
+- `Hero.tsx` deve coordenar arco, luz, câmera, parallax, reflexo e conteúdo como
+  uma única timeline visual.
+- `index.css` precisa deixar de tratar o background como gradiente estático e o
+  hero como grupos ocultos por opacity.
+- Testes precisam validar continuidade objetiva sem congelar a direção de arte
+  em seletores ou snapshots frágeis.
 
 </code_context>
 
 <specifics>
 ## Specific Ideas
 
-- A intenção é deliberadamente simples: “coisa de 2s”, sem transformar a
-  abertura em loading.
-- “Sempre ao entrar na hero” significa nova entrada da rota pelo início, não
-  reentrada visual causada por rolagem.
-- O momento-chave é o sol móvel tornar-se o sol existente do hero como uma
-  única cena contínua.
+- Diagnóstico do usuário sobre a primeira tentativa: “parece seco, protótipo,
+  ficou ruim”, principalmente no fundo e no encaixe/reveal.
+- A nova cena deve ser percebida como paisagem viva e dirigida, não como uma
+  sequência de estados de interface.
+- O reflexo no mar e a propagação da luz são a ponte visual entre movimento do
+  sol e hero final.
+- Mobile merece composição vertical desenhada, não compressão da versão ampla.
 
 </specifics>
 
