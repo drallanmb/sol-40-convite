@@ -654,8 +654,16 @@ checkpoint humano **antes** da implementação completa de lifecycle e testes.
 
 ### Deliverable
 
-Construir a cena estratificada e um modo determinístico de seek somente para
-desenvolvimento/teste. Produzir keyframes em:
+Construir a cena estratificada e um seek determinístico inteiramente externo ao
+bundle. O visual spec deve abrir o preview normal de produção e usar
+`page.addInitScript()` antes da navegação para envolver
+`Element.prototype.animate` no page world. O wrapper sempre delega ao método
+original, pausa/registra somente os handles finitos cujos elementos owners
+possuem atributos semânticos `data-intro-*`, e deixa animações não pertencentes
+à intro seguirem sem alteração. A namespace que guarda handles e aplica
+`currentTime` é criada exclusivamente pelo init script; uma execução separada
+sem injeção deve provar que ela não existe no preview normal. Produzir
+keyframes em:
 
 - desktop 1280×800;
 - mobile 320×760.
@@ -689,8 +697,11 @@ resize, bfcache e matriz de release. Após aprovação, atualizar `DESIGN.md` co
 nova regra normativa.
 
 Playwright pode seekar animações por `currentTime`, e seus screenshots podem
-desabilitar animações; para este checkpoint, deve-se primeiro colocar a
-timeline no tempo desejado e então capturar o frame estável.
+desabilitar animações. Para este checkpoint, o init script deve aguardar todas
+as tracks semânticas coordenadas, pausar seus handles, aplicar o mesmo progresso
+normalizado a todas e então aguardar paints antes de capturar o frame estável.
+Isso evita qualquer API compilada no app e continua exercitando o build servido
+por `npm run preview`.
 
 Fontes:
 
@@ -734,6 +745,9 @@ Reescrever o spec atual em torno de comportamento novo:
 - fragmentos pulam intro e chegam à seção;
 - remount e `pageshow.persisted` reiniciam exatamente uma geração;
 - produção não usa `data-testid` como seletor;
+- preview de produção sem `addInitScript` não expõe namespace/bridge de seek;
+- wrapper injetado delega animações não-intro e registra somente owners
+  semânticos `data-intro-*`;
 - todas as layers decorativas são pointer-transparent.
 
 ### Forced failure matrix
@@ -787,7 +801,7 @@ Esta seção deve alimentar diretamente `10-VALIDATION.md`.
 |---|---|---|---|
 | Static/type | TypeScript + build | props, controller, refs e imports válidos | toda task |
 | Unit policy | Vitest | hash, reduced motion, progress, rate e geometry math | toda task lógica |
-| Visual checkpoint | Playwright seek + screenshots | direção de arte em frames desktop/mobile | **antes do lifecycle completo** |
+| Visual checkpoint | Playwright `addInitScript` + WAAPI seek + screenshots no preview de produção | direção de arte em frames desktop/mobile sem API de teste no bundle | **antes do lifecycle completo** |
 | Focused browser | Playwright `cinematic-intro.spec.ts` | timeline, geometria, resize, intent, failure, focus | por plan |
 | Cross-browser | projetos Chromium/WebKit | composição e lifecycle em desktop/mobile | após aprovação visual |
 | Release regression | `npm run test:release` | convite e rotas existentes não regrediram | último plan |
@@ -938,7 +952,8 @@ da timeline completa.
 - estruturar camadas reais do hero;
 - desenhar sky overlays, clouds, haze, reflection, waves e silhouettes;
 - manter um sol canônico;
-- criar seek determinístico para 0/40/70/88/100%;
+- criar seek determinístico test-only por `page.addInitScript()` para
+  0/40/70/88/100%, sem bridge no app;
 - produzir contact sheets desktop/mobile;
 - checkpoint humano obrigatório;
 - após aprovação, atualizar `DESIGN.md`.
@@ -969,18 +984,28 @@ da timeline completa.
 Essa decomposição mantém o risco maior — qualidade visual — antes do custo de
 engenharia de lifecycle.
 
-## Open Questions for the Planner
+## Open Questions (RESOLVED)
 
-Não há decisão de produto bloqueante pendente. Os itens abaixo são escolhas de
-execução dentro de Claude's Discretion e devem ser decididos no protótipo:
+Não há decisão de produto bloqueante pendente. Todas as escolhas abaixo estão
+**RESOLVED por delegação** ao protótipo determinístico de 10-01 Task 2 e ao
+checkpoint visual bloqueante de 10-01 Task 3, dentro de Claude's Discretion:
 
-- arco parte da esquerda ou direita em desktop/mobile;
-- quantidade exata e desenho das silhuetas;
-- amplitude final de câmera/parallax;
-- composição exata do reflexo;
-- se a topbar fica visível desde o frame 0 ou entra cedo.
+- **RESOLVED — origem do arco:** decidir esquerda/direita separadamente para
+  desktop e mobile nos keyframes; a escolha só se torna normativa após o
+  checkpoint aprovar naturalidade e composição.
+- **RESOLVED — silhuetas:** decidir quantidade e desenho no protótipo,
+  respeitando legibilidade, tokens e a moldura mobile; o checkpoint rejeita
+  qualquer resultado plano, congestionado ou com aparência de crop.
+- **RESOLVED — câmera/parallax:** calibrar amplitude nos frames e na prévia de
+  3 s; o checkpoint aprova somente se a leitura for de câmera, não zoom de UI.
+- **RESOLVED — reflexo:** definir forma, largura e progressão no protótipo; o
+  checkpoint exige que halo, horizonte e reflexo formem uma ponte contínua.
+- **RESOLVED — topbar:** testar visibilidade desde o frame 0 ou entrada
+  antecipada no protótipo, preservando foco/interatividade; o checkpoint
+  visual escolhe a alternativa e os contratos de acessibilidade a validam.
 
-Nenhum deles deve ser resolvido por texto apenas; use os keyframes para decisão.
+Essas resoluções não autorizam uma decisão apenas textual: 10-01 deve registrar
+nos artefatos e no resumo a alternativa efetivamente aprovada antes de 10-02.
 
 ## Sources
 
