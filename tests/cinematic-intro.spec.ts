@@ -384,7 +384,8 @@ async function liveSemanticWaapiAnimations(page: Page): Promise<number> {
   return page.evaluate(
     () =>
       window.__pwCinematicIntroWaapiFault?.records.filter(
-        ({ animation }) => animation.playState !== 'idle',
+        ({ animation }) =>
+          animation.effect !== null && animation.playState !== 'idle',
       ).length ?? -1,
   )
 }
@@ -938,9 +939,9 @@ test('bfcache restart disposes the previous generation even when WAAPI cancel th
     timeout: 1000,
   })
   await expectFinalUiOpen(page)
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(4)
   await expectSkipStillWorks(page)
   expect(await liveSemanticWaapiAnimations(page)).toBe(0)
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(4)
   expect(pageErrors).toEqual([])
 })
 

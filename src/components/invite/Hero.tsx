@@ -282,18 +282,30 @@ export function Hero({
       animation: Animation,
       failOpen: boolean,
     ): boolean => {
+      let handlerDetached = false
       try {
         animation.onfinish = null
+        handlerDetached = true
       } catch {
-        if (failOpen) controller.commitFinal('error')
-        return false
+        // Continue to cancel/detach the effect: a broken event setter must
+        // never keep the previous generation visually alive.
       }
 
       try {
         animation.cancel()
         return true
       } catch {
-        if (failOpen) controller.commitFinal('error')
+        // Some partial/polyfilled WAAPI implementations can throw from
+        // cancel(). Detaching the effect is the independent escape hatch that
+        // prevents a stale fill or running animation from surviving bfcache,
+        // remount or fail-open completion.
+      }
+
+      try {
+        animation.effect = null
+        return animation.effect === null
+      } catch {
+        if (failOpen || !handlerDetached) controller.commitFinal('error')
         return false
       }
     }
