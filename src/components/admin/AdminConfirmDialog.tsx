@@ -60,7 +60,7 @@ export function AdminConfirmDialog({
         event.preventDefault()
         cancel()
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-card p-6 text-ink backdrop:bg-plum/55 sm:p-8"
+      className="admin-dialog m-auto w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-card p-6 text-ink backdrop:bg-plum/55 sm:p-8"
     >
       <h2 id={titleId} className="font-serif text-2xl font-bold text-plum">
         {title}

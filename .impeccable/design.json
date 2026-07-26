@@ -60,6 +60,14 @@
         "displayName": "Título de Conteúdo",
         "purpose": "Programação, cartões editoriais e títulos intermediários."
       },
+      "routeTitle": {
+        "displayName": "Título de Rota",
+        "purpose": "Abertura fixa de 3rem das rotas públicas secundárias."
+      },
+      "adminTitle": {
+        "displayName": "Título Administrativo",
+        "purpose": "Título fixo de 2rem para todas as áreas operacionais."
+      },
       "body": {
         "displayName": "Leitura Gabarito",
         "purpose": "Texto corrido, instruções e formulários."
@@ -96,6 +104,26 @@
         "name": "wave-parallax",
         "value": "22s / 30s / 38s linear infinite",
         "purpose": "Movimento lento das três faixas do mar."
+      },
+      {
+        "name": "hero-signature",
+        "value": "680ms / 900ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "Céu aquece, sol assenta e a cópia chega em cinco tempos sem partir de opacidade zero."
+      },
+      {
+        "name": "program-sequence",
+        "value": "460ms + 45ms stagger cubic-bezier(.22,1,.36,1)",
+        "purpose": "A programação revela sua ordem uma vez ao entrar no viewport."
+      },
+      {
+        "name": "public-route-transitions",
+        "value": "460ms–720ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "Confirmação e carta de vinhos recebem uma assinatura curta por rota, com stagger limitado aos itens de cada lista."
+      },
+      {
+        "name": "admin-state-transitions",
+        "value": "180ms–280ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "Rotas, menus, diálogos, feedback e progresso comunicam mudanças operacionais sem coreografia decorativa."
       }
     ],
     "breakpoints": [

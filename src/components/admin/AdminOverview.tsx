@@ -85,10 +85,10 @@ function SummaryMetric({
   return (
     <div className="min-h-28 border-b border-line p-4 last:border-b-0 sm:[&:nth-child(odd)]:border-r xl:border-b-0 xl:border-r xl:last:border-r-0">
       <p className="text-sm font-bold text-ink/70">{label}</p>
-      <strong className="mt-2 block text-[2rem] leading-none tabular-nums text-plum">
+      <strong className="mt-2 block text-admin-title leading-none tabular-nums text-plum">
         {value}
       </strong>
-      <p className="mt-2 text-xs leading-snug text-ink/65">{detail}</p>
+      <p className="mt-2 text-sm leading-snug text-ink/65">{detail}</p>
     </div>
   )
 }
@@ -117,7 +117,7 @@ function PresenceLink({
         <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${colors.dot}`} />
         <span>
           <span className="block text-sm font-bold text-ink">{label}</span>
-          <span className="block text-xs text-ink/65">{percentage}% das pessoas</span>
+          <span className="block text-sm text-ink/65">{percentage}% das pessoas</span>
         </span>
       </span>
       <strong className={`text-xl tabular-nums ${colors.value}`}>
@@ -152,7 +152,7 @@ function PendingLink({
     >
       <span>
         <span className="block text-sm font-bold text-ink">{label}</span>
-        <span className={`mt-1 block text-xs ${hasPendingItems ? 'text-rsvp-pendente' : 'text-sea'}`}>
+        <span className={`mt-1 block text-sm ${hasPendingItems ? 'text-rsvp-pendente' : 'text-sea'}`}>
           {hasPendingItems ? 'Ação necessária' : 'Tudo em dia'}
         </span>
       </span>
@@ -198,7 +198,7 @@ export function AdminOverview(props: AdminOverviewProps) {
           <h1
             id="admin-page-title"
             tabIndex={-1}
-            className="font-serif text-[2rem] font-bold leading-[1.08] tracking-[-.02em] text-plum outline-none"
+            className="font-serif text-admin-title font-bold leading-[1.08] tracking-[-.02em] text-plum outline-none"
           >
             {ADMIN_COPY.overview.title}
           </h1>
@@ -245,7 +245,7 @@ export function AdminOverview(props: AdminOverviewProps) {
       ) : null}
 
       {readyData ? (
-        <>
+        <div className="admin-overview-ready">
           {emptyState ? (
             <Card variant="operational" className="mt-6">
               <h2 className="text-xl font-bold text-plum">{emptyState.title}</h2>
@@ -313,22 +313,22 @@ export function AdminOverview(props: AdminOverviewProps) {
               >
                 {readyData.confirmedCount > 0 ? (
                   <span
-                    className="bg-sea"
-                    style={{ flexGrow: readyData.confirmedCount }}
+                    className="admin-progress-segment bg-sea"
+                    style={{ flexGrow: readyData.confirmedCount, animationDelay: '40ms' }}
                     aria-hidden="true"
                   />
                 ) : null}
                 {readyData.refusedCount > 0 ? (
                   <span
-                    className="bg-wine"
-                    style={{ flexGrow: readyData.refusedCount }}
+                    className="admin-progress-segment bg-wine"
+                    style={{ flexGrow: readyData.refusedCount, animationDelay: '80ms' }}
                     aria-hidden="true"
                   />
                 ) : null}
                 {readyData.pendingCount > 0 ? (
                   <span
-                    className="bg-rsvp-pendente"
-                    style={{ flexGrow: readyData.pendingCount }}
+                    className="admin-progress-segment bg-rsvp-pendente"
+                    style={{ flexGrow: readyData.pendingCount, animationDelay: '120ms' }}
                     aria-hidden="true"
                   />
                 ) : null}
@@ -404,7 +404,7 @@ export function AdminOverview(props: AdminOverviewProps) {
                 aria-valuenow={readyData.giftedWineCount}
               >
                 <div
-                  className="h-full rounded-full bg-plum"
+                  className="admin-progress-fill h-full rounded-full bg-plum"
                   style={{ width: `${wineProgress}%` }}
                 />
               </div>
@@ -413,7 +413,7 @@ export function AdminOverview(props: AdminOverviewProps) {
               </strong>
             </div>
           </Card>
-        </>
+        </div>
       ) : null}
     </section>
   )

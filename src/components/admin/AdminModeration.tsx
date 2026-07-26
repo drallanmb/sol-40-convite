@@ -218,7 +218,7 @@ export function AdminModeration({
       <h1
         id="admin-page-title"
         tabIndex={-1}
-        className="font-serif text-[2rem] font-bold text-plum outline-none"
+        className="font-serif text-admin-title font-bold text-plum outline-none"
       >
         {ADMIN_COPY.moderation.title}
       </h1>

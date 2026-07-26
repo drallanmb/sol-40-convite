@@ -410,6 +410,12 @@ describe('admin guest csv importer', () => {
     await act(async () => setInputValue(guestInput, 'Pessoa Fictícia'))
 
     expect(guestInput.value).toBe('Pessoa Fictícia')
+    expect(guestInput.parentElement?.className).toContain('mb-0')
+    expect(
+      dialog.querySelector(
+        'button[aria-label="Remover pessoa 1"] svg[aria-hidden="true"]',
+      ),
+    ).toBeTruthy()
     expect(container.textContent).toContain('Adicionar família')
   })
 })

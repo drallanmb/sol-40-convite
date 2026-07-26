@@ -15,7 +15,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 const baseClasses =
-  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[100px] px-6 py-4 font-sans text-small font-bold uppercase tracking-label transition-[transform,background-color,border-color,color] duration-(--duration-fast) ease-out disabled:cursor-not-allowed disabled:opacity-50 aria-[busy=true]:cursor-progress'
+  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[100px] px-6 py-4 font-sans text-small font-bold uppercase tracking-label transition-[transform,background-color,border-color,color] duration-(--duration-fast) ease-out motion-safe:hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 aria-[busy=true]:cursor-progress'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'border-0 bg-orange text-cream hover:bg-plum active:scale-[0.98]',

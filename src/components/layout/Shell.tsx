@@ -53,8 +53,17 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
   useEffect(() => {
     if (!menuOpen) return
 
-    const firstLink = mobileNavRef.current?.querySelector<HTMLAnchorElement>('a')
-    firstLink?.focus()
+    // Wait until the reveal transition has promoted the panel from
+    // `visibility: hidden` before moving focus into it. Focusing a descendant
+    // during that discrete visibility transition is ignored by Chromium and
+    // WebKit. Reduced-motion users do not need the delay.
+    const focusDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 0
+      : 280
+    const focusTimer = window.setTimeout(() => {
+      const firstLink = mobileNavRef.current?.querySelector<HTMLAnchorElement>('a')
+      firstLink?.focus()
+    }, focusDelay)
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -63,7 +72,10 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
     }
 
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
+    return () => {
+      window.clearTimeout(focusTimer)
+      document.removeEventListener('keydown', onKeyDown)
+    }
   }, [menuOpen])
 
   // Single scroll listener for the whole page: CountdownRail deliberately
@@ -157,7 +169,7 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
                   <NavigationAnchor
                     key={link.href}
                     href={link.href}
-                    className="flex min-h-[44px] items-center opacity-80 transition-opacity duration-(--duration-fast) ease-out hover:opacity-100"
+                    className="nav-link flex min-h-[44px] items-center opacity-80 transition-opacity duration-(--duration-fast) ease-out hover:opacity-100"
                   >
                     {link.label}
                   </NavigationAnchor>
@@ -206,14 +218,23 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
             ref={mobileNavRef}
             id={menuId}
             aria-label="Navegação mobile"
-            className={`absolute inset-x-0 top-full ${menuOpen ? 'flex' : 'hidden'} flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label lg:hidden`}
+            className={`absolute inset-x-0 top-full flex flex-col gap-1 border-b border-line bg-cream px-4 py-4 text-small uppercase tracking-label transition-[opacity,transform,visibility] duration-(--duration-medium) ease-out lg:hidden ${
+              menuOpen
+                ? 'visible pointer-events-auto translate-y-0 opacity-100'
+                : 'invisible pointer-events-none -translate-y-2 opacity-0'
+            }`}
+            style={{
+              transitionDelay: menuOpen
+                ? '0s'
+                : '0s, 0s, var(--duration-medium)',
+            }}
           >
             {navLinks!.map((link) => (
               <NavigationAnchor
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="flex min-h-[44px] items-center px-2"
+                className="nav-link flex min-h-[44px] items-center px-2"
               >
                 {link.label}
               </NavigationAnchor>

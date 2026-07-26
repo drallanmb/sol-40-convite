@@ -42,25 +42,25 @@ function PresentesScaffold({
 }) {
   return (
     <div className="min-w-0 overflow-x-clip bg-cellar text-cream">
-      <section className="relative isolate min-h-[360px] overflow-hidden px-6 pb-12 pt-16 sm:px-8 lg:min-h-[420px] lg:px-16">
+      <section className="gift-route-enter relative isolate min-h-[360px] overflow-hidden px-6 pb-12 pt-16 sm:px-8 lg:min-h-[420px] lg:px-16">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-peach opacity-[.18] sm:-right-16 sm:-top-24 sm:h-60 sm:w-60"
+          className="gift-route-halo pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-peach opacity-[.18] sm:-right-16 sm:-top-24 sm:h-60 sm:w-60"
         />
         <div className="relative mx-auto max-w-[1320px]">
-          <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
+          <p className="gift-route-copy gift-route-copy--kicker text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
             {GIFTS_COPY.page.kicker}
           </p>
-          <h1 className="mt-4 max-w-[62ch] font-serif text-[48px] font-normal leading-[.95] tracking-display text-cream">
+          <h1 className="gift-route-copy gift-route-copy--title mt-4 max-w-[62ch] font-serif text-route-title font-normal leading-[.95] tracking-display text-cream">
             {GIFTS_COPY.page.headingLead}
             <em className="font-normal text-peach">
               {GIFTS_COPY.page.headingEmphasis}
             </em>
           </h1>
-          <p className="mt-6 max-w-[62ch] text-[16px] leading-[1.62] text-cellar-muted">
+          <p className="gift-route-copy gift-route-copy--body mt-6 max-w-[62ch] text-base leading-[1.62] text-cellar-muted">
             {GIFTS_COPY.page.support}
           </p>
-          <aside className="mt-8 max-w-[62ch] border-l border-cellar-line pl-4 text-[16px] leading-[1.62] text-cellar-muted">
+          <aside className="gift-route-copy gift-route-copy--note mt-8 max-w-[62ch] border-l border-cellar-line pl-4 text-base leading-[1.62] text-cellar-muted">
             {GIFTS_COPY.page.operationalNote}
           </aside>
           <BandShortcuts visible={showShortcuts} />

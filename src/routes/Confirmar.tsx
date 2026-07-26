@@ -342,7 +342,12 @@ function Confirmar() {
             </p>
           </div>
 
-          <div className="min-w-0">{stateCard}</div>
+          <div
+            key={routeState.kind}
+            className="public-route-panel-enter min-w-0"
+          >
+            {stateCard}
+          </div>
         </div>
       </section>
     </Shell>

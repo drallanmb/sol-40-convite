@@ -50,11 +50,11 @@ export function AdminLogin({
 
   return (
     <main className="admin-dashboard grid min-h-screen place-items-center bg-cream px-4 py-12 text-ink">
-      <Card variant="login" className="w-full max-w-[440px]">
+      <Card variant="login" className="admin-auth-enter w-full max-w-[440px]">
         <p className="font-serif text-xl font-bold text-plum">
           {ADMIN_COPY.login.wordmark}
         </p>
-        <h1 className="mt-5 font-serif text-[2rem] font-bold leading-[1.02] tracking-[-.025em] text-plum">
+        <h1 className="mt-5 font-serif text-admin-title font-bold leading-[1.02] tracking-[-.025em] text-plum">
           {ADMIN_COPY.login.title}
         </h1>
         <p className="mt-3 text-base leading-normal">{description}</p>
@@ -89,7 +89,9 @@ export function AdminLogin({
           <div
             id={errorId}
             role={errorCopy ? 'alert' : undefined}
-            className="mb-4 min-h-6 text-sm text-wine"
+            className={`mb-4 min-h-6 text-sm text-wine ${
+              errorCopy ? 'admin-error-enter' : ''
+            }`}
           >
             {errorCopy}
           </div>

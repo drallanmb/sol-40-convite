@@ -35,7 +35,7 @@ export class AdminRouteBoundary extends Component<
           <p className="font-serif text-xl font-bold text-plum">Sol 40</p>
           <h1
             id="admin-unavailable-title"
-            className="mt-5 font-serif text-[2rem] font-bold leading-none text-plum"
+            className="mt-5 font-serif text-admin-title font-bold leading-none text-plum"
           >
             Painel temporariamente indisponível
           </h1>

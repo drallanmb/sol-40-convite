@@ -102,6 +102,7 @@ Evite duplicar conteúdo do evento dentro dos componentes. Alterações de copy 
 - Alvos interativos têm pelo menos 44px.
 - Foco visível e contraste WCAG AA são obrigatórios.
 - Motion respeita `prefers-reduced-motion` sem esconder conteúdo.
+- A assinatura de movimento concentra-se no hero, na sequência da programação, no menu móvel e no feedback de navegação; não há revelação genérica em todas as seções.
 - A suíte de release cobre 320px, desktop, Chromium, WebKit, overflow, foco e Axe.
 
 ### Entrada de telefone

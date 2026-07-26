@@ -124,7 +124,7 @@ function CreateFamilyDialog({
         event.preventDefault()
         close()
       }}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-lg border border-line bg-card p-5 text-ink backdrop:bg-plum/55 sm:p-8"
+      className="admin-dialog m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-lg border border-line bg-card p-5 text-ink backdrop:bg-plum/55 sm:p-8"
     >
       <form
         onSubmit={(event) => {
@@ -160,6 +160,7 @@ function CreateFamilyDialog({
                   <Field
                     id={`new-guest-${index}`}
                     appearance="outline"
+                    containerClassName="mb-0"
                     label={`Pessoa ${index + 1}`}
                     value={guest}
                     disabled={busy}
@@ -173,7 +174,29 @@ function CreateFamilyDialog({
                     }}
                   />
                 </div>
-                <Button variant="adminSecondary" aria-label={`Remover pessoa ${index + 1}`} disabled={busy} onClick={() => setGuests((current) => current.filter((_, guestIndex) => guestIndex !== index))}>×</Button>
+                <Button
+                  variant="adminSecondary"
+                  className="h-11 min-w-11 px-0"
+                  aria-label={`Remover pessoa ${index + 1}`}
+                  disabled={busy}
+                  onClick={() =>
+                    setGuests((current) =>
+                      current.filter((_, guestIndex) => guestIndex !== index),
+                    )
+                  }
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <path d="m6 6 12 12M18 6 6 18" />
+                  </svg>
+                </Button>
               </div>
             ))}
           </div>
@@ -393,16 +416,16 @@ export function AdminGuests({
   }
 
   if (query.status === 'pending') {
-    return <section aria-labelledby="admin-page-title"><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-[2rem] font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><div className="mt-6 grid gap-3" aria-label="Carregando convidados">{Array.from({ length: 5 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-lg border border-line bg-card motion-reduce:animate-none" />)}</div></section>
+    return <section aria-labelledby="admin-page-title"><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-admin-title font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><div className="mt-6 grid gap-3" aria-label="Carregando convidados">{Array.from({ length: 5 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-lg border border-line bg-card motion-reduce:animate-none" />)}</div></section>
   }
   if (query.status === 'error') {
-    return <section aria-labelledby="admin-page-title"><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-[2rem] font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><div role="alert" className="mt-6 rounded-lg border border-wine bg-wine/5 p-5"><p>Não foi possível carregar esta área. Confira a conexão e tente novamente.</p><Button variant="adminSecondary" className="mt-4" onClick={() => window.location.reload()}>Tentar novamente</Button></div></section>
+    return <section aria-labelledby="admin-page-title"><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-admin-title font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><div role="alert" className="mt-6 rounded-lg border border-wine bg-wine/5 p-5"><p>Não foi possível carregar esta área. Confira a conexão e tente novamente.</p><Button variant="adminSecondary" className="mt-4" onClick={() => window.location.reload()}>Tentar novamente</Button></div></section>
   }
 
   return (
     <section aria-labelledby="admin-page-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-[2rem] font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><p className="mt-2">{ADMIN_COPY.guests.subtitle}</p></div>
+        <div><h1 id="admin-page-title" tabIndex={-1} className="font-serif text-admin-title font-bold text-plum outline-none">{ADMIN_COPY.guests.title}</h1><p className="mt-2">{ADMIN_COPY.guests.subtitle}</p></div>
         <div className="flex flex-wrap gap-3">
           <AdminGuestImport token={token} onUnauthorized={onUnauthorized} />
           <Button variant="adminPrimary" onClick={() => { setCreateError(null); setCreateOpen(true) }}>Adicionar família</Button>
@@ -411,7 +434,7 @@ export function AdminGuests({
       {families.length > 0 ? (
         <div className="mt-6 grid gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1"><Field id="admin-guest-search" appearance="outline" type="search" label="Buscar convidados" placeholder="Buscar família, pessoa ou telefone" value={search} onChange={(event) => setSearch(event.currentTarget.value)} /></div>
+            <div className="flex-1"><Field id="admin-guest-search" appearance="outline" containerClassName="mb-0" type="search" label="Buscar convidados" placeholder="Buscar família, pessoa ou telefone" value={search} onChange={(event) => setSearch(event.currentTarget.value)} /></div>
             {search ? <Button variant="adminSecondary" onClick={() => setSearch('')}>Limpar busca</Button> : null}
           </div>
           <div className="flex flex-wrap gap-2" aria-label="Filtrar por presença">
@@ -460,7 +483,7 @@ export function AdminGuests({
                           })}
                         </ul>
                       )}
-                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><div className="flex-1"><Field id={`add-guest-${family.id}`} appearance="outline" label="Nova pessoa" value={addNames[family.id] ?? ''} disabled={busy} onChange={(event) => setAddNames((current) => ({ ...current, [family.id]: event.currentTarget.value }))} /></div><Button variant="adminSecondary" disabled={busy || !(addNames[family.id] ?? '').trim()} onClick={() => void addPerson(family)}>Adicionar pessoa</Button></div>
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><div className="flex-1"><Field id={`add-guest-${family.id}`} appearance="outline" containerClassName="mb-0" label="Nova pessoa" value={addNames[family.id] ?? ''} disabled={busy} onChange={(event) => setAddNames((current) => ({ ...current, [family.id]: event.currentTarget.value }))} /></div><Button variant="adminSecondary" disabled={busy || !(addNames[family.id] ?? '').trim()} onClick={() => void addPerson(family)}>Adicionar pessoa</Button></div>
                     </div>
                     <div className="mt-8 border-t border-wine/30 pt-6"><h2 className="text-lg font-bold text-wine">Zona de cuidado</h2><p className="mt-2 text-sm">A remoção da família apaga o convite, todas as pessoas e os acessos públicos.</p><Button variant="adminDestructive" className="mt-4" disabled={busy} onClick={() => setRemoval({ kind: 'family', family })}>Remover família</Button></div>
                   </div>

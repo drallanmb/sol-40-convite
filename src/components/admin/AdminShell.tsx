@@ -196,15 +196,16 @@ export function AdminShell({
           aria-current={active ? 'page' : undefined}
           className={
             compact
-              ? `relative flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[.72rem] font-bold leading-none ${
+              ? `admin-nav-link relative flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-sm font-bold leading-none ${
                   active ? 'text-plum' : 'text-ink/70'
                 }`
-              : `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold ${
+              : `admin-nav-link flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold ${
                   active
                     ? 'bg-cream text-plum'
                     : 'text-cream hover:bg-cream/10'
                 }`
           }
+          data-active={active ? 'true' : undefined}
         >
           {compact && active ? (
             <span className="absolute inset-x-3 top-0 h-[3px] bg-plum" />
@@ -289,7 +290,8 @@ export function AdminShell({
           <button
             ref={menuButtonRef}
             type="button"
-            className="grid h-11 w-11 place-items-center rounded-lg border border-line text-plum"
+            className="admin-utility-trigger grid h-11 w-11 place-items-center rounded-lg border border-line text-plum"
+            data-open={menuOpen ? 'true' : undefined}
             aria-expanded={menuOpen}
             aria-controls="admin-utility-menu"
             aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
@@ -300,7 +302,7 @@ export function AdminShell({
           {menuOpen ? (
             <div
               id="admin-utility-menu"
-              className="absolute right-0 top-[calc(100%+8px)] min-w-40 rounded-lg border border-line bg-card p-2 shadow-[0_8px_24px_rgba(53,25,42,.16)]"
+              className="admin-popover-enter absolute right-0 top-[calc(100%+8px)] min-w-40 rounded-lg border border-line bg-card p-2 shadow-[0_8px_24px_rgba(53,25,42,.16)]"
             >
               <p className="mb-2 px-2 text-sm font-bold text-plum">
                 {principal.displayName} ·{' '}
@@ -352,7 +354,8 @@ export function AdminShell({
         id="admin-main"
         className="admin-main mx-auto min-h-screen max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-12 xl:px-12"
       >
-        <Routes>
+        <div key={location.pathname} className="admin-route-enter">
+          <Routes>
           <Route index element={<Navigate to={roleDefault} replace />} />
           <Route
             path="visao"
@@ -437,7 +440,8 @@ export function AdminShell({
             path="*"
             element={<Navigate to={roleDefault} replace />}
           />
-        </Routes>
+          </Routes>
+        </div>
       </main>
 
       <nav

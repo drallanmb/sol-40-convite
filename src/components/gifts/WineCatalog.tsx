@@ -110,12 +110,17 @@ function ReadyBand({
         </p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
-          {bandWines.map((wine) => (
-            <WineCard
+          {bandWines.map((wine, index) => (
+            <div
               key={wine.productCode}
-              wine={wine}
-              selected={selectedCode === wine.productCode}
-            />
+              className="wine-card-enter"
+              style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
+            >
+              <WineCard
+                wine={wine}
+                selected={selectedCode === wine.productCode}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -90,7 +90,7 @@ export function AdminAccessLink({ purpose }: AdminAccessLinkProps) {
     <main className="admin-dashboard grid min-h-screen place-items-center bg-cream px-4 py-12 text-ink">
       <Card variant="login" className="w-full max-w-[480px]">
         <p className="font-serif text-xl font-bold text-plum">Sol 40</p>
-        <h1 className="mt-5 font-serif text-[2rem] font-bold leading-none text-plum">
+        <h1 className="mt-5 font-serif text-admin-title font-bold leading-none text-plum">
           {title}
         </h1>
         <p className="mt-3 leading-normal">{description}</p>

@@ -35,6 +35,16 @@ typography:
     fontSize: "clamp(1.5rem, 1.35rem + 0.4vw, 1.75rem)"
     fontWeight: 600
     lineHeight: 1.2
+  routeTitle:
+    fontFamily: "Alegreya Variable, Georgia, Times New Roman, serif"
+    fontSize: "3rem"
+    fontWeight: 400
+    lineHeight: 0.95
+  adminTitle:
+    fontFamily: "Alegreya Variable, Georgia, Times New Roman, serif"
+    fontSize: "2rem"
+    fontWeight: 700
+    lineHeight: 1.08
   body:
     fontFamily: "Gabarito Variable, Arial, Helvetica, sans-serif"
     fontSize: "clamp(1rem, 0.96rem + 0.18vw, 1.125rem)"
@@ -168,6 +178,8 @@ A paleta parte do vinho profundo e atravessa coral, damasco e amarelo-sol, equil
 - **Display** (400, `clamp(5rem, 9vw, 7.25rem)`, 0.9): nome “Sol” e momentos de marca de escala máxima.
 - **Headline** (400, `clamp(3rem, 5.25vw, 4.875rem)`, 1.02): títulos principais das seções.
 - **Title** (600, `clamp(1.5rem, 1.35rem + 0.4vw, 1.75rem)`, 1.2): cartões editoriais, programação e títulos operacionais importantes.
+- **Route title** (400, `3rem`, 0.95): abertura das rotas públicas secundárias.
+- **Admin title** (700, `2rem`, 1.08): título fixo e consistente de todas as áreas operacionais.
 - **Body** (400, `clamp(1rem, 0.96rem + 0.18vw, 1.125rem)`, 1.62): texto corrido, limitado a aproximadamente 65–75 caracteres por linha.
 - **Label** (700, `0.8125rem`, `0.1em`, uppercase): navegação, kickers, unidades e ações curtas.
 
@@ -214,6 +226,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Focus:** borda coral e outline global de 2px com offset de 3px.
 - **Placeholder:** wine com contraste legível; hints usam caption sem tracking.
 - **Textarea:** mínimo de `110px`, redimensionamento vertical.
+- **Paired action:** quando um campo divide a linha com um botão, remove apenas a margem externa do container; controle e ação alinham pela base com alvo mínimo de `44px`.
 
 ### Feedback
 
@@ -261,7 +274,13 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 ### Motion
 
 - **Interface:** `180ms` para estados simples e `260ms` para transições compostas, com `cubic-bezier(.22,1,.36,1)`.
-- **Hero:** ondas em 22s, 30s e 38s; luz em 3.5s.
+- **Hero:** ondas contínuas em 22s, 30s e 38s; nenhum reflexo ou feixe animado.
+- **Signature entrance:** céu aquece em `900ms`, sol assenta no horizonte e a cópia chega em cinco tempos de `680ms`, sem partir de opacidade zero.
+- **Program sequence:** o sol da data e os sete horários entram uma única vez via `IntersectionObserver`, com stagger de `45ms` limitado aos seis primeiros intervalos.
+- **Public routes:** confirmação troca painéis em `520ms`; a carta aquece a superfície em `720ms` e escalona somente os rótulos de cada faixa, limitando o atraso acumulado.
+- **Admin states:** transições de rota, menus, diálogos, feedbacks e carregamento de dados usam `180–280ms`; movimento comunica mudança de estado e nunca cria uma coreografia de entrada no painel.
+- **Progress:** barras administrativas crescem a partir da origem esquerda quando dados atualizados substituem o skeleton.
+- **Navigation:** menu móvel preserva a saída antes de aplicar `visibility`; links recebem sublinhado direcional e botões elevam `2px` apenas em dispositivos com movimento permitido.
 - **Reduced motion:** remove animação contínua sem esconder a arte ou o conteúdo.
 
 ## 6. Do's and Don'ts

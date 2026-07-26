@@ -165,13 +165,10 @@ export function AdminMyAccount({
   return (
     <section aria-labelledby="admin-page-title">
       <header>
-        <p className="text-xs font-bold uppercase tracking-label text-coral">
-          Acesso individual
-        </p>
         <h1
           id="admin-page-title"
           tabIndex={-1}
-          className="mt-2 font-serif text-4xl font-bold text-plum"
+          className="font-serif text-admin-title font-bold text-plum outline-none"
         >
           Minha conta
         </h1>
@@ -195,15 +192,15 @@ export function AdminMyAccount({
           <h2 className="font-serif text-2xl font-bold text-plum">Perfil</h2>
           <dl className="mt-5 grid gap-4">
             <div>
-              <dt className="text-xs font-bold uppercase tracking-label">Nome</dt>
+              <dt className="text-sm font-bold">Nome</dt>
               <dd className="mt-1">{profile.profile.displayName}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase tracking-label">E-mail</dt>
+              <dt className="text-sm font-bold">E-mail</dt>
               <dd className="mt-1 break-all">{profile.profile.email}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase tracking-label">Papel</dt>
+              <dt className="text-sm font-bold">Papel</dt>
               <dd className="mt-1">{ROLE_LABELS[profile.profile.role]}</dd>
             </div>
           </dl>

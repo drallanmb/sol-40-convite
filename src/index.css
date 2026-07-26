@@ -77,6 +77,8 @@
   --text-subheading: clamp(1.5rem, 1.35rem + 0.4vw, 1.75rem);
   --text-heading: clamp(3rem, 5.25vw, 4.875rem);
   --text-display: clamp(5rem, 9vw, 7.25rem);
+  --text-admin-title: 2rem;
+  --text-route-title: 3rem;
 
   --tracking-label: 0.1em;
   --tracking-display: -0.025em;
@@ -145,11 +147,343 @@ body {
   }
 }
 
+/* Assinatura de entrada: o cenário "assenta" como um pôr do sol chegando ao
+   horizonte. Nada parte de opacity: 0; conteúdo e ações seguem visíveis se a
+   animação atrasar, falhar ou for interrompida. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-sky-enter {
+    animation: hero-sky-warmth 900ms var(--ease-out) both;
+  }
+
+  .hero-sun-enter {
+    animation: hero-sun-settle 900ms var(--ease-out) both;
+  }
+
+  .hero-enter {
+    animation: hero-copy-settle 680ms var(--ease-out) both;
+  }
+
+  .hero-enter--eyebrow {
+    animation-delay: 80ms;
+  }
+
+  .hero-enter--title {
+    animation-delay: 140ms;
+  }
+
+  .hero-enter--tagline {
+    animation-delay: 210ms;
+  }
+
+  .hero-enter--actions {
+    animation-delay: 280ms;
+  }
+
+  .hero-enter--meta {
+    animation-delay: 340ms;
+  }
+
+  [data-motion-state="entered"] .program-sun {
+    animation: program-sun-settle 560ms var(--ease-out) both;
+  }
+
+  [data-motion-state="entered"] .program-item {
+    animation: program-item-enter 460ms var(--ease-out) both;
+    animation-delay: calc(min(var(--program-i), 6) * 45ms);
+  }
+
+  .public-route-panel-enter {
+    animation: public-panel-enter 520ms var(--ease-out) both;
+  }
+
+  .gift-route-enter {
+    animation: gift-surface-enter 720ms var(--ease-out) both;
+  }
+
+  .gift-route-halo {
+    animation: gift-halo-enter 760ms var(--ease-out) both;
+  }
+
+  .gift-route-copy {
+    animation: gift-copy-enter 620ms var(--ease-out) both;
+  }
+
+  .gift-route-copy--kicker {
+    animation-delay: 60ms;
+  }
+
+  .gift-route-copy--title {
+    animation-delay: 120ms;
+  }
+
+  .gift-route-copy--body {
+    animation-delay: 190ms;
+  }
+
+  .gift-route-copy--note {
+    animation-delay: 250ms;
+  }
+
+  .wine-card-enter {
+    animation: wine-card-enter 460ms var(--ease-out) both;
+  }
+
+  .admin-route-enter,
+  .admin-overview-ready {
+    animation: admin-content-enter 200ms var(--ease-out) both;
+  }
+
+  .admin-popover-enter {
+    animation: admin-popover-enter 180ms var(--ease-out) both;
+    transform-origin: top right;
+  }
+
+  .admin-auth-enter {
+    animation: admin-auth-enter 240ms var(--ease-out) both;
+  }
+
+  .admin-error-enter {
+    animation: admin-error-enter 180ms var(--ease-out) both;
+  }
+
+  .admin-progress-segment,
+  .admin-progress-fill {
+    animation: admin-progress-enter 280ms var(--ease-out) both;
+    transform-origin: left;
+  }
+
+  .toast-enter {
+    animation: toast-enter 220ms var(--ease-out) both;
+  }
+
+  dialog[open].admin-dialog {
+    animation: admin-dialog-enter 220ms var(--ease-out) both;
+  }
+
+  dialog[open].admin-dialog::backdrop {
+    animation: admin-backdrop-enter 180ms ease-out both;
+  }
+}
+
+@keyframes hero-sky-warmth {
+  from {
+    filter: saturate(0.88) brightness(0.96);
+  }
+  to {
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes hero-sun-settle {
+  from {
+    transform: translate(-50%, -44%) scale(0.92);
+    filter: saturate(0.88);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    filter: saturate(1);
+  }
+}
+
+@keyframes hero-copy-settle {
+  from {
+    transform: translateY(16px);
+    filter: blur(5px);
+  }
+  to {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes program-sun-settle {
+  from {
+    transform: scale(0.92);
+    filter: saturate(0.88);
+  }
+  to {
+    transform: scale(1);
+    filter: saturate(1);
+  }
+}
+
+@keyframes program-item-enter {
+  from {
+    transform: translateX(-12px);
+    filter: blur(2px);
+  }
+  to {
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes public-panel-enter {
+  from {
+    transform: translateY(14px);
+    filter: blur(3px);
+  }
+  to {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes gift-surface-enter {
+  from {
+    filter: saturate(0.82) brightness(0.92);
+  }
+  to {
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes gift-halo-enter {
+  from {
+    transform: scale(0.78);
+    opacity: 0.08;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0.18;
+  }
+}
+
+@keyframes gift-copy-enter {
+  from {
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  to {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes wine-card-enter {
+  from {
+    transform: translateY(12px);
+    opacity: 0.72;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-content-enter {
+  from {
+    transform: translateY(6px);
+    opacity: 0.78;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-popover-enter {
+  from {
+    transform: translateY(-4px) scale(0.98);
+    opacity: 0.65;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-auth-enter {
+  from {
+    transform: translateY(8px);
+    opacity: 0.72;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-error-enter {
+  from {
+    transform: translateX(-4px);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-progress-enter {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes toast-enter {
+  from {
+    transform: translateY(8px);
+    opacity: 0.72;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-dialog-enter {
+  from {
+    transform: translateY(8px) scale(0.985);
+    opacity: 0.72;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes admin-backdrop-enter {
+  from {
+    background-color: transparent;
+  }
+}
+
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: 5px;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform var(--duration-medium) var(--ease-out);
+}
+
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wave-band,
   .wave-band--mid,
   .wave-band--back {
     animation: none;
+  }
+
+  .nav-link::after {
+    transition: none;
   }
 }
 
@@ -227,6 +561,30 @@ body {
   box-shadow: 0 0 0 2px var(--color-plum);
 }
 
+.admin-nav-link {
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    transform 120ms var(--ease-out);
+}
+
+.admin-nav-link:active {
+  transform: scale(0.98);
+}
+
+.admin-nav-link svg,
+.admin-utility-trigger > span {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.admin-nav-link[data-active="true"] svg {
+  transform: scale(1.08);
+}
+
+.admin-utility-trigger[data-open="true"] > span {
+  transform: rotate(90deg);
+}
+
 .admin-main {
   padding-bottom: calc(64px + 24px + env(safe-area-inset-bottom));
 }
@@ -246,6 +604,24 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .public-route-panel-enter,
+  .gift-route-enter,
+  .gift-route-halo,
+  .gift-route-copy,
+  .wine-card-enter,
+  .admin-route-enter,
+  .admin-overview-ready,
+  .admin-popover-enter,
+  .admin-auth-enter,
+  .admin-error-enter,
+  .admin-progress-segment,
+  .admin-progress-fill,
+  .toast-enter,
+  dialog[open].admin-dialog,
+  dialog[open].admin-dialog::backdrop {
+    animation: none;
+  }
+
   .admin-main *,
   .admin-bottom-nav * {
     scroll-behavior: auto;

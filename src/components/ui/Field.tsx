@@ -6,6 +6,7 @@ type FieldOwnProps = {
   hint?: string
   id: string
   appearance?: 'underline' | 'outline'
+  containerClassName?: string
 }
 
 export type FieldInputProps = FieldOwnProps & {
@@ -19,7 +20,7 @@ export type FieldTextareaProps = FieldOwnProps & {
 export type FieldProps = FieldInputProps | FieldTextareaProps
 
 const controlBaseClasses =
-  'w-full min-h-[44px] font-sans text-body text-ink placeholder:text-wine outline-none focus:border-coral'
+  'w-full min-h-[44px] font-sans text-body text-ink placeholder:text-wine outline-none transition-[border-color,background-color,box-shadow] duration-(--duration-fast) ease-out focus:border-coral'
 
 /**
  * Campo primitivo — label + input/textarea com borda inferior (foco vira
@@ -36,6 +37,7 @@ export const Field = forwardRef(function Field(
     id,
     multiline,
     appearance = 'underline',
+    containerClassName = '',
     className = '',
     ...rest
   } = props
@@ -48,7 +50,7 @@ export const Field = forwardRef(function Field(
       : `${controlBaseClasses} border-0 border-b border-line bg-transparent px-0.5 py-3`
 
   return (
-    <div className="mb-[22px] grid gap-[9px]">
+    <div className={`mb-[22px] grid gap-[9px] ${containerClassName}`.trim()}>
       <label htmlFor={id} className="text-small font-bold uppercase tracking-label">
         {label}
       </label>

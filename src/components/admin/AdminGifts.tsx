@@ -336,7 +336,7 @@ export function AdminGifts({
 
   return (
     <section aria-labelledby="admin-page-title">
-      <h1 id="admin-page-title" tabIndex={-1} className="font-serif text-[2rem] font-bold text-plum outline-none">
+      <h1 id="admin-page-title" tabIndex={-1} className="font-serif text-admin-title font-bold text-plum outline-none">
         {ADMIN_COPY.gifts.title}
       </h1>
       <p className="mt-2">{ADMIN_COPY.gifts.subtitle}</p>

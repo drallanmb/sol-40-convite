@@ -77,7 +77,7 @@ test('canonical tracer: emulated 320px home quality slice', async ({ page }) => 
   )
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
     'content',
-    'https://www.sol40.com.br/og.jpg',
+    'https://www.sol40.com.br/og-sol40-v2.jpg',
   )
 
   await expectNoBlockingAxeViolations(page)
@@ -196,6 +196,18 @@ test('reduced motion keeps content visible without continuous animation', async 
   await page.goto('/')
   await expect(page.locator('.wave-band').first()).toBeVisible()
   await expect(page.locator('.wave-band').first()).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+
+  await page.goto('/presentes')
+  await expect(page.locator('.gift-route-enter')).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+
+  await page.goto('/admin')
+  await expect(page.locator('.admin-auth-enter')).toHaveCSS(
     'animation-name',
     'none',
   )

@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react'
 import { PROGRAMA, PROGRAMA_HEADING, PROGRAMA_KICKER, SECTION_IDS } from '../../content/event'
+import { useInViewOnce } from '../../hooks/useInViewOnce'
 
 /**
  * ProgramaSection — os sete blocos confirmados da programação (INVITE-02,
@@ -11,11 +13,14 @@ import { PROGRAMA, PROGRAMA_HEADING, PROGRAMA_KICKER, SECTION_IDS } from '../../
  */
 export function ProgramaSection() {
   const [sunDay, sunMonth] = PROGRAMA_KICKER.split(' ')
+  const { entered, ref } = useInViewOnce<HTMLElement>()
 
   return (
     <section
+      ref={ref}
       id={SECTION_IDS.programa}
       tabIndex={-1}
+      data-motion-state={entered ? 'entered' : 'idle'}
       className="scroll-mt-32 bg-cream px-[clamp(24px,7vw,110px)] py-[clamp(80px,10vw,160px)] text-ink"
     >
       <div className="mx-auto max-w-[840px]">
@@ -33,7 +38,7 @@ export function ProgramaSection() {
               acessível do heading já inclui a mesma informação. */}
           <div
             aria-hidden="true"
-            className="grid aspect-square w-[120px] shrink-0 place-items-center rounded-full sm:w-[140px]"
+            className="program-sun grid aspect-square w-[120px] shrink-0 place-items-center rounded-full sm:w-[140px]"
             style={{
               background: 'var(--color-sun-soft)',
               boxShadow: '0 0 60px var(--color-sun-soft-halo)',
@@ -48,8 +53,12 @@ export function ProgramaSection() {
         </div>
 
         <ol className="mt-10 divide-y divide-line sm:mt-16">
-          {PROGRAMA.map((item) => (
-            <li key={item.time} className="grid gap-1 py-6 sm:grid-cols-[96px_1fr] sm:items-baseline sm:gap-6">
+          {PROGRAMA.map((item, index) => (
+            <li
+              key={item.time}
+              className="program-item grid gap-1 py-6 sm:grid-cols-[96px_1fr] sm:items-baseline sm:gap-6"
+              style={{ '--program-i': index } as CSSProperties}
+            >
               <time dateTime={item.time} className="font-serif italic text-lead text-wine">
                 {item.time}
               </time>

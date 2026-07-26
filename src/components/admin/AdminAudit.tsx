@@ -134,13 +134,10 @@ export function AdminAudit({ token, onUnauthorized }: AdminAuditProps) {
   return (
     <section aria-labelledby="admin-page-title">
       <header>
-        <p className="text-xs font-bold uppercase tracking-label text-coral">
-          Histórico protegido
-        </p>
         <h1
           id="admin-page-title"
           tabIndex={-1}
-          className="mt-2 font-serif text-4xl font-bold text-plum"
+          className="font-serif text-admin-title font-bold text-plum outline-none"
         >
           Auditoria
         </h1>

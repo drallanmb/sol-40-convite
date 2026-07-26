@@ -81,7 +81,7 @@ export function AdminSetup({
     <main className="admin-dashboard grid min-h-screen place-items-center bg-cream px-4 py-12 text-ink">
       <Card variant="login" className="w-full max-w-[520px]">
         <p className="font-serif text-xl font-bold text-plum">Sol 40</p>
-        <h1 className="mt-5 font-serif text-[2rem] font-bold leading-none text-plum">
+        <h1 className="mt-5 font-serif text-admin-title font-bold leading-none text-plum">
           {mode === 'bootstrap'
             ? 'Configurar proprietário'
             : 'Recuperar proprietário'}
