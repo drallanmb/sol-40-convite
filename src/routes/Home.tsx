@@ -14,6 +14,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion'
 import {
   CINEMATIC_INTRO_REVEAL_MS,
   homeSectionIdFromHash,
+  isEligibleHeroHash,
   resolveInitialIntroPhase,
 } from '../lib/cinematicIntro'
 
@@ -31,7 +32,7 @@ function Home() {
   const [introPhase, setIntroPhase] = useState(() =>
     resolveInitialIntroPhase(initialHashRef.current, reducedMotion),
   )
-  const [introRunGeneration] = useState(0)
+  const [introRunGeneration, setIntroRunGeneration] = useState(0)
 
   const completeIntroDescent = useCallback(() => {
     setIntroPhase((phase) =>
@@ -51,6 +52,24 @@ function Home() {
 
   useEffect(() => {
     if (reducedMotion) setIntroPhase('complete')
+  }, [reducedMotion])
+
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (
+        !event.persisted ||
+        reducedMotion ||
+        !isEligibleHeroHash(window.location.hash)
+      ) {
+        return
+      }
+
+      setIntroRunGeneration((generation) => generation + 1)
+      setIntroPhase('descending')
+    }
+
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
   }, [reducedMotion])
 
   useEffect(() => {

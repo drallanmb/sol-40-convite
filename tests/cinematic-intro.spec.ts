@@ -339,6 +339,7 @@ test('route entry replays on remount but same-mount inicio and direct fragments 
     )
     .toBe(2)
 
+  await page.goto('/confirmar')
   await page.goto('/#programacao')
   await expect(page.locator('#inicio')).toHaveAttribute(
     'data-intro-phase',

@@ -447,7 +447,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-intro-reveal],
+  [data-intro-phase] [data-intro-reveal],
   [data-intro-chrome] {
     transition: none;
   }
