@@ -1,6 +1,6 @@
 ---
 phase: 08-gest-o-de-gestores-contas-individuais-permiss-es-e-auditoria
-verified: 2026-07-26T14:36:13Z
+verified: 2026-07-26T14:48:48Z
 status: human_needed
 score: 42/43 must-haves verified
 behavior_unverified: 1
@@ -18,7 +18,7 @@ decision_coverage:
 # Phase 8: Gestão de gestores — Verification Report
 
 **Phase Goal:** Permitir que o administrador proprietário gerencie gestores com credenciais, permissões e sessões individuais, sem compartilhar a senha-mestra.
-**Verified:** 2026-07-26T14:36:13Z
+**Verified:** 2026-07-26T14:48:48Z
 **Status:** human_needed
 
 ## Goal Achievement
@@ -98,6 +98,7 @@ integração em aparelho real permanece pendente.
 | Login no Preview | ✓ HUMAN OBSERVED | Usuário confirmou que a tela de login aparece após sincronizar as functions; o fallback branco foi corrigido. |
 | Preview smoke confirmado/runtime | ✓ UAT | Scrypt, cutoff/sessões, link one-time e retenção passaram conforme `08-UAT.md`. |
 | Jornadas autenticadas | ✓ UAT | Contas iniciais, jornada seller e acessibilidade autenticada passaram em 7/7 cenários. |
+| Produção sem capability real | ✓ | Deployment `f13d6f9` ficou `Ready`; domínio público respondeu com header/meta `no-referrer`, e capability sintética foi sanitizada sem request/Referer em Chromium/WebKit 320 px. |
 | Link mobile/WhatsApp | ? NEEDS HUMAN | Emulação 320 px, request/Referer e componentes passaram; falta abrir e concluir no WebView real. |
 
 ## Test Quality Audit
@@ -162,5 +163,5 @@ All trackable CONTEXT.md decisions are honored by shipped artifacts.
 **Deferred items:** somente o reteste em aparelho real descrito em `08-UAT.md`.
 
 ---
-*Verified: 2026-07-26T14:36:13Z*
+*Verified: 2026-07-26T14:48:48Z*
 *Verifier: Codex (gsd-verifier subagent)*

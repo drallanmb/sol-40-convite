@@ -38,6 +38,10 @@ Os sete gaps de UI e cobertura foram implementados:
 O browser confirma que o fragmento não entra na requisição inicial nem no
 `Referer` e que a rota mantém reflow em 320 px.
 
+Em produção, um smoke com capability sintética confirmou em Chromium e WebKit
+de 320 px: URL sanitizada, zero requests com a capability, zero `Referer` com a
+capability e estado inválido renderizado corretamente.
+
 ## Verificação humana restante
 
 A automação reproduz navegadores móveis, mas não substitui o WebView real do

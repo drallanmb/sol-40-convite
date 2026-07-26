@@ -46,3 +46,10 @@ Qualquer link que tenha sido compartilhado em query string antes desta
 correção deve ser tratado como capability exposta: invalidar o link da conta e
 gerar outro depois do deploy. Tokens reais não são reproduzidos neste
 documento nem nas evidências.
+
+## Deploy de produção
+
+O commit `f13d6f9` foi publicado pelo pipeline Vercel/Convex em 2026-07-26.
+O deployment `dpl_ABioaETffe7JeEkExbgTcrrHGAYh` ficou `Ready`; o domínio
+`www.sol40.com.br` respondeu `200` em `/admin/ativar` com
+`Referrer-Policy: no-referrer` e a meta estática equivalente.
