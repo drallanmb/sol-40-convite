@@ -30,14 +30,11 @@ async function expectNoDocumentOverflow(page: Page) {
   expect(overflow.body).toBeLessThanOrEqual(1)
 }
 
-async function expectNoBlockingAxeViolations(page: Page) {
+async function expectNoWcagTaggedViolations(page: Page) {
   const result = await new AxeBuilder({ page })
     .withTags(WCAG_AA_TAGS)
     .analyze()
-  const blocking = result.violations.filter(
-    ({ impact }) => impact === 'serious' || impact === 'critical',
-  )
-  expect(blocking).toEqual([])
+  expect(result.violations).toEqual([])
 }
 
 async function observeConvexTraffic(page: Page) {
@@ -70,33 +67,59 @@ async function installReleaseCinematicIntroControl(
       options?: number | KeyframeAnimationOptions,
     ) {
       const animation = originalAnimate.call(this, keyframes, options)
-      if ((this as HTMLElement).dataset.testid === 'hero-sun-visual') {
-        animation.pause()
-        window.__releaseCinematicIntroAnimations.push(animation)
-      }
+      const owner = this as HTMLElement
+      if (!owner.dataset.introTrack) return animation
+
+      const timing = animation.effect?.getTiming()
+      const finite =
+        typeof timing?.duration === 'number'
+        && Number.isFinite(timing.duration)
+        && typeof timing.iterations === 'number'
+        && Number.isFinite(timing.iterations)
+      if (!finite) return animation
+
+      animation.pause()
+      window.__releaseCinematicIntroAnimations.push(animation)
       return animation
     }
   })
 }
 
-async function finishReleaseCinematicIntro(page: Page): Promise<void> {
-  const intro = page.locator('[data-intro-phase]').first()
-  if ((await intro.getAttribute('data-intro-phase')) === 'descending') {
-    await page.waitForFunction(
-      () => window.__releaseCinematicIntroAnimations?.length > 0,
+async function seekReleaseCinematicIntro(
+  page: Page,
+  progress: number,
+): Promise<void> {
+  const intro = page.locator('#inicio')
+  if ((await intro.getAttribute('data-intro-state')) !== 'playing') return
+
+  await page.waitForFunction(() => {
+    const renderedTracks = document.querySelectorAll(
+      '#inicio [data-intro-track]',
+    ).length
+    return (
+      renderedTracks > 0
+      && window.__releaseCinematicIntroAnimations?.length === renderedTracks
     )
-    await page.evaluate(() => {
-      const animation = window.__releaseCinematicIntroAnimations.at(-1)
-      if (
-        animation &&
-        animation.playState !== 'idle' &&
-        animation.playState !== 'finished'
-      ) {
-        animation.finish()
-      }
-    })
+  })
+  await page.evaluate((value) => {
+    const currentTime = Math.min(1, Math.max(0, value)) * 3000
+    for (const animation of window.__releaseCinematicIntroAnimations) {
+      animation.pause()
+      animation.currentTime = currentTime
+    }
+  }, progress)
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolvePaint) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolvePaint())
+        })
+      }),
+  )
+
+  if (progress >= 1) {
+    await expect(intro).toHaveAttribute('data-intro-state', 'complete')
   }
-  await expect(intro).toHaveAttribute('data-intro-phase', 'complete')
 }
 
 declare global {
@@ -122,7 +145,7 @@ test('canonical tracer: emulated 320px home quality slice', async ({ page }) => 
     'https://www.sol40.com.br/og-sol40-v2.jpg',
   )
 
-  await expectNoBlockingAxeViolations(page)
+  await expectNoWcagTaggedViolations(page)
 
   await page.keyboard.press('Tab')
   const focusedTagName = await page.evaluate(() => document.activeElement?.tagName)
@@ -139,7 +162,7 @@ for (const route of RELEASE_ROUTES) {
     const response = await page.goto(route.path)
     expect(response?.status()).toBeLessThan(400)
     await expect(page.getByRole('heading', { name: route.heading }).first()).toBeVisible()
-    await expectNoBlockingAxeViolations(page)
+    await expectNoWcagTaggedViolations(page)
     await expectNoDocumentOverflow(page)
 
     const refresh = await page.reload()
@@ -173,10 +196,23 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   await page.goto('/')
 
   const skipLink = page.getByRole('link', { name: 'Pular para o conteúdo' })
-  await expect(page.locator('#inicio')).toHaveAttribute(
-    'data-intro-phase',
-    'descending',
+  const secondaryCopy = page.locator(
+    '#inicio [data-intro-copy="secondary"]',
   )
+  const hiddenCta = secondaryCopy.getByRole('link', {
+    name: 'Confirmar presença',
+  })
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'playing',
+  )
+  await expect(secondaryCopy).toHaveAttribute('inert', '')
+  expect(
+    await hiddenCta.evaluate((element) => {
+      ;(element as HTMLElement).focus()
+      return document.activeElement === element
+    }),
+  ).toBe(false)
   // macOS WebKit follows the operating-system "full keyboard access"
   // preference and may omit links from the native Tab order in automation.
   // Focus it explicitly there, then exercise the same keyboard activation.
@@ -189,7 +225,7 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   await page.keyboard.press('Enter')
   await expect(page.locator('#conteudo')).toBeFocused()
 
-  await finishReleaseCinematicIntro(page)
+  await seekReleaseCinematicIntro(page, 1)
 
   const isDesktop = (page.viewportSize()?.width ?? 0) >= 1024
   if (isDesktop) {
@@ -245,6 +281,61 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   }
 })
 
+test('cinematic 320px stays overflow-free at 0/70/100 and pointer-transparent', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 760 })
+  await installReleaseCinematicIntroControl(page)
+  await page.goto('/')
+
+  const scene = page.locator('#inicio [data-intro-scene]')
+  await expect(scene).toHaveCSS('pointer-events', 'none')
+  await expect(
+    page.locator(
+      '#inicio [data-intro-layer="cloud-far"], '
+      + '#inicio [data-intro-layer="cloud-near"], '
+      + '#inicio [data-intro-layer="reflection"], '
+      + '#inicio [data-intro-layer="palms"]',
+    ),
+  ).toHaveCount(0)
+
+  for (const progress of [0, 0.7, 1]) {
+    await seekReleaseCinematicIntro(page, progress)
+    await expectNoDocumentOverflow(page)
+  }
+})
+
+test('forced colors keeps skip, chrome and final CTA usable', async ({
+  page,
+}) => {
+  await page.emulateMedia({
+    forcedColors: 'active',
+    reducedMotion: 'reduce',
+  })
+  await page.goto('/')
+
+  const skip = page.getByRole('link', {
+    name: 'Pular para o conteúdo',
+  })
+  const wordmark = page.getByRole('link', {
+    name: 'Sol faz 40 — voltar ao início',
+  })
+  const cta = page
+    .locator('#inicio')
+    .getByRole('link', { name: 'Confirmar presença' })
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'complete',
+  )
+  await expect(wordmark).toBeVisible()
+  await expect(cta).toBeVisible()
+  await skip.focus()
+  await expect(skip).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#conteudo')).toBeFocused()
+  await expectNoDocumentOverflow(page)
+})
+
 test('reduced motion keeps content visible without continuous animation', async ({
   page,
 }) => {
@@ -252,7 +343,7 @@ test('reduced motion keeps content visible without continuous animation', async 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
   await expect(page.locator('#inicio')).toHaveAttribute(
-    'data-intro-phase',
+    'data-intro-state',
     'complete',
   )
   await expect
@@ -264,10 +355,8 @@ test('reduced motion keeps content visible without continuous animation', async 
     .toBe(0)
   const finiteIntroAnimations = await page.evaluate(() => {
     const elements = [
-      document.querySelector('[data-testid="hero-sun-visual"]'),
-      document.querySelector('[data-intro-chrome]'),
-      ...document.querySelectorAll('[data-intro-reveal]'),
-    ].filter((element): element is Element => element !== null)
+      ...document.querySelectorAll('#inicio [data-intro-track]'),
+    ]
 
     return elements.flatMap((element) => element.getAnimations()).filter(
       (animation) => {

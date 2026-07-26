@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import {
   expect,
@@ -8,11 +8,13 @@ import {
 } from '@playwright/test'
 
 const INTRO_DURATION_MS = 3000
-const PROGRESS_SAMPLES = [0, 0.4, 0.7, 0.88, 1] as const
-const ARTIFACT_DIR = resolve(
+const APPROVED_PROGRESS_SAMPLES = [0, 0.7, 1] as const
+const APPROVED_SNAPSHOT_DIR = resolve(
   process.cwd(),
-  '.planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/artifacts',
+  'tests/cinematic-intro.snapshots',
 )
+const UPDATE_APPROVED_BASELINES =
+  process.env.UPDATE_CINEMATIC_INTRO_BASELINES === '1'
 
 type TrackContract = {
   track: string
@@ -159,7 +161,7 @@ async function captureStoryboard(
   await waitForCoordinatedTracks(page)
 
   const frames: Buffer[] = []
-  for (const progress of PROGRESS_SAMPLES) {
+  for (const progress of APPROVED_PROGRESS_SAMPLES) {
     await seekIntro(page, progress)
     if (progress <= 0.7) {
       await expect(
@@ -182,13 +184,12 @@ async function captureStoryboard(
 async function composeContactSheet(
   context: BrowserContext,
   frames: Buffer[],
-  outputPath: string,
   dimensions: {
     width: number
     height: number
     frameAspect: string
   },
-): Promise<void> {
+): Promise<Buffer> {
   const sheetPage = await context.newPage()
   await sheetPage.setViewportSize({
     width: dimensions.width,
@@ -197,7 +198,9 @@ async function composeContactSheet(
 
   const figures = frames
     .map((frame, index) => {
-      const label = `${Math.round(PROGRESS_SAMPLES[index] * 100)}%`
+      const label = `${
+        Math.round(APPROVED_PROGRESS_SAMPLES[index] * 100)
+      }%`
       const source = `data:image/png;base64,${frame.toString('base64')}`
       return `<figure><img src="${source}" alt="Keyframe ${label}"><figcaption>${label}</figcaption></figure>`
     })
@@ -211,7 +214,7 @@ async function composeContactSheet(
           * { box-sizing: border-box; }
           html, body { margin: 0; width: 100%; min-height: 100%; background: #24141f; }
           body { padding: 24px; font-family: ui-sans-serif, system-ui, sans-serif; }
-          main { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+          main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
           figure { margin: 0; overflow: hidden; border: 1px solid rgba(255,243,223,.28); background: #35192a; }
           img { display: block; width: 100%; aspect-ratio: ${dimensions.frameAspect}; object-fit: contain; background: #35192a; }
           figcaption { padding: 9px 12px 11px; color: #fff3df; font-size: 16px; font-weight: 700; letter-spacing: .08em; text-align: center; }
@@ -223,15 +226,32 @@ async function composeContactSheet(
   await sheetPage.waitForFunction(() =>
     [...document.images].every((image) => image.complete),
   )
-  await sheetPage.screenshot({
-    path: outputPath,
+  const contactSheet = await sheetPage.screenshot({
     fullPage: true,
     type: 'png',
   })
   await sheetPage.close()
+  return contactSheet
 }
 
-test('normal production preview exposes no Playwright timeline namespace', async ({
+async function expectApprovedBaseline(
+  actual: Buffer,
+  fileName: 'intro-approved-desktop.png' | 'intro-approved-mobile.png',
+): Promise<void> {
+  const baselinePath = resolve(APPROVED_SNAPSHOT_DIR, fileName)
+  if (UPDATE_APPROVED_BASELINES) {
+    await mkdir(APPROVED_SNAPSHOT_DIR, { recursive: true })
+    await writeFile(baselinePath, actual)
+  }
+
+  const approved = await readFile(baselinePath)
+  expect(
+    actual.equals(approved),
+    `${fileName} divergiu dos keyframes 0/70/100 aprovados`,
+  ).toBe(true)
+}
+
+test('normal production preview exposes no test namespace', async ({
   page,
 }) => {
   await page.goto('/')
@@ -565,38 +585,64 @@ test('a WAAPI setup failure fails open without an uncaught page error', async ({
   expect(pageErrors).toEqual([])
 })
 
-test('generates deterministic desktop and mobile cinematic contact sheets', async ({
+test('desktop approved baseline contains only 0/70/100 keyframes', async ({
   context,
   page,
-}) => {
-  await mkdir(ARTIFACT_DIR, { recursive: true })
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'emulated-chromium-desktop',
+    'Pixel baseline is intentionally confined to stable Chromium.',
+  )
   await installTimelineInstrumentation(page)
 
   const desktopFrames = await captureStoryboard(page, {
     width: 1280,
     height: 800,
   })
+  expect(desktopFrames).toHaveLength(APPROVED_PROGRESS_SAMPLES.length)
+  const desktopContactSheet = await composeContactSheet(
+    context,
+    desktopFrames,
+    { width: 1580, height: 390, frameAspect: '1280 / 800' },
+  )
+  await expectApprovedBaseline(
+    desktopContactSheet,
+    'intro-approved-desktop.png',
+  )
+})
+
+test('mobile approved baseline contains only 0/70/100 keyframes', async ({
+  context,
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'emulated-chromium-desktop',
+    'Pixel baseline is intentionally confined to stable Chromium.',
+  )
+  await installTimelineInstrumentation(page)
+
   const mobileFrames = await captureStoryboard(page, {
     width: 320,
     height: 760,
   })
-
-  expect(desktopFrames).toHaveLength(5)
-  expect(mobileFrames).toHaveLength(5)
-
-  await composeContactSheet(
-    context,
-    desktopFrames,
-    resolve(ARTIFACT_DIR, 'intro-keyframes-desktop.png'),
-    { width: 2600, height: 390, frameAspect: '1280 / 800' },
-  )
-  await composeContactSheet(
+  expect(mobileFrames).toHaveLength(APPROVED_PROGRESS_SAMPLES.length)
+  const mobileContactSheet = await composeContactSheet(
     context,
     mobileFrames,
-    resolve(ARTIFACT_DIR, 'intro-keyframes-mobile.png'),
-    { width: 1700, height: 830, frameAspect: '320 / 760' },
+    { width: 1040, height: 830, frameAspect: '320 / 760' },
   )
+  await expectApprovedBaseline(
+    mobileContactSheet,
+    'intro-approved-mobile.png',
+  )
+})
 
+test('approved direction keeps removed layers absent and glow post-arrival', async ({
+  page,
+}) => {
+  await installTimelineInstrumentation(page)
+  await page.goto('/')
+  await waitForCoordinatedTracks(page)
   await seekIntro(page, 0)
   await expect(page.locator('[data-intro-layer="sky-base"]')).toBeVisible()
   await expect(page.locator('[data-intro-layer="horizon-depth"]')).toBeVisible()
