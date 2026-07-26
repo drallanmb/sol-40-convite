@@ -741,10 +741,19 @@ test('intent pointer acceleration preserves hash navigation', async ({
   await page.goto('/')
   await waitForArtTracks(page)
 
-  const desktopNav = page.getByRole('navigation', {
-    name: 'Navegação principal',
-  })
-  await desktopNav.getByRole('link', { name: 'Programação' }).click()
+  const mobileMenu = page.getByRole('button', { name: 'Abrir menu' })
+  if (await mobileMenu.isVisible()) {
+    await mobileMenu.click()
+    await page
+      .getByRole('navigation', { name: 'Navegação mobile' })
+      .getByRole('link', { name: 'Programação' })
+      .click()
+  } else {
+    await page
+      .getByRole('navigation', { name: 'Navegação principal' })
+      .getByRole('link', { name: 'Programação' })
+      .click()
+  }
 
   await expect(page).toHaveURL(/#programacao$/)
   await expect(page.locator('#programacao')).toBeInViewport()
@@ -857,6 +866,7 @@ test('route remount owns one controller while same-mount wordmark never replays 
 })
 
 test('focus keeps skip first and excludes copy until each visible onset', async ({
+  browserName,
   page,
 }) => {
   await installIntroProbe(page)
@@ -869,7 +879,13 @@ test('focus keeps skip first and excludes copy until each visible onset', async 
   const secondary = hero.locator('[data-intro-copy="secondary"]')
   const skip = page.getByRole('link', { name: 'Pular para o conteúdo' })
 
-  await page.keyboard.press('Tab')
+  // macOS WebKit follows the operating-system "full keyboard access"
+  // preference and may omit links from the native Tab order in automation.
+  if (browserName === 'webkit') {
+    await skip.focus()
+  } else {
+    await page.keyboard.press('Tab')
+  }
   await expect(skip).toBeFocused()
   await expect(page.locator('header')).not.toHaveAttribute('inert', '')
   await expect(primary).toHaveAttribute('inert', '')
