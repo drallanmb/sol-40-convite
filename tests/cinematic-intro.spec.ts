@@ -224,6 +224,65 @@ async function expectSkipStillWorks(page: Page): Promise<void> {
   await expect(page.locator('#conteudo')).toBeFocused()
 }
 
+async function expectCapturedIntentInterval(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__pwCinematicIntroProbe?.rateUpdates.length ?? 0,
+      ),
+    )
+    .toBe(ART_TRACKS.length)
+
+  const updates = await page.evaluate(
+    () => window.__pwCinematicIntroProbe?.rateUpdates ?? [],
+  )
+  expect(updates.map(({ track }) => track).sort()).toEqual(
+    [...ART_TRACKS].sort(),
+  )
+  expect(
+    updates.every(
+      ({ remaining }) => remaining >= 150 && remaining <= 200,
+    ),
+  ).toBe(true)
+}
+
+test('continuous production preview exposes no injected intro namespace', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  const namespaces = await page.evaluate(() => {
+    const runtime = window as unknown as Record<string, unknown>
+    return {
+      focusedProbe: typeof runtime.__pwCinematicIntroProbe,
+      visualTimeline: typeof runtime.__pwCinematicIntroTimeline,
+      productionController: typeof runtime.__cinematicIntro,
+    }
+  })
+
+  expect(namespaces).toEqual({
+    focusedProbe: 'undefined',
+    visualTimeline: 'undefined',
+    productionController: 'undefined',
+  })
+})
+
+test('geometry fragment entry bypasses the intro and keeps the target operable', async ({
+  page,
+}) => {
+  await installIntroProbe(page, false)
+  await page.goto('/#programacao')
+
+  await expectFinalUiOpen(page)
+  await expect(page).toHaveURL(/#programacao$/)
+  await expect(page.locator('#programacao')).toBeInViewport()
+  expect(
+    await page.evaluate(
+      () => window.__pwCinematicIntroProbe?.records.length ?? -1,
+    ),
+  ).toBe(0)
+})
+
 test('continuous scene shares one 3000ms clock and preserves the approved restraint', async ({
   page,
 }) => {
@@ -499,14 +558,7 @@ test('intent acceleration exposes a 150–200ms interval without restoring scrol
   })
   expect(['playing', 'complete']).toContain(accelerated.state)
   expect(accelerated.scrollY).toBe(4)
-  expect(
-    accelerated.rateUpdates.map(({ track }) => track).sort(),
-  ).toEqual([...ART_TRACKS].sort())
-  expect(
-    accelerated.rateUpdates.every(
-      ({ remaining }) => remaining >= 150 && remaining <= 200,
-    ),
-  ).toBe(true)
+  await expectCapturedIntentInterval(page)
 
   await expect(hero).toHaveAttribute('data-intro-state', 'complete', {
     timeout: 1000,
@@ -517,6 +569,46 @@ test('intent acceleration exposes a 150–200ms interval without restoring scrol
   )
   expect(elapsed).toBeGreaterThanOrEqual(120)
   expect(await page.evaluate(() => window.scrollY)).toBe(4)
+})
+
+test('intent focus acceleration preserves the skip action', async ({
+  page,
+}) => {
+  await installIntroProbe(page, false)
+  await page.goto('/')
+  await waitForArtTracks(page)
+
+  const hero = page.locator('#inicio')
+  const skip = page.getByRole('link', { name: 'Pular para o conteúdo' })
+  await skip.focus()
+  await expect(skip).toBeFocused()
+  await expect(hero).toHaveAttribute('data-intro-intent', 'accelerated')
+  await expectCapturedIntentInterval(page)
+
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/#conteudo$/)
+  await expect(page.locator('#conteudo')).toBeFocused()
+})
+
+test('intent pointer acceleration preserves hash navigation', async ({
+  page,
+}) => {
+  await installIntroProbe(page, false)
+  await page.goto('/')
+  await waitForArtTracks(page)
+
+  const desktopNav = page.getByRole('navigation', {
+    name: 'Navegação principal',
+  })
+  await desktopNav.getByRole('link', { name: 'Programação' }).click()
+
+  await expect(page).toHaveURL(/#programacao$/)
+  await expect(page.locator('#programacao')).toBeInViewport()
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-intent',
+    'accelerated',
+  )
+  await expectCapturedIntentInterval(page)
 })
 
 test('reduced motion starts complete with no finite intro or wave animation', async ({
