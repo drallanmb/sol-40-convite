@@ -517,10 +517,10 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
   }
 
   const sun = contracts.find(({ track }) => track === 'sun-arc')
-  const warmHorizon = contracts.find(
+  const warmHorizonContract = contracts.find(
     ({ track }) => track === 'warm-horizon',
   )
-  const haze = contracts.find(({ track }) => track === 'haze')
+  const hazeContract = contracts.find(({ track }) => track === 'haze')
   const primary = contracts.find(({ track }) => track === 'copy-primary')
   const secondary = contracts.find(({ track }) => track === 'copy-secondary')
   const cta = contracts.find(({ track }) => track === 'copy-cta')
@@ -570,7 +570,7 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
     ),
   ).toBeLessThanOrEqual(0.08)
 
-  for (const lightTrack of [warmHorizon, haze]) {
+  for (const lightTrack of [warmHorizonContract, hazeContract]) {
     const throughOnset = lightTrack?.keyframes.filter(
       ({ offset }) =>
         Number(offset) <= GLOW_ONSET_MS / INTRO_DURATION_MS,
@@ -620,8 +620,12 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
 
   await seekIntroAtMs(page, SUN_ARRIVAL_MS)
   await expectSunGeometryAligned(page)
-  await expect(warmHorizon).toHaveCSS('opacity', '0')
-  await expect(haze).toHaveCSS('opacity', '0')
+  await expect(
+    hero.locator('[data-intro-layer="warm-horizon"]'),
+  ).toHaveCSS('opacity', '0')
+  await expect(
+    hero.locator('[data-intro-layer="haze-horizon"]'),
+  ).toHaveCSS('opacity', '0')
   await expect(hero.locator('[data-intro-copy="primary"]')).toHaveAttribute(
     'inert',
     '',

@@ -256,7 +256,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Approved restraint:** nuvens, coqueiros/palmeiras e reflexo ou glitter na água não pertencem à composição aprovada e não devem ser reintroduzidos.
 - **Depth:** o recuo discreto da câmera separa céu, horizonte e mar apenas por `transform` e `opacity`; a leitura deve ser de enquadramento, nunca de zoom da interface.
 - **Canonical sun:** um único disco percorre arco diagonal derivado do palco e termina em `transform: none` dentro do alvo responsivo realmente renderizado.
-- **Light bridge:** o sol assenta em `82%`; o brilho ambiental do fundo permanece totalmente ausente durante o percurso e começa somente após a chegada, a partir de `83%`.
+- **Light bridge:** o sol percorre todo o arco em velocidade espacial aparente constante de `0–3000ms` e chega exatamente ao alvo em `3000ms`; warm horizon e haze permanecem em opacidade zero inclusive no frame de chegada e só começam a aparecer depois, a partir de `3060ms`.
 - **Responsive:** desktop e mobile têm trajetórias e enquadramentos próprios; mobile é uma composição vertical dirigida, não um recorte automático do desktop.
 
 ### Venue Map
@@ -276,11 +276,11 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 ### Motion
 
 - **Interface:** `180ms` para estados simples e `260ms` para transições compostas, com `cubic-bezier(.22,1,.36,1)`.
-- **Hero:** ondas contínuas em 22s, 30s e 38s permanecem independentes; a abertura finita usa um único relógio nominal de `3000ms`.
-- **Signature entrance:** o sol percorre o arco e a câmera recua sobre a paisagem já montada; título/data precedem convite/CTAs numa única janela final de `500–700ms`.
+- **Hero:** ondas contínuas em 22s, 30s e 38s permanecem independentes; a abertura finita dura `3700ms`, dividida entre `3000ms` de percurso solar e um beat pós-chegada separado de `700ms`.
+- **Signature entrance:** o sol percorre o arco sem ease, hold, settle ou desaceleração; depois da chegada, o glow começa em `3060ms`, título/data em `3100ms`, convite em `3400ms`, CTAs em `3460ms` e o hero termina aberto em `3700ms`.
 - **Intent:** scroll, skip, foco ou navegação aceleram o tempo restante para `150–200ms` sem consumir a ação original nem cortar diretamente para o fim.
 - **Retarget:** resize/orientação preserva geração e progresso e converge à nova composição por correção FLIP de aproximadamente `180ms`.
-- **Performance:** camadas grandes animam somente `transform` e `opacity`; `will-change` existe apenas durante `playing` e é removido em `complete`.
+- **Performance:** camadas grandes da paisagem animam somente `transform` e `opacity`; copy usa apenas recorte e deslocamento, e os CTAs preservam suas cores finais de fundo, borda e texto durante todo o reveal. `will-change` existe apenas durante `playing` e é removido em `complete`.
 - **Program sequence:** o sol da data e os sete horários entram uma única vez via `IntersectionObserver`, com stagger de `45ms` limitado aos seis primeiros intervalos.
 - **Public routes:** confirmação troca painéis em `520ms`; a carta aquece a superfície em `720ms` e escalona somente os rótulos de cada faixa, limitando o atraso acumulado.
 - **Admin states:** transições de rota, menus, diálogos, feedbacks e carregamento de dados usam `180–280ms`; movimento comunica mudança de estado e nunca cria uma coreografia de entrada no painel.

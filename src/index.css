@@ -121,8 +121,8 @@ body {
   outline-offset: 3px;
 }
 
-/* Plano-sequência do hero. O CSS base é sempre o frame final; a WAAPI
-   acrescenta apenas transformações e opacidades transitórias. */
+/* Plano-sequência do hero. O CSS base é sempre o frame final pós-chegada;
+   a WAAPI acrescenta apenas movimento, atmosfera e recortes transitórios. */
 .cinematic-hero {
   isolation: isolate;
 }
@@ -261,6 +261,11 @@ body {
 
 .cinematic-copy {
   margin-top: -2.5vh;
+}
+
+.cinematic-copy-reveal {
+  opacity: 1;
+  transform-origin: 50% 0;
 }
 
 .cinematic-meta {

@@ -3,13 +3,15 @@ import { Link } from 'react-router'
 import { HERO, SECTION_IDS } from '../../content/event'
 import {
   CINEMATIC_INTRO_DURATION_MS,
-  CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
+  CINEMATIC_INTRO_EASING,
+  CINEMATIC_INTRO_GLOW_ONSET_MS,
   CINEMATIC_INTRO_INTENT_MAX_MS,
+  CINEMATIC_INTRO_SUN_ARRIVAL_MS,
   CINEMATIC_INTRO_RETARGET_MS,
-  CINEMATIC_INTRO_SUN_SETTLE_PROGRESS,
   INTRO_COPY_TIMING,
   hasIntentionalIntroScroll,
   normalizeIntroProgress,
+  resolveConstantSpeedSunPath,
   resolveIntentPlaybackRate,
   resolveIntroComposition,
   resolveSunArc,
@@ -32,7 +34,10 @@ const PRIMARY_COPY_ONSET =
   INTRO_COPY_TIMING.primaryStartMs / CINEMATIC_INTRO_DURATION_MS
 const SECONDARY_COPY_ONSET =
   INTRO_COPY_TIMING.secondaryStartMs / CINEMATIC_INTRO_DURATION_MS
+const CTA_COPY_ONSET =
+  INTRO_COPY_TIMING.ctaStartMs / CINEMATIC_INTRO_DURATION_MS
 const GEOMETRY_EPSILON_PX = 0.5
+const SUN_START_SCALE = 0.84
 
 type IntroTrackName =
   | 'camera'
@@ -42,14 +47,17 @@ type IntroTrackName =
   | 'haze'
   | 'copy-primary'
   | 'copy-secondary'
+  | 'copy-cta'
 
 type IntroTrackDefinition = {
   track: IntroTrackName
+  durationMs: number
   keyframes: Keyframe[]
 }
 
 type ActiveIntroTrack = {
   track: IntroTrackName
+  durationMs: number
   owner: HTMLElement
   animation: Animation
 }
@@ -82,25 +90,73 @@ function geometryChanged(previous: RectLike, next: RectLike): boolean {
   )
 }
 
+function absoluteOffset(timeMs: number): number {
+  return timeMs / CINEMATIC_INTRO_DURATION_MS
+}
+
+function buildCopyRevealKeyframes(
+  startMs: number,
+  translateY: number,
+): Keyframe[] {
+  const holdOffset = absoluteOffset(Math.max(0, startMs - 20))
+  const onsetOffset = absoluteOffset(startMs)
+  const hiddenTransform = `translate3d(0, ${translateY}px, 0)`
+
+  return [
+    {
+      offset: 0,
+      clipPath: 'inset(0 0 100% 0)',
+      transform: hiddenTransform,
+    },
+    {
+      offset: holdOffset,
+      clipPath: 'inset(0 0 100% 0)',
+      transform: hiddenTransform,
+    },
+    {
+      offset: onsetOffset,
+      clipPath: 'inset(0 0 96% 0)',
+      transform: `translate3d(0, ${translateY * 0.92}px, 0)`,
+    },
+    {
+      offset: 1,
+      clipPath: 'inset(0 0 0 0)',
+      transform: 'none',
+    },
+  ]
+}
+
 function buildTrackDefinitions(
   stage: RectLike,
   target: RectLike,
   composition: IntroComposition,
 ): IntroTrackDefinition[] {
-  const [start, bend, approach] = resolveSunArc(
-    stage,
-    target,
-    composition,
+  const sunPath = resolveConstantSpeedSunPath(
+    resolveSunArc(stage, target, composition),
   )
   const mobile = composition === 'mobile'
-  const primaryHold = Math.max(0, PRIMARY_COPY_ONSET - 0.01)
-  const secondaryHold = Math.max(0, SECONDARY_COPY_ONSET - 0.01)
-  const copyEnd =
-    INTRO_COPY_TIMING.endMs / CINEMATIC_INTRO_DURATION_MS
+  const sunArrivalOffset = absoluteOffset(CINEMATIC_INTRO_SUN_ARRIVAL_MS)
+  const glowOnsetOffset = absoluteOffset(CINEMATIC_INTRO_GLOW_ONSET_MS)
+  const secondaryOnsetOffset = absoluteOffset(
+    INTRO_COPY_TIMING.secondaryStartMs,
+  )
+  const sunKeyframes = sunPath.map<Keyframe>(
+    (sample, index) => ({
+      offset: sample.progress,
+      transform:
+        index === sunPath.length - 1
+          ? 'none'
+          : translatePoint(
+            sample,
+            SUN_START_SCALE + (1 - SUN_START_SCALE) * sample.progress,
+          ),
+    }),
+  )
 
   return [
     {
       track: 'camera',
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
       keyframes: [
         {
           offset: 0,
@@ -109,107 +165,88 @@ function buildTrackDefinitions(
             : 'translate3d(0, 2.4%, 0) scale(1.052)',
         },
         {
-          offset: 0.68,
+          offset: 0.68 * sunArrivalOffset,
           transform: 'translate3d(0, .5%, 0) scale(1.012)',
           easing: 'cubic-bezier(.22,.72,.2,1)',
         },
+        { offset: sunArrivalOffset, transform: 'none' },
         { offset: 1, transform: 'none' },
       ],
     },
     {
       track: 'cool-veil',
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
       keyframes: [
         { offset: 0, opacity: 0.72 },
-        { offset: 0.54, opacity: 0.28 },
+        { offset: 0.54 * sunArrivalOffset, opacity: 0.28 },
+        { offset: sunArrivalOffset, opacity: 0 },
         { offset: 1, opacity: 0 },
       ],
     },
     {
       track: 'warm-horizon',
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
       keyframes: [
         { offset: 0, opacity: 0, transform: 'scale3d(.72, .72, 1)' },
         {
-          offset: CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
+          offset: glowOnsetOffset,
           opacity: 0,
           transform: 'scale3d(.82, .78, 1)',
         },
-        { offset: 0.88, opacity: 0.58, transform: 'scale3d(.95, .92, 1)' },
+        {
+          offset: secondaryOnsetOffset,
+          opacity: 0.58,
+          transform: 'scale3d(.95, .92, 1)',
+        },
         { offset: 1, opacity: 1, transform: 'none' },
       ],
     },
     {
       track: 'sun-arc',
-      keyframes: [
-        {
-          offset: 0,
-          transform: translatePoint(start, 0.84),
-          easing: 'cubic-bezier(.3,.02,.62,.72)',
-        },
-        {
-          offset: 0.4,
-          transform: translatePoint(bend, 0.91),
-          easing: 'cubic-bezier(.38,.12,.38,1)',
-        },
-        {
-          offset: 0.7,
-          transform: translatePoint(approach, 0.975),
-          easing: 'cubic-bezier(.16,.76,.16,1)',
-        },
-        {
-          offset: CINEMATIC_INTRO_SUN_SETTLE_PROGRESS,
-          transform: 'none',
-        },
-        { offset: 1, transform: 'none' },
-      ],
+      durationMs: CINEMATIC_INTRO_SUN_ARRIVAL_MS,
+      keyframes: sunKeyframes,
     },
     {
       track: 'haze',
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
       keyframes: [
         { offset: 0, opacity: 0, transform: 'scale3d(.72, .62, 1)' },
         {
-          offset: CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
+          offset: glowOnsetOffset,
           opacity: 0,
           transform: 'scale3d(.82, .74, 1)',
         },
-        { offset: 0.88, opacity: 0.54, transform: 'scale3d(.95, .9, 1)' },
+        {
+          offset: secondaryOnsetOffset,
+          opacity: 0.54,
+          transform: 'scale3d(.95, .9, 1)',
+        },
         { offset: 1, opacity: 1, transform: 'none' },
       ],
     },
     {
       track: 'copy-primary',
-      keyframes: [
-        { offset: 0, opacity: 0, transform: 'translate3d(0, 12px, 0)' },
-        {
-          offset: primaryHold,
-          opacity: 0,
-          transform: 'translate3d(0, 12px, 0)',
-        },
-        {
-          offset: PRIMARY_COPY_ONSET,
-          opacity: 0.08,
-          transform: 'translate3d(0, 10px, 0)',
-        },
-        { offset: 0.9, opacity: 1, transform: 'none' },
-        { offset: 1, opacity: 1, transform: 'none' },
-      ],
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
+      keyframes: buildCopyRevealKeyframes(
+        INTRO_COPY_TIMING.primaryStartMs,
+        12,
+      ),
     },
     {
       track: 'copy-secondary',
-      keyframes: [
-        { offset: 0, opacity: 0, transform: 'translate3d(0, 10px, 0)' },
-        {
-          offset: secondaryHold,
-          opacity: 0,
-          transform: 'translate3d(0, 10px, 0)',
-        },
-        {
-          offset: SECONDARY_COPY_ONSET,
-          opacity: 0.08,
-          transform: 'translate3d(0, 8px, 0)',
-        },
-        { offset: copyEnd, opacity: 1, transform: 'none' },
-        { offset: 1, opacity: 1, transform: 'none' },
-      ],
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
+      keyframes: buildCopyRevealKeyframes(
+        INTRO_COPY_TIMING.secondaryStartMs,
+        10,
+      ),
+    },
+    {
+      track: 'copy-cta',
+      durationMs: CINEMATIC_INTRO_DURATION_MS,
+      keyframes: buildCopyRevealKeyframes(
+        INTRO_COPY_TIMING.ctaStartMs,
+        10,
+      ),
     },
   ]
 }
@@ -228,6 +265,7 @@ export function Hero({
   const heroRef = useRef<HTMLElement>(null)
   const primaryCopyRef = useRef<HTMLDivElement>(null)
   const secondaryCopyRef = useRef<HTMLDivElement>(null)
+  const ctaCopyRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     if (introState !== 'playing') return
@@ -235,7 +273,8 @@ export function Hero({
     const root = heroRef.current
     const primaryCopy = primaryCopyRef.current
     const secondaryCopy = secondaryCopyRef.current
-    if (!root || !primaryCopy || !secondaryCopy) {
+    const ctaCopy = ctaCopyRef.current
+    if (!root || !primaryCopy || !secondaryCopy || !ctaCopy) {
       onIntroComplete('error')
       return
     }
@@ -275,6 +314,12 @@ export function Hero({
         secondaryCopy.removeAttribute('inert')
       } else {
         secondaryCopy.setAttribute('inert', '')
+      }
+
+      if (progress >= CTA_COPY_ONSET) {
+        ctaCopy.removeAttribute('inert')
+      } else {
+        ctaCopy.setAttribute('inert', '')
       }
     }
 
@@ -355,6 +400,7 @@ export function Hero({
       root.dataset.introState = 'complete'
       primaryCopy.removeAttribute('inert')
       secondaryCopy.removeAttribute('inert')
+      ctaCopy.removeAttribute('inert')
       cleanupHandles(false)
       onIntroComplete(reason)
     }
@@ -384,13 +430,14 @@ export function Hero({
     ): ActiveIntroTrack | null => {
       try {
         const animation = owner.animate(definition.keyframes, {
-          duration: CINEMATIC_INTRO_DURATION_MS,
-          easing: 'linear',
+          duration: definition.durationMs,
+          easing: CINEMATIC_INTRO_EASING,
           fill: 'both',
           iterations: 1,
         })
         const track = {
           track: definition.track,
+          durationMs: definition.durationMs,
           owner,
           animation,
         }
@@ -486,10 +533,7 @@ export function Hero({
           commitFinal('error')
           return
         }
-        const remainingMs = Math.max(
-          0,
-          CINEMATIC_INTRO_DURATION_MS - currentTime,
-        )
+        const remainingMs = Math.max(0, track.durationMs - currentTime)
         if (!updatePlaybackRate(track, remainingMs)) return
       }
     }
@@ -656,7 +700,7 @@ export function Hero({
         if (!owner) throw new Error(`Missing cinematic track: ${definition.track}`)
         const track = createTrack(owner, definition)
         if (!track || completed) return controller.dispose
-        if (definition.track === 'sun-arc') masterTrack = track
+        if (definition.track === 'camera') masterTrack = track
       }
 
       if (!masterTrack) throw new Error('Cinematic intro master is unavailable')
@@ -812,7 +856,7 @@ export function Hero({
           data-intro-copy="primary"
           data-intro-track="copy-primary"
           inert={copyIsWaiting ? true : undefined}
-          className="col-start-1 row-start-1 flex flex-col items-center"
+          className="cinematic-copy-reveal col-start-1 row-start-1 flex flex-col items-center"
         >
           <p className="text-small font-bold uppercase tracking-label">
             {HERO.eyebrow}
@@ -831,28 +875,35 @@ export function Hero({
           ref={secondaryCopyRef}
           data-intro-copy="secondary"
           data-intro-track="copy-secondary"
-          data-intro-intent
           inert={copyIsWaiting ? true : undefined}
-          className="col-start-1 row-start-2 mt-5 flex w-full flex-col items-center"
+          className="cinematic-copy-reveal col-start-1 row-start-2 mt-5 flex w-full flex-col items-center"
         >
           <p className="font-serif text-[clamp(1.35rem,2.5vw,2rem)] leading-[1.3]">
             {HERO.taglineLead}
             <em className="not-italic text-coral">{HERO.taglineEm}</em>
           </p>
-          <div className="mt-7 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:gap-5">
-            <Link
-              to={HERO.primaryCtaHref}
-              className={buttonClassName('rsvp', 'w-full sm:w-auto')}
-            >
-              {HERO.primaryCtaLabel}
-            </Link>
-            <a
-              href={HERO.secondaryCtaHref}
-              className={buttonClassName('heroSecondary', 'w-full sm:w-auto')}
-            >
-              {HERO.secondaryCtaLabel}
-            </a>
-          </div>
+        </div>
+
+        <div
+          ref={ctaCopyRef}
+          data-intro-copy="cta"
+          data-intro-track="copy-cta"
+          data-intro-intent
+          inert={copyIsWaiting ? true : undefined}
+          className="cinematic-copy-reveal col-start-1 row-start-3 mt-7 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:gap-5"
+        >
+          <Link
+            to={HERO.primaryCtaHref}
+            className={buttonClassName('rsvp', 'w-full sm:w-auto')}
+          >
+            {HERO.primaryCtaLabel}
+          </Link>
+          <a
+            href={HERO.secondaryCtaHref}
+            className={buttonClassName('heroSecondary', 'w-full sm:w-auto')}
+          >
+            {HERO.secondaryCtaLabel}
+          </a>
         </div>
       </div>
 

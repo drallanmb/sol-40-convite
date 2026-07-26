@@ -20,23 +20,33 @@ export type IntroPoint = {
   y: number
 }
 
-export const CINEMATIC_INTRO_DURATION_MS = 3000
-export const CINEMATIC_INTRO_EASING = 'cubic-bezier(.22, .7, .16, 1)'
+export type IntroPathSample = IntroPoint & {
+  progress: number
+}
+
+export const CINEMATIC_INTRO_SUN_ARRIVAL_MS = 3000
+export const CINEMATIC_INTRO_POST_ARRIVAL_MS = 700
+export const CINEMATIC_INTRO_DURATION_MS =
+  CINEMATIC_INTRO_SUN_ARRIVAL_MS + CINEMATIC_INTRO_POST_ARRIVAL_MS
+export const CINEMATIC_INTRO_EASING = 'linear'
 export const CINEMATIC_INTRO_SCROLL_THRESHOLD_PX = 4
 export const CINEMATIC_INTRO_INTENT_MAX_MS = 180
 export const CINEMATIC_INTRO_RETARGET_MS = 180
-export const CINEMATIC_INTRO_SUN_SETTLE_PROGRESS = 0.82
-export const CINEMATIC_INTRO_GLOW_ONSET_PROGRESS = 0.83
+export const CINEMATIC_INTRO_GLOW_ONSET_MS = 3060
 
 export const INTRO_COPY_TIMING = Object.freeze({
-  primaryStartMs: 2280,
-  secondaryStartMs: 2640,
-  endMs: 2970,
+  primaryStartMs: 3100,
+  secondaryStartMs: 3400,
+  ctaStartMs: 3460,
+  endMs: CINEMATIC_INTRO_DURATION_MS,
 })
 
 const MOBILE_COMPOSITION_MAX_WIDTH = 639
 const INTENT_COMPLETION_MIN_MS = 150
 const INTENT_COMPLETION_MAX_MS = 200
+const PATH_EPSILON = 1e-6
+const DEFAULT_PATH_INTERVALS = 60
+const MAX_PATH_INTERVALS = 180
 const IDENTITY_ARC: readonly IntroPoint[] = Object.freeze([
   Object.freeze({ x: 0, y: 0 }),
   Object.freeze({ x: 0, y: 0 }),
@@ -79,6 +89,58 @@ function isFiniteRect(rect: RectLike): boolean {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
+}
+
+function isFinitePoint(point: IntroPoint): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y)
+}
+
+function interpolatePoint(
+  start: IntroPoint,
+  end: IntroPoint,
+  progress: number,
+): IntroPoint {
+  return {
+    x: start.x + (end.x - start.x) * progress,
+    y: start.y + (end.y - start.y) * progress,
+  }
+}
+
+function catmullRomPoint(
+  previous: IntroPoint,
+  start: IntroPoint,
+  end: IntroPoint,
+  next: IntroPoint,
+  progress: number,
+): IntroPoint {
+  const squared = progress * progress
+  const cubed = squared * progress
+  const resolveAxis = (
+    previousValue: number,
+    startValue: number,
+    endValue: number,
+    nextValue: number,
+  ) =>
+    0.5 * (
+      2 * startValue
+      + (-previousValue + endValue) * progress
+      + (2 * previousValue - 5 * startValue + 4 * endValue - nextValue)
+        * squared
+      + (-previousValue + 3 * startValue - 3 * endValue + nextValue)
+        * cubed
+    )
+
+  return {
+    x: resolveAxis(previous.x, start.x, end.x, next.x),
+    y: resolveAxis(previous.y, start.y, end.y, next.y),
+  }
+}
+
+function identityPath(): IntroPathSample[] {
+  return [
+    { x: 0, y: 0, progress: 0 },
+    { x: 0, y: 0, progress: 1 },
+  ]
 }
 
 export function isEligibleHeroHash(hash: string): boolean {
@@ -146,6 +208,108 @@ export function resolveSunArc(
   }
 
   return [...points, { x: 0, y: 0 }]
+}
+
+/**
+ * Converte os pontos artísticos do arco em amostras equidistantes de uma
+ * curva Catmull–Rom. Como cada amostra ocupa a mesma fração dos 3000ms e a
+ * WAAPI usa easing linear, o centro do sol percorre distâncias praticamente
+ * iguais em intervalos iguais, sem aceleração ou desaceleração perceptível.
+ */
+export function resolveConstantSpeedSunPath(
+  waypoints: readonly IntroPoint[],
+  requestedIntervals = DEFAULT_PATH_INTERVALS,
+): IntroPathSample[] {
+  if (
+    waypoints.length < 2
+    || waypoints.some((point) => !isFinitePoint(point))
+  ) {
+    return identityPath()
+  }
+
+  const intervals = clamp(
+    Number.isFinite(requestedIntervals)
+      ? Math.round(requestedIntervals)
+      : DEFAULT_PATH_INTERVALS,
+    2,
+    MAX_PATH_INTERVALS,
+  )
+  const subdivisionsPerSegment = Math.max(48, intervals * 3)
+  const densePath: IntroPoint[] = [{ ...waypoints[0] }]
+
+  for (let index = 0; index < waypoints.length - 1; index += 1) {
+    const previous = waypoints[Math.max(0, index - 1)]
+    const start = waypoints[index]
+    const end = waypoints[index + 1]
+    const next = waypoints[Math.min(waypoints.length - 1, index + 2)]
+
+    for (let step = 1; step <= subdivisionsPerSegment; step += 1) {
+      densePath.push(
+        catmullRomPoint(
+          previous,
+          start,
+          end,
+          next,
+          step / subdivisionsPerSegment,
+        ),
+      )
+    }
+  }
+
+  const cumulativeLengths = [0]
+  for (let index = 1; index < densePath.length; index += 1) {
+    cumulativeLengths.push(
+      cumulativeLengths[index - 1]
+        + Math.hypot(
+          densePath[index].x - densePath[index - 1].x,
+          densePath[index].y - densePath[index - 1].y,
+        ),
+    )
+  }
+
+  const totalLength = cumulativeLengths.at(-1) ?? 0
+  if (!Number.isFinite(totalLength) || totalLength <= PATH_EPSILON) {
+    const stationary = waypoints[0]
+    return [
+      { ...stationary, progress: 0 },
+      { ...stationary, progress: 1 },
+    ]
+  }
+
+  const samples: IntroPathSample[] = []
+  let denseIndex = 1
+  for (let step = 0; step <= intervals; step += 1) {
+    const progress = step / intervals
+    const targetLength = totalLength * progress
+    while (
+      denseIndex < cumulativeLengths.length - 1
+      && cumulativeLengths[denseIndex] < targetLength
+    ) {
+      denseIndex += 1
+    }
+
+    const previousIndex = Math.max(0, denseIndex - 1)
+    const previousLength = cumulativeLengths[previousIndex]
+    const nextLength = cumulativeLengths[denseIndex]
+    const segmentLength = nextLength - previousLength
+    const segmentProgress =
+      segmentLength <= PATH_EPSILON
+        ? 0
+        : (targetLength - previousLength) / segmentLength
+    const point = interpolatePoint(
+      densePath[previousIndex],
+      densePath[denseIndex],
+      clamp(segmentProgress, 0, 1),
+    )
+    samples.push({ ...point, progress })
+  }
+
+  samples[0] = { ...waypoints[0], progress: 0 }
+  samples[samples.length - 1] = {
+    ...waypoints[waypoints.length - 1],
+    progress: 1,
+  }
+  return samples
 }
 
 export function normalizeIntroProgress(
