@@ -43,6 +43,23 @@ type DOMRectShape = {
   left: number
 }
 
+type CtaStackPointMode = 'visible-top' | 'center'
+
+type CtaStackProbe = {
+  point: { x: number; y: number }
+  hitHref: string | null
+  hitInsideCta: boolean
+  hitDescriptor: string
+  heroIsolation: string
+  scenePointerEvents: string
+  scenePosition: string
+  sceneZ: number | null
+  contentZ: number | null
+  metaZ: number | null
+  directHeroLayers: boolean
+  allSceneryOwnedByScene: boolean
+}
+
 declare global {
   interface Window {
     __pwCinematicIntroProbe?: {
@@ -367,6 +384,141 @@ async function expectFinalUiOpen(page: Page): Promise<void> {
   await expect(ctaGroup).not.toHaveAttribute('inert', '')
   await expect(cta).toBeVisible()
   await expect(cta).toBeEnabled()
+}
+
+async function readCtaStackProbe(
+  page: Page,
+  href: string,
+  pointMode: CtaStackPointMode,
+): Promise<CtaStackProbe> {
+  return page.evaluate(
+    ({ expectedHref, mode }) => {
+      const hero = document.querySelector<HTMLElement>('#inicio')
+      const scene = hero?.querySelector<HTMLElement>('[data-intro-scene]')
+      const content = hero?.querySelector<HTMLElement>('.cinematic-copy')
+      const meta = hero?.querySelector<HTMLElement>('.cinematic-meta')
+      const group = hero?.querySelector<HTMLElement>(
+        '[data-intro-copy="cta"]',
+      )
+      const link = group
+        ? [...group.querySelectorAll<HTMLAnchorElement>('a')].find(
+          (candidate) => candidate.getAttribute('href') === expectedHref,
+        )
+        : null
+      if (!hero || !scene || !content || !meta || !group || !link) {
+        throw new Error('Complete semantic CTA stack is absent')
+      }
+
+      const rect = link.getBoundingClientRect()
+      const x = rect.left + rect.width / 2
+      const y =
+        mode === 'visible-top'
+          ? rect.top + Math.min(8, rect.height * 0.2)
+          : rect.top + rect.height / 2
+      const originalInlinePointerEvents = scene.style.pointerEvents
+      scene.style.pointerEvents = 'auto'
+      let hit: Element | null = null
+      try {
+        hit = document.elementFromPoint(x, y)
+      } finally {
+        scene.style.pointerEvents = originalInlinePointerEvents
+      }
+
+      const readLayerZ = (element: HTMLElement): number | null => {
+        const value = getComputedStyle(element).zIndex
+        if (value === 'auto') return null
+        const parsed = Number.parseInt(value, 10)
+        return Number.isFinite(parsed) ? parsed : null
+      }
+      const scenicSelectors = [
+        '[data-intro-layer="camera"]',
+        '[data-intro-layer="sky-base"]',
+        '[data-intro-layer="cool-veil"]',
+        '[data-intro-layer="warm-horizon"]',
+        '[data-intro-sun-target]',
+        '[data-intro-layer="haze-horizon"]',
+        '[data-intro-layer="horizon-depth"]',
+        '[data-intro-layer="sea"]',
+        '[data-intro-layer="texture"]',
+      ]
+      const scenicElements = scenicSelectors.flatMap((selector) =>
+        [...hero.querySelectorAll(selector)],
+      )
+      const hitLink = hit?.closest<HTMLAnchorElement>('a') ?? null
+
+      return {
+        point: {
+          x: x - rect.left,
+          y: y - rect.top,
+        },
+        hitHref: hitLink?.getAttribute('href') ?? null,
+        hitInsideCta: Boolean(hit && group.contains(hit)),
+        hitDescriptor: hit
+          ? `${hit.tagName.toLowerCase()}.${
+            [...hit.classList].join('.')
+          }`
+          : 'null',
+        heroIsolation: getComputedStyle(hero).isolation,
+        scenePointerEvents: getComputedStyle(scene).pointerEvents,
+        scenePosition: getComputedStyle(scene).position,
+        sceneZ: readLayerZ(scene),
+        contentZ: readLayerZ(content),
+        metaZ: readLayerZ(meta),
+        directHeroLayers:
+          scene.parentElement === hero
+          && content.parentElement === hero
+          && meta.parentElement === hero
+          && content.contains(group),
+        allSceneryOwnedByScene: scenicElements.every((element) =>
+          scene.contains(element),
+        ),
+      }
+    },
+    { expectedHref: href, mode: pointMode },
+  )
+}
+
+async function exerciseCtaActivation(
+  page: Page,
+  href: string,
+  point: { x: number; y: number },
+  touch: boolean,
+): Promise<string | null> {
+  await page.evaluate((expectedHref) => {
+    const group = document.querySelector<HTMLElement>(
+      '[data-intro-copy="cta"]',
+    )
+    const link = group
+      ? [...group.querySelectorAll<HTMLAnchorElement>('a')].find(
+        (candidate) => candidate.getAttribute('href') === expectedHref,
+      )
+      : null
+    if (!link) throw new Error(`CTA link is absent: ${expectedHref}`)
+
+    delete document.documentElement.dataset.ctaActivatedHref
+    link.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault()
+        document.documentElement.dataset.ctaActivatedHref =
+          link.getAttribute('href') ?? ''
+      },
+      { once: true },
+    )
+  }, href)
+
+  const link = page.locator(
+    `[data-intro-copy="cta"] a[href="${href}"]`,
+  )
+  if (touch) {
+    await link.tap({ position: point })
+  } else {
+    await link.click({ position: point })
+  }
+
+  return page.evaluate(
+    () => document.documentElement.dataset.ctaActivatedHref ?? null,
+  )
 }
 
 async function expectSkipStillWorks(page: Page): Promise<void> {
@@ -792,6 +944,91 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
   }
   expect(final.ancestorOpacities.every((opacity) => opacity === 1)).toBe(true)
 })
+
+for (const viewport of [
+  {
+    label: 'desktop',
+    project: 'emulated-chromium-desktop',
+    touch: false,
+  },
+  {
+    label: '320px mobile',
+    project: 'emulated-chromium-mobile-320px-2x',
+    touch: true,
+  },
+] as const) {
+  for (const frame of [
+    {
+      label: 'visible intermediate reveal',
+      currentTimeMs: CTA_ONSET_MS + 120,
+      href: '/confirmar',
+      pointMode: 'visible-top',
+      expectedState: 'playing',
+    },
+    {
+      label: 'final state',
+      currentTimeMs: INTRO_DURATION_MS,
+      href: '#programacao',
+      pointMode: 'center',
+      expectedState: 'complete',
+    },
+  ] as const) {
+    test(`CTA stack keeps ${viewport.label} buttons above every hero visual at the ${frame.label}`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(
+        testInfo.project.name !== viewport.project,
+        `Owned by ${viewport.project}`,
+      )
+
+      await installIntroProbe(page)
+      await page.goto('/')
+      await waitForArtTracks(page)
+      await seekIntroAtMs(page, frame.currentTimeMs)
+
+      const hero = page.locator('#inicio')
+      const ctaGroup = hero.locator('[data-intro-copy="cta"]')
+      await expect(hero).toHaveAttribute(
+        'data-intro-state',
+        frame.expectedState,
+      )
+      await expect(ctaGroup).not.toHaveAttribute('inert', '')
+
+      const probe = await readCtaStackProbe(
+        page,
+        frame.href,
+        frame.pointMode,
+      )
+      const activatedHref = await exerciseCtaActivation(
+        page,
+        frame.href,
+        probe.point,
+        viewport.touch,
+      )
+
+      expect(activatedHref).toBe(frame.href)
+      expect(
+        probe.hitInsideCta,
+        `elementFromPoint resolved ${probe.hitDescriptor}`,
+      ).toBe(true)
+      expect(probe.hitHref).toBe(frame.href)
+      expect(probe.heroIsolation).toBe('isolate')
+      expect(probe.scenePointerEvents).toBe('none')
+      expect(probe.scenePosition).not.toBe('static')
+      expect(probe.directHeroLayers).toBe(true)
+      expect(probe.allSceneryOwnedByScene).toBe(true)
+      expect(probe.sceneZ).not.toBeNull()
+      expect(probe.contentZ).not.toBeNull()
+      expect(probe.metaZ).not.toBeNull()
+      expect(probe.contentZ as number).toBeGreaterThan(
+        probe.sceneZ as number,
+      )
+      expect(probe.contentZ as number).toBeGreaterThan(
+        probe.metaZ as number,
+      )
+    })
+  }
+}
 
 test('arc geometry keeps one canonical sun and finishes on the real responsive target', async ({
   page,
