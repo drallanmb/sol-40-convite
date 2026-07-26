@@ -252,10 +252,12 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 
 ### Hero Sunset
 
-- **Composition:** somente céu, disco solar e três faixas do mar; coqueiros e outras silhuetas laterais são proibidos.
-- **Depth:** o sol pertence à camada de fundo; o plano do mar começa em uma linha de horizonte reta e cobre a parte inferior do disco.
-- **Responsive:** no mobile o mar cobre uma porção maior do disco; no desktop o horizonte corta aproximadamente o terço inferior.
-- **Reflection:** não existe feixe, caminho ou reflexo saindo do sol.
+- **Composition:** céu, horizonte, relevo distante, sol canônico e três faixas do mar formam uma única paisagem contínua desde o primeiro frame; não existe backdrop alternativo, corte ou troca de hero.
+- **Approved restraint:** nuvens, coqueiros/palmeiras e reflexo ou glitter na água não pertencem à composição aprovada e não devem ser reintroduzidos.
+- **Depth:** o recuo discreto da câmera separa céu, horizonte e mar apenas por `transform` e `opacity`; a leitura deve ser de enquadramento, nunca de zoom da interface.
+- **Canonical sun:** um único disco percorre arco diagonal derivado do palco e termina em `transform: none` dentro do alvo responsivo realmente renderizado.
+- **Light bridge:** o sol assenta em `82%`; o brilho ambiental do fundo permanece totalmente ausente durante o percurso e começa somente após a chegada, a partir de `83%`.
+- **Responsive:** desktop e mobile têm trajetórias e enquadramentos próprios; mobile é uma composição vertical dirigida, não um recorte automático do desktop.
 
 ### Venue Map
 
@@ -274,14 +276,17 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 ### Motion
 
 - **Interface:** `180ms` para estados simples e `260ms` para transições compostas, com `cubic-bezier(.22,1,.36,1)`.
-- **Hero:** ondas contínuas em 22s, 30s e 38s; nenhum reflexo ou feixe animado.
-- **Signature entrance:** céu aquece em `900ms`, sol assenta no horizonte e a cópia chega em cinco tempos de `680ms`, sem partir de opacidade zero.
+- **Hero:** ondas contínuas em 22s, 30s e 38s permanecem independentes; a abertura finita usa um único relógio nominal de `3000ms`.
+- **Signature entrance:** o sol percorre o arco e a câmera recua sobre a paisagem já montada; título/data precedem convite/CTAs numa única janela final de `500–700ms`.
+- **Intent:** scroll, skip, foco ou navegação aceleram o tempo restante para `150–200ms` sem consumir a ação original nem cortar diretamente para o fim.
+- **Retarget:** resize/orientação preserva geração e progresso e converge à nova composição por correção FLIP de aproximadamente `180ms`.
+- **Performance:** camadas grandes animam somente `transform` e `opacity`; `will-change` existe apenas durante `playing` e é removido em `complete`.
 - **Program sequence:** o sol da data e os sete horários entram uma única vez via `IntersectionObserver`, com stagger de `45ms` limitado aos seis primeiros intervalos.
 - **Public routes:** confirmação troca painéis em `520ms`; a carta aquece a superfície em `720ms` e escalona somente os rótulos de cada faixa, limitando o atraso acumulado.
 - **Admin states:** transições de rota, menus, diálogos, feedbacks e carregamento de dados usam `180–280ms`; movimento comunica mudança de estado e nunca cria uma coreografia de entrada no painel.
 - **Progress:** barras administrativas crescem a partir da origem esquerda quando dados atualizados substituem o skeleton.
 - **Navigation:** menu móvel preserva a saída antes de aplicar `visibility`; links recebem sublinhado direcional e botões elevam `2px` apenas em dispositivos com movimento permitido.
-- **Reduced motion:** remove animação contínua sem esconder a arte ou o conteúdo.
+- **Reduced motion:** mostra imediatamente o frame final completo, desliga a timeline e os loops contínuos e nunca esconde arte, conteúdo ou controles.
 
 ## 6. Do's and Don'ts
 

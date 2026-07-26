@@ -268,13 +268,13 @@ describe('cinematic intro progress and intent acceleration', () => {
   )
 
   it.each([
-    [Number.NaN, 180, 1],
-    [Number.POSITIVE_INFINITY, 180, 1],
-    [900, Number.NaN, 5],
+    [Number.NaN, 180, 1, 1],
+    [Number.POSITIVE_INFINITY, 180, 1, 1],
+    [900, Number.NaN, 1, 5],
     [900, 180, Number.NaN, 5],
   ])(
     'returns a finite safe rate for invalid remaining/max/current values',
-    (remaining, maxMs, currentRate, expected = 1) => {
+    (remaining, maxMs, currentRate, expected) => {
       const rate = resolveIntentPlaybackRate(remaining, maxMs, currentRate)
 
       expect(rate).toBeCloseTo(expected)
