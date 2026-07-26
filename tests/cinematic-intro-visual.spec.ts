@@ -15,7 +15,19 @@ const GLOW_ONSET_MS = 3060
 const PRIMARY_COPY_ONSET_MS = 3100
 const SECONDARY_COPY_ONSET_MS = 3400
 const CTA_ONSET_MS = 3460
-const APPROVED_PROGRESS_SAMPLES = [0, 0.7, 1] as const
+const APPROVED_TIMELINE_SAMPLES = [
+  { label: '0% · 0ms', progress: 0, timeMs: 0 },
+  {
+    label: `70% · ${Math.round(INTRO_DURATION_MS * 0.7)}ms`,
+    progress: 0.7,
+    timeMs: Math.round(INTRO_DURATION_MS * 0.7),
+  },
+  {
+    label: `100% · ${INTRO_DURATION_MS}ms`,
+    progress: 1,
+    timeMs: INTRO_DURATION_MS,
+  },
+] as const
 const APPROVED_SNAPSHOT_DIR = resolve(
   process.cwd(),
   'tests/cinematic-intro.snapshots',
@@ -36,7 +48,8 @@ declare global {
       tracks: () => string[]
       duplicates: () => string[]
       contracts: () => TrackContract[]
-      seek: (progress: number) => void
+      seek: (progress: number) => Promise<void>
+      seekAtMs: (currentTimeMs: number) => Promise<void>
     }
   }
 }
@@ -46,6 +59,28 @@ async function installTimelineInstrumentation(page: Page): Promise<void> {
     const originalAnimate = Element.prototype.animate
     const handles = new Map<string, Animation>()
     const duplicateTracks: string[] = []
+    const seekAtMs = async (currentTimeMs: number) => {
+      const timelineTime = Math.min(
+        duration,
+        Math.max(0, currentTimeMs),
+      )
+      for (const animation of handles.values()) {
+        animation.pause()
+      }
+      await Promise.all(
+        [...handles.values()].map((animation) =>
+          animation.ready.catch(() => animation),
+        ),
+      )
+      for (const animation of handles.values()) {
+        const timing = animation.effect?.getTiming()
+        const trackDuration =
+          typeof timing?.duration === 'number'
+            ? timing.duration
+            : duration
+        animation.currentTime = Math.min(timelineTime, trackDuration)
+      }
+    }
 
     window.__pwCinematicIntroTimeline = {
       tracks: () => [...handles.keys()],
@@ -61,13 +96,11 @@ async function installTimelineInstrumentation(page: Page): Promise<void> {
             keyframes: effect?.getKeyframes() ?? [],
           }
         }),
-      seek: (progress) => {
+      seek: async (progress) => {
         const clamped = Math.min(1, Math.max(0, progress))
-        for (const animation of handles.values()) {
-          animation.pause()
-          animation.currentTime = clamped * duration
-        }
+        await seekAtMs(clamped * duration)
       },
+      seekAtMs,
     }
 
     Element.prototype.animate = function (
@@ -95,6 +128,7 @@ async function installTimelineInstrumentation(page: Page): Promise<void> {
       }
 
       animation.pause()
+      animation.currentTime = 0
       handles.set(track, animation)
       return animation
     }
@@ -134,7 +168,7 @@ async function seekIntro(page: Page, progress: number): Promise<void> {
   await page.evaluate((value) => {
     const timeline = window.__pwCinematicIntroTimeline
     if (!timeline) throw new Error('Playwright cinematic timeline is absent')
-    timeline.seek(value)
+    return timeline.seek(value)
   }, progress)
 
   await page.evaluate(
@@ -151,7 +185,20 @@ async function seekIntroAtMs(
   page: Page,
   currentTimeMs: number,
 ): Promise<void> {
-  await seekIntro(page, currentTimeMs / INTRO_DURATION_MS)
+  await page.evaluate((value) => {
+    const timeline = window.__pwCinematicIntroTimeline
+    if (!timeline) throw new Error('Playwright cinematic timeline is absent')
+    return timeline.seekAtMs(value)
+  }, currentTimeMs)
+
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolvePaint) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolvePaint())
+        })
+      }),
+  )
 }
 
 async function expectNoDocumentOverflow(page: Page): Promise<void> {
@@ -185,9 +232,9 @@ async function captureStoryboard(
   )
 
   const frames: Buffer[] = []
-  for (const progress of APPROVED_PROGRESS_SAMPLES) {
-    await seekIntro(page, progress)
-    if (progress <= 0.7) {
+  for (const sample of APPROVED_TIMELINE_SAMPLES) {
+    await seekIntroAtMs(page, sample.timeMs)
+    if (sample.progress <= 0.7) {
       for (const group of ['primary', 'secondary', 'cta']) {
         const copy = page.locator(`[data-intro-copy="${group}"]`)
         await expect(copy).toHaveCSS('opacity', '1')
@@ -225,9 +272,7 @@ async function composeContactSheet(
 
   const figures = frames
     .map((frame, index) => {
-      const label = `${
-        Math.round(APPROVED_PROGRESS_SAMPLES[index] * 100)
-      }%`
+      const label = APPROVED_TIMELINE_SAMPLES[index].label
       const source = `data:image/png;base64,${frame.toString('base64')}`
       return `<figure><img src="${source}" alt="Keyframe ${label}"><figcaption>${label}</figcaption></figure>`
     })
@@ -287,20 +332,12 @@ async function expectApprovedBaseline(
   })
 
   let materiallyDifferentPixels = 0
-  let comparedPixels = 0
   const channels = actualPixels.info.channels
-  const middlePanelStart = Math.floor(actualPixels.info.width * 0.32)
-  const middlePanelEnd = Math.ceil(actualPixels.info.width * 0.68)
   for (
     let index = 0;
     index < actualPixels.data.length;
     index += channels
   ) {
-    const pixelIndex = index / channels
-    const x = pixelIndex % actualPixels.info.width
-    if (x >= middlePanelStart && x <= middlePanelEnd) continue
-    comparedPixels += 1
-
     let maximumChannelDelta = 0
     for (let channel = 0; channel < channels; channel += 1) {
       maximumChannelDelta = Math.max(
@@ -313,10 +350,11 @@ async function expectApprovedBaseline(
     }
     if (maximumChannelDelta > 16) materiallyDifferentPixels += 1
   }
-  const differentPixelRatio = materiallyDifferentPixels / comparedPixels
+  const pixelCount = actualPixels.info.width * actualPixels.info.height
+  const differentPixelRatio = materiallyDifferentPixels / pixelCount
   expect(
     differentPixelRatio,
-    `${fileName} divergiu em ${materiallyDifferentPixels}/${comparedPixels} pixels materiais nos endpoints`,
+    `${fileName} divergiu em ${materiallyDifferentPixels}/${pixelCount} pixels materiais`,
   ).toBeLessThanOrEqual(0.002)
 }
 
@@ -696,7 +734,7 @@ test('a WAAPI setup failure fails open without an uncaught page error', async ({
   expect(pageErrors).toEqual([])
 })
 
-test('desktop approved baseline preserves the 0/100 endpoint frames', async ({
+test('desktop approved baseline contains the absolute 0/70/100 timeline frames', async ({
   context,
   page,
 }, testInfo) => {
@@ -710,7 +748,7 @@ test('desktop approved baseline preserves the 0/100 endpoint frames', async ({
     width: 1280,
     height: 800,
   })
-  expect(desktopFrames).toHaveLength(APPROVED_PROGRESS_SAMPLES.length)
+  expect(desktopFrames).toHaveLength(APPROVED_TIMELINE_SAMPLES.length)
   const desktopContactSheet = await composeContactSheet(
     context,
     desktopFrames,
@@ -722,7 +760,7 @@ test('desktop approved baseline preserves the 0/100 endpoint frames', async ({
   )
 })
 
-test('mobile approved baseline preserves the 0/100 endpoint frames', async ({
+test('mobile approved baseline contains the absolute 0/70/100 timeline frames', async ({
   context,
   page,
 }, testInfo) => {
@@ -736,7 +774,7 @@ test('mobile approved baseline preserves the 0/100 endpoint frames', async ({
     width: 320,
     height: 760,
   })
-  expect(mobileFrames).toHaveLength(APPROVED_PROGRESS_SAMPLES.length)
+  expect(mobileFrames).toHaveLength(APPROVED_TIMELINE_SAMPLES.length)
   const mobileContactSheet = await composeContactSheet(
     context,
     mobileFrames,
@@ -758,6 +796,23 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
   await expect(page.locator('[data-intro-layer="sky-base"]')).toBeVisible()
   await expect(page.locator('[data-intro-layer="horizon-depth"]')).toBeVisible()
   await expect(page.locator('[data-intro-layer="sea"]')).toBeVisible()
+  expect(
+    await page.locator('[data-intro-layer]').evaluateAll((layers) =>
+      layers
+        .map((layer) => (layer as HTMLElement).dataset.introLayer ?? '')
+        .filter(Boolean)
+        .sort(),
+    ),
+  ).toEqual([
+    'camera',
+    'cool-veil',
+    'haze-horizon',
+    'horizon-depth',
+    'sea',
+    'sky-base',
+    'texture',
+    'warm-horizon',
+  ])
   for (const removedLayer of [
     'cloud-far',
     'cloud-near',
@@ -779,13 +834,22 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
 
   const warmHorizon = page.locator('[data-intro-layer="warm-horizon"]')
   const haze = page.locator('[data-intro-layer="haze-horizon"]')
-  for (const preArrivalMs of [0, 1200, 2100, SUN_ARRIVAL_MS]) {
+  for (const preArrivalMs of [
+    0,
+    1200,
+    2100,
+    SUN_ARRIVAL_MS - 1,
+    SUN_ARRIVAL_MS,
+  ]) {
     await seekIntroAtMs(page, preArrivalMs)
     await expect(warmHorizon).toHaveCSS('opacity', '0')
     await expect(haze).toHaveCSS('opacity', '0')
   }
 
   await seekIntroAtMs(page, SUN_ARRIVAL_MS)
+  await expect(warmHorizon).toHaveCSS('opacity', '0')
+  await expect(haze).toHaveCSS('opacity', '0')
+  await seekIntroAtMs(page, GLOW_ONSET_MS)
   await expect(warmHorizon).toHaveCSS('opacity', '0')
   await expect(haze).toHaveCSS('opacity', '0')
 
@@ -838,13 +902,27 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
       if (!group) throw new Error('Semantic CTA reveal group is absent')
       return {
         clipPath: getComputedStyle(group).clipPath,
-        opacity: getComputedStyle(group).opacity,
+        transform: getComputedStyle(group).transform,
+        ancestorOpacities: (() => {
+          const opacities: number[] = []
+          let ancestor: HTMLElement | null = group
+          while (ancestor) {
+            opacities.push(
+              Number.parseFloat(getComputedStyle(ancestor).opacity),
+            )
+            if (ancestor.id === 'inicio') break
+            ancestor = ancestor.parentElement
+          }
+          return opacities
+        })(),
         surfaces: [...group.querySelectorAll<HTMLElement>('a')].map(
           (button) => {
             const style = getComputedStyle(button)
             return {
               backgroundColor: style.backgroundColor,
               borderColor: style.borderTopColor,
+              borderStyle: style.borderTopStyle,
+              borderWidth: style.borderTopWidth,
               color: style.color,
               filter: style.filter,
             }
@@ -855,12 +933,32 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
   await seekIntroAtMs(page, CTA_ONSET_MS + 120)
   await expect(ctaGroup).not.toHaveAttribute('inert', '')
   const intermediateCta = await readCtaColors()
-  expect(intermediateCta.opacity).toBe('1')
+  expect(
+    intermediateCta.ancestorOpacities.every((opacity) => opacity === 1),
+  ).toBe(true)
   expect(intermediateCta.clipPath).not.toBe('none')
+  expect(intermediateCta.transform).not.toBe('none')
 
-  await seekIntro(page, 1)
+  await seekIntroAtMs(page, INTRO_DURATION_MS - 1)
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'playing',
+  )
+  const almostFinalCta = await readCtaColors()
+  expect(
+    almostFinalCta.ancestorOpacities.every((opacity) => opacity === 1),
+  ).toBe(true)
+  expect(almostFinalCta.clipPath).not.toBe('none')
+  expect(almostFinalCta.transform).not.toBe('none')
+
+  await seekIntroAtMs(page, INTRO_DURATION_MS)
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'complete',
+  )
   const finalCta = await readCtaColors()
   expect(intermediateCta.surfaces).toEqual(finalCta.surfaces)
+  expect(almostFinalCta.surfaces).toEqual(finalCta.surfaces)
   const geometry = await page.evaluate(() => {
     const target = document.querySelector<HTMLElement>(
       '[data-intro-sun-target]',

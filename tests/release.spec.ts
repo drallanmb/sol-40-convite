@@ -9,6 +9,18 @@ const WCAG_AA_TAGS = [
   'wcag21aa',
   'wcag22aa',
 ]
+const CINEMATIC_INTRO_DURATION_MS = 3700
+const CINEMATIC_INTRO_RELEASE_SAMPLES_MS = [
+  0,
+  Math.round(CINEMATIC_INTRO_DURATION_MS * 0.7),
+  CINEMATIC_INTRO_DURATION_MS,
+] as const
+
+type ReleaseCinematicIntroAnimation = {
+  animation: Animation
+  durationMs: number
+  track: string
+}
 
 const RELEASE_ROUTES = [
   { path: '/', heading: /Sol/i },
@@ -68,7 +80,8 @@ async function installReleaseCinematicIntroControl(
     ) {
       const animation = originalAnimate.call(this, keyframes, options)
       const owner = this as HTMLElement
-      if (!owner.dataset.introTrack) return animation
+      const track = owner.dataset.introTrack
+      if (!track) return animation
 
       const timing = animation.effect?.getTiming()
       const finite =
@@ -79,15 +92,20 @@ async function installReleaseCinematicIntroControl(
       if (!finite) return animation
 
       animation.pause()
-      window.__releaseCinematicIntroAnimations.push(animation)
+      animation.currentTime = 0
+      window.__releaseCinematicIntroAnimations.push({
+        animation,
+        durationMs: timing.duration as number,
+        track,
+      })
       return animation
     }
   })
 }
 
-async function seekReleaseCinematicIntro(
+async function seekReleaseCinematicIntroAtMs(
   page: Page,
-  progress: number,
+  currentTimeMs: number,
 ): Promise<void> {
   const intro = page.locator('#inicio')
   if ((await intro.getAttribute('data-intro-state')) !== 'playing') return
@@ -101,13 +119,29 @@ async function seekReleaseCinematicIntro(
       && window.__releaseCinematicIntroAnimations?.length === renderedTracks
     )
   })
-  await page.evaluate((value) => {
-    const currentTime = Math.min(1, Math.max(0, value)) * 3000
-    for (const animation of window.__releaseCinematicIntroAnimations) {
-      animation.pause()
-      animation.currentTime = currentTime
+  await page.evaluate(async ({ duration, value }) => {
+    const timelineTime = Math.min(
+      duration,
+      Math.max(0, value),
+    )
+    for (const record of window.__releaseCinematicIntroAnimations) {
+      record.animation.pause()
     }
-  }, progress)
+    await Promise.all(
+      window.__releaseCinematicIntroAnimations.map(({ animation }) =>
+        animation.ready.catch(() => animation),
+      ),
+    )
+    for (const record of window.__releaseCinematicIntroAnimations) {
+      record.animation.currentTime = Math.min(
+        timelineTime,
+        record.durationMs,
+      )
+    }
+  }, {
+    duration: CINEMATIC_INTRO_DURATION_MS,
+    value: currentTimeMs,
+  })
   await page.evaluate(
     () =>
       new Promise<void>((resolvePaint) => {
@@ -117,7 +151,7 @@ async function seekReleaseCinematicIntro(
       }),
   )
 
-  if (progress >= 1) {
+  if (currentTimeMs >= CINEMATIC_INTRO_DURATION_MS) {
     await expect(intro).toHaveAttribute('data-intro-state', 'complete')
   }
 }
@@ -125,7 +159,7 @@ async function seekReleaseCinematicIntro(
 declare global {
   interface Window {
     __releaseConvexTraffic: string[]
-    __releaseCinematicIntroAnimations: Animation[]
+    __releaseCinematicIntroAnimations: ReleaseCinematicIntroAnimation[]
   }
 }
 
@@ -199,7 +233,8 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   const secondaryCopy = page.locator(
     '#inicio [data-intro-copy="secondary"]',
   )
-  const hiddenCta = secondaryCopy.getByRole('link', {
+  const ctaCopy = page.locator('#inicio [data-intro-copy="cta"]')
+  const hiddenCta = ctaCopy.getByRole('link', {
     name: 'Confirmar presença',
   })
   await expect(page.locator('#inicio')).toHaveAttribute(
@@ -207,6 +242,7 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
     'playing',
   )
   await expect(secondaryCopy).toHaveAttribute('inert', '')
+  await expect(ctaCopy).toHaveAttribute('inert', '')
   expect(
     await hiddenCta.evaluate((element) => {
       ;(element as HTMLElement).focus()
@@ -225,7 +261,7 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   await page.keyboard.press('Enter')
   await expect(page.locator('#conteudo')).toBeFocused()
 
-  await seekReleaseCinematicIntro(page, 1)
+  await seekReleaseCinematicIntroAtMs(page, CINEMATIC_INTRO_DURATION_MS)
 
   const isDesktop = (page.viewportSize()?.width ?? 0) >= 1024
   if (isDesktop) {
@@ -281,7 +317,7 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   }
 })
 
-test('cinematic 320px stays overflow-free at 0/70/100 and pointer-transparent', async ({
+test('cinematic 320px stays overflow-free at absolute 0/70/100 timeline samples and pointer-transparent', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 760 })
@@ -299,8 +335,8 @@ test('cinematic 320px stays overflow-free at 0/70/100 and pointer-transparent', 
     ),
   ).toHaveCount(0)
 
-  for (const progress of [0, 0.7, 1]) {
-    await seekReleaseCinematicIntro(page, progress)
+  for (const currentTimeMs of CINEMATIC_INTRO_RELEASE_SAMPLES_MS) {
+    await seekReleaseCinematicIntroAtMs(page, currentTimeMs)
     await expectNoDocumentOverflow(page)
   }
 })

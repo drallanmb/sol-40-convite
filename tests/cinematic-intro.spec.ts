@@ -52,7 +52,7 @@ declare global {
         rate: number
         remaining: number
       }>
-      seek: (progress: number) => void
+      seek: (progress: number) => Promise<void>
       pause: () => void
     }
     __pwCinematicIntroWaapiFault?: {
@@ -184,12 +184,31 @@ async function installIntroProbe(
       window.__pwCinematicIntroProbe = {
         records,
         rateUpdates,
-        seek: (progress) => {
+        seek: async (progress) => {
           const clamped = Math.min(1, Math.max(0, progress))
-          for (const record of records) {
-            if (record.track === 'retarget') continue
+          const coordinated = records.filter(
+            ({ track }) => track !== 'retarget',
+          )
+          for (const record of coordinated) {
             record.animation.pause()
-            record.animation.currentTime = clamped * duration
+          }
+          await Promise.all(
+            coordinated.map(({ animation }) =>
+              animation.ready.catch(() => animation),
+            ),
+          )
+          for (const record of coordinated) {
+            const timing = (
+              record.animation.effect as KeyframeEffect | null
+            )?.getTiming()
+            const trackDuration =
+              typeof timing?.duration === 'number'
+                ? timing.duration
+                : duration
+            record.animation.currentTime = Math.min(
+              clamped * duration,
+              trackDuration,
+            )
           }
         },
         pause: () => {
@@ -238,7 +257,10 @@ async function installIntroProbe(
         if (!finite) return animation
 
         records.push({ animation, node: this, track })
-        if (shouldPause) animation.pause()
+        if (shouldPause) {
+          animation.pause()
+          animation.currentTime = 0
+        }
         return animation
       }
     },
@@ -267,7 +289,7 @@ async function seekIntro(page: Page, progress: number): Promise<void> {
   await page.evaluate((value) => {
     const probe = window.__pwCinematicIntroProbe
     if (!probe) throw new Error('Playwright intro probe is unavailable')
-    probe.seek(value)
+    return probe.seek(value)
   }, progress)
   await waitForPaint(page)
 }
@@ -638,6 +660,52 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
     'inert',
     '',
   )
+
+  const warmHorizon = hero.locator(
+    '[data-intro-layer="warm-horizon"]',
+  )
+  const haze = hero.locator('[data-intro-layer="haze-horizon"]')
+  await seekIntroAtMs(page, GLOW_ONSET_MS)
+  await expect(warmHorizon).toHaveCSS('opacity', '0')
+  await expect(haze).toHaveCSS('opacity', '0')
+  await seekIntroAtMs(page, GLOW_ONSET_MS + 1)
+  await expect
+    .poll(() =>
+      warmHorizon.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      haze.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeGreaterThan(0)
+
+  const primaryCopy = hero.locator('[data-intro-copy="primary"]')
+  const secondaryCopy = hero.locator('[data-intro-copy="secondary"]')
+  const ctaCopy = hero.locator('[data-intro-copy="cta"]')
+  await seekIntroAtMs(page, PRIMARY_COPY_ONSET_MS - 1)
+  await expect(primaryCopy).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, PRIMARY_COPY_ONSET_MS)
+  await expect(primaryCopy).not.toHaveAttribute('inert', '')
+  await expect(secondaryCopy).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, SECONDARY_COPY_ONSET_MS - 1)
+  await expect(secondaryCopy).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, SECONDARY_COPY_ONSET_MS)
+  await expect(secondaryCopy).not.toHaveAttribute('inert', '')
+  await expect(ctaCopy).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, CTA_ONSET_MS - 1)
+  await expect(ctaCopy).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, CTA_ONSET_MS)
+  await expect(ctaCopy).not.toHaveAttribute('inert', '')
+
+  await seekIntroAtMs(page, INTRO_DURATION_MS - 1)
+  await expect(hero).toHaveAttribute('data-intro-state', 'playing')
+  await seekIntroAtMs(page, INTRO_DURATION_MS)
+  await expect(hero).toHaveAttribute('data-intro-state', 'complete')
 })
 
 test('continuous desktop CTA reveal preserves final colors while clipping into view', async ({
@@ -650,6 +718,7 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
 
   const hero = page.locator('#inicio')
   const ctaGroup = hero.locator('[data-intro-copy="cta"]')
+  await expect(hero).toHaveAttribute('data-intro-state', 'playing')
   await seekIntroAtMs(page, CTA_ONSET_MS - 1)
   await expect(ctaGroup).toHaveAttribute('inert', '')
 
@@ -670,6 +739,8 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
         return {
           backgroundColor: style.backgroundColor,
           borderColor: style.borderTopColor,
+          borderStyle: style.borderTopStyle,
+          borderWidth: style.borderTopWidth,
           color: style.color,
           filter: style.filter,
         }
@@ -680,7 +751,7 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
         ancestorOpacities.push(
           Number.parseFloat(getComputedStyle(ancestor).opacity),
         )
-        if (ancestor === group) break
+        if (ancestor.id === 'inicio') break
         ancestor = ancestor.parentElement
       }
       const groupStyle = getComputedStyle(group)
@@ -693,22 +764,32 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
       }
     })
 
-  await seekIntroAtMs(page, CTA_ONSET_MS + 120)
-  await expect(ctaGroup).not.toHaveAttribute('inert', '')
-  const intermediate = await readVisualState()
-  expect(intermediate.clipPath).not.toBe('none')
-  expect(intermediate.clipPath).not.toBe('inset(0px)')
-  expect(intermediate.ancestorOpacities.every((opacity) => opacity === 1)).toBe(
-    true,
-  )
-  expect(
-    intermediate.surfaces.every(({ filter }) => filter === 'none'),
-  ).toBe(true)
+  const intermediateStates = []
+  for (const currentTimeMs of [
+    CTA_ONSET_MS,
+    CTA_ONSET_MS + 120,
+    INTRO_DURATION_MS - 1,
+  ]) {
+    await seekIntroAtMs(page, currentTimeMs)
+    await expect(ctaGroup).not.toHaveAttribute('inert', '')
+    const intermediate = await readVisualState()
+    expect(intermediate.clipPath).not.toBe('none')
+    expect(intermediate.clipPath).not.toBe('inset(0px)')
+    expect(
+      intermediate.ancestorOpacities.every((opacity) => opacity === 1),
+    ).toBe(true)
+    expect(
+      intermediate.surfaces.every(({ filter }) => filter === 'none'),
+    ).toBe(true)
+    intermediateStates.push(intermediate)
+  }
 
   await seekIntro(page, 1)
   const final = await readVisualState()
-  expect(intermediate.surfaces).toEqual(final.surfaces)
-  expect(intermediate.transform).not.toBe(final.transform)
+  for (const intermediate of intermediateStates) {
+    expect(intermediate.surfaces).toEqual(final.surfaces)
+    expect(intermediate.transform).not.toBe(final.transform)
+  }
   expect(final.ancestorOpacities.every((opacity) => opacity === 1)).toBe(true)
 })
 
