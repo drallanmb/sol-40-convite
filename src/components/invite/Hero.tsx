@@ -1,19 +1,17 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect } from 'react'
 import { Link } from 'react-router'
 import { HERO, SECTION_IDS } from '../../content/event'
-import {
-  CINEMATIC_INTRO_DURATION_MS,
-  CINEMATIC_INTRO_EASING,
-  hasIntentionalIntroScroll,
-  type IntroPhase,
+import type {
+  IntroCompletionReason,
+  IntroState,
 } from '../../lib/cinematicIntro'
 import { buttonClassName } from '../ui/Button'
 import { SeaWaves } from './SeaWaves'
 
 export type HeroProps = {
-  introPhase: IntroPhase
+  introState: IntroState
   introRunGeneration: number
-  onIntroDescentComplete: () => void
+  onIntroComplete: (reason: IntroCompletionReason) => void
 }
 
 /**
@@ -29,99 +27,27 @@ export type HeroProps = {
  * `/confirmar`; a secundária continua sendo o fragmento da programação.
  */
 export function Hero({
-  introPhase,
+  introState,
   introRunGeneration,
-  onIntroDescentComplete,
+  onIntroComplete,
 }: HeroProps) {
-  const sunTargetRef = useRef<HTMLDivElement>(null)
-  const sunVisualRef = useRef<HTMLDivElement>(null)
-
   useLayoutEffect(() => {
-    if (introPhase !== 'descending') return
+    if (introState !== 'playing') return
 
-    let animation: Animation | undefined
-    let completed = false
-    let disposed = false
-    const startScrollY = window.scrollY
-
-    const completeDescent = () => {
-      if (completed || disposed) return
-      completed = true
-
-      if (animation) {
-        animation.onfinish = null
-        if (animation.playState !== 'finished') animation.finish()
-        animation.cancel()
-      }
-      onIntroDescentComplete()
-    }
-
-    const onScroll = () => {
-      if (hasIntentionalIntroScroll(startScrollY, window.scrollY)) {
-        completeDescent()
-      }
-    }
-
-    window.addEventListener('scroll', onScroll, { passive: true })
-
-    const frame = window.requestAnimationFrame(() => {
-      const target = sunTargetRef.current
-      const visual = sunVisualRef.current
-      if (disposed || completed) return
-
-      if (!target || !visual || typeof visual.animate !== 'function') {
-        completeDescent()
-        return
-      }
-
-      const rect = target.getBoundingClientRect()
-      if (
-        !Number.isFinite(rect.bottom) ||
-        !Number.isFinite(rect.height) ||
-        rect.height <= 0
-      ) {
-        completeDescent()
-        return
-      }
-
-      animation = visual.animate(
-        [
-          {
-            transform: `translate3d(0, ${-(rect.bottom + rect.height)}px, 0)`,
-          },
-          { transform: 'translate3d(0, 0, 0)' },
-        ],
-        {
-          duration: CINEMATIC_INTRO_DURATION_MS,
-          easing: CINEMATIC_INTRO_EASING,
-          fill: 'both',
-        },
-      )
-      visual.dataset.introMotionReady = 'true'
-      animation.onfinish = completeDescent
-    })
-
-    return () => {
-      disposed = true
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('scroll', onScroll)
-      if (animation) {
-        animation.onfinish = null
-        animation.cancel()
-      }
-      sunVisualRef.current?.removeAttribute('data-intro-motion-ready')
-    }
+    // Task 2 replaces this fail-safe handoff with the approved provisional
+    // storyboard. Until then, an eligible route may never stay blocked.
+    onIntroComplete('finished')
   }, [
-    introPhase,
+    introState,
     introRunGeneration,
-    onIntroDescentComplete,
+    onIntroComplete,
   ])
 
   return (
     <section
       id={SECTION_IDS.hero}
       tabIndex={-1}
-      data-intro-phase={introPhase}
+      data-intro-state={introState}
       className="relative grid min-h-[860px] h-screen place-items-center overflow-hidden bg-peach text-cream"
     >
       {/* céu — gradiente radial (halo do sol) + gradiente linear de 5 paradas,
@@ -144,13 +70,11 @@ export function Hero({
 
         {/* sol */}
         <div
-          ref={sunTargetRef}
-          data-testid="hero-sun-target"
+          data-intro-sun-target
           className="absolute left-1/2 top-[62%] aspect-square w-[clamp(260px,28vw,480px)] -translate-x-1/2 -translate-y-1/2 sm:top-[59%]"
         >
           <div
-            ref={sunVisualRef}
-            data-testid="hero-sun-visual"
+            data-intro-sun
             aria-hidden="true"
             className="h-full w-full rounded-full"
             style={{
@@ -161,18 +85,12 @@ export function Hero({
         </div>
       </div>
 
-      <div
-        data-intro-reveal
-        className="pointer-events-none absolute inset-0"
-      >
+      <div className="pointer-events-none absolute inset-0">
         <SeaWaves />
       </div>
 
       {/* camada de texto */}
       <div
-        data-intro-reveal
-        data-intro-interactive
-        inert={introPhase === 'descending' ? true : undefined}
         className="relative z-[3] mx-auto flex max-w-3xl flex-col items-center px-4 text-center text-plum sm:px-8"
       >
         <p className="text-small font-bold uppercase tracking-label">
@@ -209,7 +127,6 @@ export function Hero({
 
       {/* meta de canto — inferior esquerda/direita */}
       <div
-        data-intro-reveal
         className="absolute inset-x-[clamp(22px,5vw,78px)] bottom-7 z-[4] flex justify-between text-caption uppercase tracking-label text-cream"
       >
         <span>{HERO.metaLeft}</span>

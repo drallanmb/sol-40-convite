@@ -3,7 +3,7 @@ import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router'
 import CountdownRail from '../invite/CountdownRail'
 import { FOOTER, SECTION_IDS, type NavLink } from '../../content/event'
-import type { IntroPhase } from '../../lib/cinematicIntro'
+import type { IntroState } from '../../lib/cinematicIntro'
 
 export type ShellProps = {
   children: ReactNode
@@ -14,7 +14,7 @@ export type ShellProps = {
   /** Href for the wordmark. Omitted → wordmark renders as a plain (non-link) mark. */
   wordmarkHref?: string
   /** Reveal state for Home chrome. Secondary routes default to fully visible. */
-  introPhase?: IntroPhase
+  introState?: IntroState
   /** Lets the Home sky begin at viewport Y=0 without moving the sticky header. */
   underlapTopbar?: boolean
 }
@@ -44,7 +44,7 @@ export function Shell({
   navLinks,
   showCountdownRail = false,
   wordmarkHref,
-  introPhase = 'complete',
+  introState = 'complete',
   underlapTopbar = false,
 }: ShellProps) {
   const [scrolled, setScrolled] = useState(false)
@@ -151,8 +151,7 @@ export function Shell({
 
       <header
         data-intro-chrome
-        data-intro-chrome-phase={introPhase}
-        inert={introPhase === 'descending' ? true : undefined}
+        data-intro-chrome-state={introState}
         className={`sticky top-0 z-(--z-sticky) border-b text-plum transition-[background-color,border-color,box-shadow,opacity] duration-(--duration-medium) ease-out ${underlapTopbar ? '-mb-px' : ''} ${headerChromeClasses}`}
       >
         <div className="relative mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">

@@ -147,43 +147,6 @@ body {
   }
 }
 
-/* Abertura cinematográfica: céu e sol canônico permanecem fora do fade.
-   Mar, conteúdo e metadados já ficam montados (e as ondas continuam
-   rodando), mas só são revelados quando o disco alcança o alvo responsivo. */
-[data-intro-reveal] {
-  visibility: visible;
-  opacity: 1;
-}
-
-[data-intro-chrome] {
-  visibility: visible;
-  opacity: 1;
-}
-
-[data-intro-chrome][data-intro-chrome-phase="descending"] {
-  visibility: hidden;
-  opacity: 0;
-}
-
-[data-intro-phase="descending"] [data-intro-reveal] {
-  visibility: hidden;
-  opacity: 0;
-}
-
-[data-intro-phase="revealing"] [data-intro-reveal],
-[data-intro-phase="complete"] [data-intro-reveal] {
-  transition: opacity var(--duration-medium) var(--ease-out);
-}
-
-[data-intro-phase="descending"] [data-testid="hero-sun-visual"] {
-  visibility: hidden;
-}
-
-[data-intro-phase="descending"]
-  [data-testid="hero-sun-visual"][data-intro-motion-ready="true"] {
-  visibility: visible;
-}
-
 @media (prefers-reduced-motion: no-preference) {
   [data-motion-state="entered"] .program-sun {
     animation: program-sun-settle 560ms var(--ease-out) both;
@@ -447,11 +410,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-intro-phase] [data-intro-reveal],
-  [data-intro-chrome] {
-    transition: none;
-  }
-
   .wave-band,
   .wave-band--mid,
   .wave-band--back {

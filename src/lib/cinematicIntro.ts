@@ -1,10 +1,14 @@
 import { SECTION_IDS } from '../content/event'
 
-export type IntroPhase = 'descending' | 'revealing' | 'complete'
+export type IntroState = 'playing' | 'complete'
+export type IntroCompletionReason =
+  | 'finished'
+  | 'reduced-motion'
+  | 'ineligible'
+  | 'error'
 
-export const CINEMATIC_INTRO_DURATION_MS = 2000
-export const CINEMATIC_INTRO_REVEAL_MS = 260
-export const CINEMATIC_INTRO_EASING = 'cubic-bezier(.65, 0, .35, 1)'
+export const CINEMATIC_INTRO_DURATION_MS = 3000
+export const CINEMATIC_INTRO_EASING = 'cubic-bezier(.22, .7, .16, 1)'
 export const CINEMATIC_INTRO_SCROLL_THRESHOLD_PX = 4
 
 const HOME_SECTION_IDS = new Set<string>(Object.values(SECTION_IDS))
@@ -13,13 +17,19 @@ export function isEligibleHeroHash(hash: string): boolean {
   return hash === '' || hash === `#${SECTION_IDS.hero}`
 }
 
-export function resolveInitialIntroPhase(
+export function resolveInitialIntroState(
   hash: string,
   reducedMotion: boolean,
-): IntroPhase {
+): IntroState {
   return !reducedMotion && isEligibleHeroHash(hash)
-    ? 'descending'
+    ? 'playing'
     : 'complete'
+}
+
+export function resolveCompletedIntroState(
+  _reason: IntroCompletionReason,
+): IntroState {
+  return 'complete'
 }
 
 export function hasIntentionalIntroScroll(

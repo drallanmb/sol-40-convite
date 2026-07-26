@@ -12,10 +12,11 @@ import MemoriesSection from '../components/memories/MemoriesSection'
 import { NAV_LINKS, SECTION_IDS } from '../content/event'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import {
-  CINEMATIC_INTRO_REVEAL_MS,
   homeSectionIdFromHash,
   isEligibleHeroHash,
-  resolveInitialIntroPhase,
+  resolveCompletedIntroState,
+  resolveInitialIntroState,
+  type IntroCompletionReason,
 } from '../lib/cinematicIntro'
 
 /**
@@ -29,30 +30,18 @@ function Home() {
   const location = useLocation()
   const reducedMotion = useReducedMotion()
   const initialHashRef = useRef(location.hash)
-  const [introPhase, setIntroPhase] = useState(() =>
-    resolveInitialIntroPhase(initialHashRef.current, reducedMotion),
+  const [introState, setIntroState] = useState(() =>
+    resolveInitialIntroState(initialHashRef.current, reducedMotion),
   )
   const [introRunGeneration, setIntroRunGeneration] = useState(0)
 
-  const completeIntroDescent = useCallback(() => {
-    setIntroPhase((phase) =>
-      phase === 'descending' ? 'revealing' : phase,
-    )
+  const completeIntro = useCallback((reason: IntroCompletionReason) => {
+    setIntroState(resolveCompletedIntroState(reason))
   }, [])
 
   useEffect(() => {
-    if (introPhase !== 'revealing') return
-
-    const revealTimer = window.setTimeout(() => {
-      setIntroPhase('complete')
-    }, CINEMATIC_INTRO_REVEAL_MS)
-
-    return () => window.clearTimeout(revealTimer)
-  }, [introPhase])
-
-  useEffect(() => {
-    if (reducedMotion) setIntroPhase('complete')
-  }, [reducedMotion])
+    if (reducedMotion) completeIntro('reduced-motion')
+  }, [completeIntro, reducedMotion])
 
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
@@ -65,7 +54,7 @@ function Home() {
       }
 
       setIntroRunGeneration((generation) => generation + 1)
-      setIntroPhase('descending')
+      setIntroState('playing')
     }
 
     window.addEventListener('pageshow', onPageShow)
@@ -91,13 +80,13 @@ function Home() {
       navLinks={NAV_LINKS}
       showCountdownRail
       wordmarkHref={`#${SECTION_IDS.hero}`}
-      introPhase={introPhase}
+      introState={introState}
       underlapTopbar
     >
       <Hero
-        introPhase={introPhase}
+        introState={introState}
         introRunGeneration={introRunGeneration}
-        onIntroDescentComplete={completeIntroDescent}
+        onIntroComplete={completeIntro}
       />
       <Countdown />
       <GiftPreview />
