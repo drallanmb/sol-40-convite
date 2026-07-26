@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { SECTION_IDS } from '../content/event'
 import {
-  CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
   CINEMATIC_INTRO_DURATION_MS,
   CINEMATIC_INTRO_EASING,
+  CINEMATIC_INTRO_GLOW_ONSET_MS,
   CINEMATIC_INTRO_INTENT_MAX_MS,
+  CINEMATIC_INTRO_POST_ARRIVAL_MS,
   CINEMATIC_INTRO_RETARGET_MS,
   CINEMATIC_INTRO_SCROLL_THRESHOLD_PX,
-  CINEMATIC_INTRO_SUN_SETTLE_PROGRESS,
+  CINEMATIC_INTRO_SUN_ARRIVAL_MS,
   INTRO_COPY_TIMING,
   hasIntentionalIntroScroll,
   homeSectionIdFromHash,
   isEligibleHeroHash,
   normalizeIntroProgress,
+  resolveConstantSpeedSunPath,
   resolveIntentPlaybackRate,
   resolveIntroComposition,
   resolveCompletedIntroState,
@@ -104,19 +106,25 @@ describe('cinematic intro fragment policy', () => {
 })
 
 describe('cinematic intro timing contract', () => {
-  it('keeps the single scene clock, easing and scroll threshold centralized', () => {
-    expect(CINEMATIC_INTRO_DURATION_MS).toBe(3000)
-    expect(CINEMATIC_INTRO_EASING).toBe(
-      'cubic-bezier(.22, .7, .16, 1)',
+  it('keeps the 3000ms sun travel, linear motion and post-arrival beat explicit', () => {
+    expect(CINEMATIC_INTRO_SUN_ARRIVAL_MS).toBe(3000)
+    expect(CINEMATIC_INTRO_POST_ARRIVAL_MS).toBe(700)
+    expect(CINEMATIC_INTRO_DURATION_MS).toBe(3700)
+    expect(CINEMATIC_INTRO_DURATION_MS).toBe(
+      CINEMATIC_INTRO_SUN_ARRIVAL_MS
+        + CINEMATIC_INTRO_POST_ARRIVAL_MS,
     )
+    expect(CINEMATIC_INTRO_EASING).toBe('linear')
     expect(CINEMATIC_INTRO_SCROLL_THRESHOLD_PX).toBe(4)
   })
 
-  it('keeps the approved landing, delayed glow and retarget timing explicit', () => {
-    expect(CINEMATIC_INTRO_SUN_SETTLE_PROGRESS).toBe(0.82)
-    expect(CINEMATIC_INTRO_GLOW_ONSET_PROGRESS).toBe(0.83)
-    expect(CINEMATIC_INTRO_GLOW_ONSET_PROGRESS).toBeGreaterThan(
-      CINEMATIC_INTRO_SUN_SETTLE_PROGRESS,
+  it('starts ambient light and content strictly after the 3000ms arrival', () => {
+    expect(CINEMATIC_INTRO_GLOW_ONSET_MS).toBe(3060)
+    expect(CINEMATIC_INTRO_GLOW_ONSET_MS).toBeGreaterThan(
+      CINEMATIC_INTRO_SUN_ARRIVAL_MS,
+    )
+    expect(INTRO_COPY_TIMING.primaryStartMs).toBeGreaterThan(
+      CINEMATIC_INTRO_SUN_ARRIVAL_MS,
     )
     expect(CINEMATIC_INTRO_INTENT_MAX_MS).toBe(180)
     expect(CINEMATIC_INTRO_RETARGET_MS).toBe(180)
@@ -127,6 +135,9 @@ describe('cinematic intro timing contract', () => {
       INTRO_COPY_TIMING.secondaryStartMs,
     )
     expect(INTRO_COPY_TIMING.secondaryStartMs).toBeLessThan(
+      INTRO_COPY_TIMING.ctaStartMs,
+    )
+    expect(INTRO_COPY_TIMING.ctaStartMs).toBeLessThan(
       INTRO_COPY_TIMING.endMs,
     )
     expect(
@@ -211,6 +222,59 @@ describe('cinematic intro responsive composition', () => {
   })
 
   it.each([
+    ['desktop', desktopStage, desktopTarget],
+    ['mobile', mobileStage, mobileTarget],
+  ] satisfies Array<[IntroComposition, RectLike, RectLike]>)(
+    'arc-length normalizes the curved %s path to constant spatial steps',
+    (composition, stage, target) => {
+      const waypoints = resolveSunArc(stage, target, composition)
+      const samples = resolveConstantSpeedSunPath(waypoints, 30)
+
+      expect(samples).toHaveLength(31)
+      expect(samples[0]).toMatchObject({
+        ...waypoints[0],
+        progress: 0,
+      })
+      expect(samples.at(-1)).toMatchObject({
+        x: 0,
+        y: 0,
+        progress: 1,
+      })
+      expect(
+        samples.flatMap(({ x, y, progress }) => [x, y, progress])
+          .every(Number.isFinite),
+      ).toBe(true)
+
+      const distances = samples.slice(1).map((sample, index) =>
+        Math.hypot(
+          sample.x - samples[index].x,
+          sample.y - samples[index].y,
+        ),
+      )
+      const meanDistance =
+        distances.reduce((sum, distance) => sum + distance, 0)
+        / distances.length
+      const maximumDeviation = Math.max(
+        ...distances.map((distance) =>
+          Math.abs(distance - meanDistance) / meanDistance,
+        ),
+      )
+      expect(maximumDeviation).toBeLessThanOrEqual(0.08)
+
+      for (const waypoint of waypoints.slice(1, -1)) {
+        const nearestSampleDistance = Math.min(
+          ...samples.map((sample) =>
+            Math.hypot(sample.x - waypoint.x, sample.y - waypoint.y),
+          ),
+        )
+        expect(nearestSampleDistance).toBeLessThanOrEqual(
+          meanDistance * 1.25,
+        )
+      }
+    },
+  )
+
+  it.each([
     [{ ...desktopStage, width: 0 }, desktopTarget],
     [desktopStage, { ...desktopTarget, height: Number.NaN }],
     [{ ...desktopStage, left: Number.POSITIVE_INFINITY }, desktopTarget],
@@ -225,6 +289,18 @@ describe('cinematic intro responsive composition', () => {
       ])
     },
   )
+
+  it('fails invalid path points to finite identity samples', () => {
+    const samples = resolveConstantSpeedSunPath([
+      { x: Number.NaN, y: -100 },
+      { x: 0, y: 0 },
+    ])
+
+    expect(samples).toEqual([
+      { x: 0, y: 0, progress: 0 },
+      { x: 0, y: 0, progress: 1 },
+    ])
+  })
 })
 
 describe('cinematic intro progress and intent acceleration', () => {

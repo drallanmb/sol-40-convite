@@ -1,9 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const INTRO_DURATION_MS = 3000
+const SUN_ARRIVAL_MS = 3000
+const POST_ARRIVAL_MS = 700
+const INTRO_DURATION_MS = SUN_ARRIVAL_MS + POST_ARRIVAL_MS
+const GLOW_ONSET_MS = 3060
+const PRIMARY_COPY_ONSET_MS = 3100
+const SECONDARY_COPY_ONSET_MS = 3400
+const CTA_ONSET_MS = 3460
 const ART_TRACKS = [
   'camera',
   'cool-veil',
+  'copy-cta',
   'copy-primary',
   'copy-secondary',
   'haze',
@@ -265,6 +272,13 @@ async function seekIntro(page: Page, progress: number): Promise<void> {
   await waitForPaint(page)
 }
 
+async function seekIntroAtMs(
+  page: Page,
+  currentTimeMs: number,
+): Promise<void> {
+  await seekIntro(page, currentTimeMs / INTRO_DURATION_MS)
+}
+
 async function waitForPaint(page: Page): Promise<void> {
   await page.evaluate(
     () =>
@@ -321,12 +335,14 @@ async function expectFinalUiOpen(page: Page): Promise<void> {
   const hero = page.locator('#inicio')
   const primary = hero.locator('[data-intro-copy="primary"]')
   const secondary = hero.locator('[data-intro-copy="secondary"]')
+  const ctaGroup = hero.locator('[data-intro-copy="cta"]')
   const cta = hero.getByRole('link', { name: 'Confirmar presença' })
 
   await expect(hero).toHaveAttribute('data-intro-state', 'complete')
   await expect(page.locator('header')).toBeVisible()
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect(secondary).not.toHaveAttribute('inert', '')
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
   await expect(cta).toBeVisible()
   await expect(cta).toBeEnabled()
 }
@@ -427,7 +443,7 @@ test('geometry fragment entry bypasses the intro and keeps the target operable',
   ).toBe(0)
 })
 
-test('continuous scene shares one 3000ms clock and preserves the approved restraint', async ({
+test('continuous scene gives the sun 3000ms of constant travel before the post-arrival beat', async ({
   page,
 }) => {
   await installIntroProbe(page)
@@ -476,14 +492,27 @@ test('continuous scene shares one 3000ms clock and preserves the approved restra
     [...ART_TRACKS].sort(),
   )
   for (const contract of contracts) {
-    expect(contract.duration).toBe(INTRO_DURATION_MS)
+    expect(contract.duration).toBe(
+      contract.track === 'sun-arc'
+        ? SUN_ARRIVAL_MS
+        : INTRO_DURATION_MS,
+    )
     expect(contract.iterations).toBe(1)
     for (const keyframe of contract.keyframes) {
-      expect(keyframe).not.toHaveProperty('left')
-      expect(keyframe).not.toHaveProperty('top')
-      expect(keyframe).not.toHaveProperty('width')
-      expect(keyframe).not.toHaveProperty('height')
-      expect(keyframe).not.toHaveProperty('filter')
+      const animatedProperties = Object.keys(keyframe).filter(
+        (property) =>
+          !['offset', 'computedOffset', 'easing', 'composite'].includes(
+            property,
+          ),
+      )
+      const allowedProperties = contract.track.startsWith('copy-')
+        ? ['clipPath', 'transform']
+        : ['opacity', 'transform']
+      expect(
+        animatedProperties.every((property) =>
+          allowedProperties.includes(property),
+        ),
+      ).toBe(true)
     }
   }
 
@@ -494,6 +523,7 @@ test('continuous scene shares one 3000ms clock and preserves the approved restra
   const haze = contracts.find(({ track }) => track === 'haze')
   const primary = contracts.find(({ track }) => track === 'copy-primary')
   const secondary = contracts.find(({ track }) => track === 'copy-secondary')
+  const cta = contracts.find(({ track }) => track === 'copy-cta')
   const firstSunTransform = String(sun?.keyframes[0]?.transform ?? '')
   const coordinates = firstSunTransform.match(
     /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/,
@@ -502,14 +532,48 @@ test('continuous scene shares one 3000ms clock and preserves the approved restra
   expect(coordinates).not.toBeNull()
   expect(Number(coordinates?.[1])).not.toBe(0)
   expect(Number(coordinates?.[2])).not.toBe(0)
+  const sunTravelFrames = sun?.keyframes ?? []
+  expect(sunTravelFrames.length).toBeGreaterThan(20)
+  expect(sunTravelFrames.at(-1)?.offset).toBe(1)
+  expect(sunTravelFrames.at(-1)?.transform).toBe('none')
   expect(
-    sun?.keyframes.some(
-      ({ offset, transform }) => offset === 0.82 && transform === 'none',
+    sunTravelFrames.slice(0, -1).every(
+      ({ transform, easing }) =>
+        transform !== 'none' && easing === 'linear',
     ),
   ).toBe(true)
+
+  const sunCoordinates = sunTravelFrames.map(({ transform }) => {
+    if (transform === 'none') return { x: 0, y: 0 }
+    const match = String(transform).match(
+      /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/,
+    )
+    if (!match) throw new Error(`Unparseable sun transform: ${transform}`)
+    return { x: Number(match[1]), y: Number(match[2]) }
+  })
+  const spatialSpeeds = sunCoordinates.slice(1).map((point, index) => {
+    const previous = sunCoordinates[index]
+    const elapsedMs =
+      (Number(sunTravelFrames[index + 1].offset)
+        - Number(sunTravelFrames[index].offset))
+      * SUN_ARRIVAL_MS
+    return Math.hypot(point.x - previous.x, point.y - previous.y) / elapsedMs
+  })
+  const meanSpeed =
+    spatialSpeeds.reduce((sum, speed) => sum + speed, 0)
+    / spatialSpeeds.length
+  expect(
+    Math.max(
+      ...spatialSpeeds.map((speed) =>
+        Math.abs(speed - meanSpeed) / meanSpeed,
+      ),
+    ),
+  ).toBeLessThanOrEqual(0.08)
+
   for (const lightTrack of [warmHorizon, haze]) {
     const throughOnset = lightTrack?.keyframes.filter(
-      ({ offset }) => Number(offset) <= 0.83,
+      ({ offset }) =>
+        Number(offset) <= GLOW_ONSET_MS / INTRO_DURATION_MS,
     )
     expect(throughOnset?.length).toBeGreaterThan(1)
     expect(throughOnset?.every(({ opacity }) => Number(opacity) === 0)).toBe(
@@ -518,33 +582,130 @@ test('continuous scene shares one 3000ms clock and preserves the approved restra
     expect(
       lightTrack?.keyframes.some(
         ({ offset, opacity }) =>
-          Number(offset) > 0.83 && Number(opacity) > 0,
+          Number(offset) > GLOW_ONSET_MS / INTRO_DURATION_MS
+          && Number(opacity) > 0,
       ),
     ).toBe(true)
   }
 
-  const firstVisibleOffset = (keyframes: ComputedKeyframe[]) =>
+  const firstClipRevealOffset = (keyframes: ComputedKeyframe[]) =>
     Number(
-      keyframes.find(({ opacity }) => Number(opacity) > 0)?.offset
+      keyframes.find(({ clipPath }) =>
+        String(clipPath) !== 'inset(0px 0px 100%)'
+        && String(clipPath) !== 'inset(0px 0px 100% 0px)',
+      )?.offset
       ?? Number.NaN,
     )
-  const primaryOnset = firstVisibleOffset(primary?.keyframes ?? [])
-  const secondaryOnset = firstVisibleOffset(secondary?.keyframes ?? [])
-  const hierarchyEnd = Math.max(
-    ...[primary, secondary].map((contract) =>
-      Number(
-        contract?.keyframes.find(({ opacity }) => Number(opacity) === 1)
-          ?.offset ?? Number.NaN,
-      ),
-    ),
+  const primaryOnset = firstClipRevealOffset(primary?.keyframes ?? [])
+  const secondaryOnset = firstClipRevealOffset(secondary?.keyframes ?? [])
+  const ctaOnset = firstClipRevealOffset(cta?.keyframes ?? [])
+  const hierarchyEnd = Number(cta?.keyframes.at(-1)?.offset)
+  expect(primaryOnset * INTRO_DURATION_MS).toBeCloseTo(
+    PRIMARY_COPY_ONSET_MS,
+    6,
   )
+  expect(secondaryOnset * INTRO_DURATION_MS).toBeCloseTo(
+    SECONDARY_COPY_ONSET_MS,
+    6,
+  )
+  expect(ctaOnset * INTRO_DURATION_MS).toBeCloseTo(CTA_ONSET_MS, 6)
   expect(primaryOnset).toBeLessThan(secondaryOnset)
+  expect(secondaryOnset).toBeLessThan(ctaOnset)
   expect((hierarchyEnd - primaryOnset) * INTRO_DURATION_MS).toBeGreaterThanOrEqual(
     500,
   )
   expect((hierarchyEnd - primaryOnset) * INTRO_DURATION_MS).toBeLessThanOrEqual(
     700,
   )
+
+  await seekIntroAtMs(page, SUN_ARRIVAL_MS)
+  await expectSunGeometryAligned(page)
+  await expect(warmHorizon).toHaveCSS('opacity', '0')
+  await expect(haze).toHaveCSS('opacity', '0')
+  await expect(hero.locator('[data-intro-copy="primary"]')).toHaveAttribute(
+    'inert',
+    '',
+  )
+  await expect(hero.locator('[data-intro-copy="secondary"]')).toHaveAttribute(
+    'inert',
+    '',
+  )
+  await expect(hero.locator('[data-intro-copy="cta"]')).toHaveAttribute(
+    'inert',
+    '',
+  )
+})
+
+test('continuous desktop CTA reveal preserves final colors while clipping into view', async ({
+  page,
+}) => {
+  await installIntroProbe(page)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await waitForArtTracks(page)
+
+  const hero = page.locator('#inicio')
+  const ctaGroup = hero.locator('[data-intro-copy="cta"]')
+  await seekIntroAtMs(page, CTA_ONSET_MS - 1)
+  await expect(ctaGroup).toHaveAttribute('inert', '')
+
+  const readVisualState = () =>
+    page.evaluate(() => {
+      const group = document.querySelector<HTMLElement>(
+        '[data-intro-copy="cta"]',
+      )
+      const buttons = group
+        ? [...group.querySelectorAll<HTMLElement>('a')]
+        : []
+      if (!group || buttons.length !== 2) {
+        throw new Error('Semantic CTA reveal group is absent')
+      }
+
+      const surfaces = buttons.map((button) => {
+        const style = getComputedStyle(button)
+        return {
+          backgroundColor: style.backgroundColor,
+          borderColor: style.borderTopColor,
+          color: style.color,
+          filter: style.filter,
+        }
+      })
+      const ancestorOpacities: number[] = []
+      let ancestor: HTMLElement | null = buttons[0]
+      while (ancestor) {
+        ancestorOpacities.push(
+          Number.parseFloat(getComputedStyle(ancestor).opacity),
+        )
+        if (ancestor === group) break
+        ancestor = ancestor.parentElement
+      }
+      const groupStyle = getComputedStyle(group)
+
+      return {
+        surfaces,
+        ancestorOpacities,
+        clipPath: groupStyle.clipPath,
+        transform: groupStyle.transform,
+      }
+    })
+
+  await seekIntroAtMs(page, CTA_ONSET_MS + 120)
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
+  const intermediate = await readVisualState()
+  expect(intermediate.clipPath).not.toBe('none')
+  expect(intermediate.clipPath).not.toBe('inset(0px)')
+  expect(intermediate.ancestorOpacities.every((opacity) => opacity === 1)).toBe(
+    true,
+  )
+  expect(
+    intermediate.surfaces.every(({ filter }) => filter === 'none'),
+  ).toBe(true)
+
+  await seekIntro(page, 1)
+  const final = await readVisualState()
+  expect(intermediate.surfaces).toEqual(final.surfaces)
+  expect(intermediate.transform).not.toBe(final.transform)
+  expect(final.ancestorOpacities.every((opacity) => opacity === 1)).toBe(true)
 })
 
 test('arc geometry keeps one canonical sun and finishes on the real responsive target', async ({
@@ -584,6 +745,17 @@ test('arc geometry keeps one canonical sun and finishes on the real responsive t
       Math.abs(start.visual.top - start.target.top),
     ).toBeGreaterThan(20)
 
+    await seekIntroAtMs(page, SUN_ARRIVAL_MS - 30)
+    const beforeArrival = await readSunGeometry(page)
+    expect(
+      Math.hypot(
+        beforeArrival.visual.left - beforeArrival.target.left,
+        beforeArrival.visual.top - beforeArrival.target.top,
+      ),
+    ).toBeGreaterThan(1)
+
+    await seekIntroAtMs(page, SUN_ARRIVAL_MS)
+    await expectSunGeometryAligned(page)
     await seekIntro(page, 1)
     await expectSunGeometryAligned(page)
     await expectNoDocumentOverflow(page)
@@ -597,7 +769,7 @@ test('resize at 40% preserves progress and generation through a bounded retarget
   await page.setViewportSize({ width: 320, height: 760 })
   await page.goto('/')
   await waitForArtTracks(page)
-  await seekIntro(page, 0.4)
+  await seekIntroAtMs(page, SUN_ARRIVAL_MS * 0.4)
 
   const before = await page.evaluate(() => {
     const root = document.querySelector<HTMLElement>('#inicio')
@@ -790,7 +962,7 @@ test('route remount owns one controller while same-mount wordmark never replays 
   await installIntroProbe(page)
   await page.goto('/')
   await waitForArtTracks(page)
-  await seekIntro(page, 0.9)
+  await seekIntro(page, 1)
 
   const hero = page.locator('#inicio')
   const initialGeneration = await hero.getAttribute('data-intro-generation')
@@ -877,6 +1049,7 @@ test('focus keeps skip first and excludes copy until each visible onset', async 
   const hero = page.locator('#inicio')
   const primary = hero.locator('[data-intro-copy="primary"]')
   const secondary = hero.locator('[data-intro-copy="secondary"]')
+  const ctaGroup = hero.locator('[data-intro-copy="cta"]')
   const skip = page.getByRole('link', { name: 'Pular para o conteúdo' })
 
   // macOS WebKit follows the operating-system "full keyboard access"
@@ -890,6 +1063,7 @@ test('focus keeps skip first and excludes copy until each visible onset', async 
   await expect(page.locator('header')).not.toHaveAttribute('inert', '')
   await expect(primary).toHaveAttribute('inert', '')
   await expect(secondary).toHaveAttribute('inert', '')
+  await expect(ctaGroup).toHaveAttribute('inert', '')
 
   await page.keyboard.press('Tab')
   expect(
@@ -900,11 +1074,15 @@ test('focus keeps skip first and excludes copy until each visible onset', async 
     ),
   ).toBe(false)
 
-  await seekIntro(page, 0.76)
+  await seekIntroAtMs(page, PRIMARY_COPY_ONSET_MS)
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect(secondary).toHaveAttribute('inert', '')
-  await seekIntro(page, 0.88)
+  await expect(ctaGroup).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, SECONDARY_COPY_ONSET_MS)
   await expect(secondary).not.toHaveAttribute('inert', '')
+  await expect(ctaGroup).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, CTA_ONSET_MS)
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
 })
 
 test('bfcache restart disposes the previous generation even when WAAPI cancel throws', async ({

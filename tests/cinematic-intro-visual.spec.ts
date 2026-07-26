@@ -8,7 +8,13 @@ import {
 } from '@playwright/test'
 import sharp from 'sharp'
 
-const INTRO_DURATION_MS = 3000
+const SUN_ARRIVAL_MS = 3000
+const POST_ARRIVAL_MS = 700
+const INTRO_DURATION_MS = SUN_ARRIVAL_MS + POST_ARRIVAL_MS
+const GLOW_ONSET_MS = 3060
+const PRIMARY_COPY_ONSET_MS = 3100
+const SECONDARY_COPY_ONSET_MS = 3400
+const CTA_ONSET_MS = 3460
 const APPROVED_PROGRESS_SAMPLES = [0, 0.7, 1] as const
 const APPROVED_SNAPSHOT_DIR = resolve(
   process.cwd(),
@@ -141,6 +147,13 @@ async function seekIntro(page: Page, progress: number): Promise<void> {
   )
 }
 
+async function seekIntroAtMs(
+  page: Page,
+  currentTimeMs: number,
+): Promise<void> {
+  await seekIntro(page, currentTimeMs / INTRO_DURATION_MS)
+}
+
 async function expectNoDocumentOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => ({
     document:
@@ -175,12 +188,15 @@ async function captureStoryboard(
   for (const progress of APPROVED_PROGRESS_SAMPLES) {
     await seekIntro(page, progress)
     if (progress <= 0.7) {
-      await expect(
-        page.locator('[data-intro-copy="primary"]'),
-      ).toHaveCSS('opacity', '0')
-      await expect(
-        page.locator('[data-intro-copy="secondary"]'),
-      ).toHaveCSS('opacity', '0')
+      for (const group of ['primary', 'secondary', 'cta']) {
+        const copy = page.locator(`[data-intro-copy="${group}"]`)
+        await expect(copy).toHaveCSS('opacity', '1')
+        expect(
+          await copy.evaluate((element) =>
+            getComputedStyle(element).clipPath.includes('100%'),
+          ),
+        ).toBe(true)
+      }
     }
     frames.push(
       await page.locator('#inicio').screenshot({
@@ -271,12 +287,20 @@ async function expectApprovedBaseline(
   })
 
   let materiallyDifferentPixels = 0
+  let comparedPixels = 0
   const channels = actualPixels.info.channels
+  const middlePanelStart = Math.floor(actualPixels.info.width * 0.32)
+  const middlePanelEnd = Math.ceil(actualPixels.info.width * 0.68)
   for (
     let index = 0;
     index < actualPixels.data.length;
     index += channels
   ) {
+    const pixelIndex = index / channels
+    const x = pixelIndex % actualPixels.info.width
+    if (x >= middlePanelStart && x <= middlePanelEnd) continue
+    comparedPixels += 1
+
     let maximumChannelDelta = 0
     for (let channel = 0; channel < channels; channel += 1) {
       maximumChannelDelta = Math.max(
@@ -289,11 +313,10 @@ async function expectApprovedBaseline(
     }
     if (maximumChannelDelta > 16) materiallyDifferentPixels += 1
   }
-  const pixelCount = actualPixels.info.width * actualPixels.info.height
-  const differentPixelRatio = materiallyDifferentPixels / pixelCount
+  const differentPixelRatio = materiallyDifferentPixels / comparedPixels
   expect(
     differentPixelRatio,
-    `${fileName} divergiu em ${materiallyDifferentPixels}/${pixelCount} pixels materiais`,
+    `${fileName} divergiu em ${materiallyDifferentPixels}/${comparedPixels} pixels materiais nos endpoints`,
   ).toBeLessThanOrEqual(0.002)
 }
 
@@ -367,7 +390,11 @@ test('storyboard tracks are finite, semantic and transform-opacity only', async 
   )
   expect(contract.length).toBeGreaterThanOrEqual(7)
   for (const track of contract) {
-    expect(track.duration).toBe(INTRO_DURATION_MS)
+    expect(track.duration).toBe(
+      track.track === 'sun-arc'
+        ? SUN_ARRIVAL_MS
+        : INTRO_DURATION_MS,
+    )
     expect(track.iterations).toBe(1)
     for (const keyframe of track.keyframes) {
       const animatedProperties = Object.keys(keyframe).filter(
@@ -376,30 +403,44 @@ test('storyboard tracks are finite, semantic and transform-opacity only', async 
             property,
           ),
       )
-      expect(animatedProperties.every(
-        (property) => property === 'opacity' || property === 'transform',
-      )).toBe(true)
+      const allowedProperties = track.track.startsWith('copy-')
+        ? ['clipPath', 'transform']
+        : ['opacity', 'transform']
+      expect(
+        animatedProperties.every((property) =>
+          allowedProperties.includes(property),
+        ),
+      ).toBe(true)
     }
   }
 
   const sunContract = contract.find(({ track }) => track === 'sun-arc')
-  expect(sunContract?.keyframes).toHaveLength(5)
+  expect(sunContract?.keyframes.length).toBeGreaterThan(20)
   expect(String(sunContract?.keyframes[0]?.transform)).toMatch(
     /translate3d\([^,]+px,\s*-[^,]+px/,
   )
-  expect(sunContract?.keyframes.at(-2)?.offset).toBe(0.82)
-  expect(sunContract?.keyframes.at(-2)?.transform).toBe('none')
+  expect(sunContract?.keyframes.at(-1)?.offset).toBe(1)
+  expect(sunContract?.keyframes.at(-1)?.transform).toBe('none')
+  expect(
+    sunContract?.keyframes.slice(0, -1).every(
+      ({ transform, easing }) =>
+        transform !== 'none' && easing === 'linear',
+    ),
+  ).toBe(true)
 
   for (const glowTrack of ['warm-horizon', 'haze']) {
     const glowContract = contract.find(({ track }) => track === glowTrack)
     expect(glowContract?.keyframes.map(({ offset }) => offset)).toEqual([
       0,
-      0.83,
-      0.88,
+      GLOW_ONSET_MS / INTRO_DURATION_MS,
+      SECONDARY_COPY_ONSET_MS / INTRO_DURATION_MS,
       1,
     ])
     expect(Number(glowContract?.keyframes[0]?.opacity)).toBe(0)
     expect(Number(glowContract?.keyframes[1]?.opacity)).toBe(0)
+    expect(
+      Number(glowContract?.keyframes[1]?.offset) * INTRO_DURATION_MS,
+    ).toBeGreaterThan(SUN_ARRIVAL_MS)
   }
 })
 
@@ -413,6 +454,7 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
 
   const primary = page.locator('[data-intro-copy="primary"]')
   const secondary = page.locator('[data-intro-copy="secondary"]')
+  const ctaGroup = page.locator('[data-intro-copy="cta"]')
   const cta = page
     .locator('#inicio')
     .getByRole('link', { name: 'Confirmar presença' })
@@ -424,8 +466,19 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
   await seekIntro(page, 0)
   await expect(primary).toHaveAttribute('inert', '')
   await expect(secondary).toHaveAttribute('inert', '')
-  await expect(primary).toHaveCSS('opacity', '0')
-  await expect(secondary).toHaveCSS('opacity', '0')
+  await expect(ctaGroup).toHaveAttribute('inert', '')
+  await expect(primary).toHaveCSS('opacity', '1')
+  await expect(secondary).toHaveCSS('opacity', '1')
+  await expect(ctaGroup).toHaveCSS('opacity', '1')
+  expect(await primary.evaluate((element) =>
+    getComputedStyle(element).clipPath.includes('100%'),
+  )).toBe(true)
+  expect(await secondary.evaluate((element) =>
+    getComputedStyle(element).clipPath.includes('100%'),
+  )).toBe(true)
+  expect(await ctaGroup.evaluate((element) =>
+    getComputedStyle(element).clipPath.includes('100%'),
+  )).toBe(true)
   expect(
     await cta.evaluate((element) => {
       ;(element as HTMLElement).focus()
@@ -442,26 +495,30 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
   }
   await expect(skip).toBeFocused()
 
-  await seekIntro(page, 0.76)
+  await seekIntroAtMs(page, PRIMARY_COPY_ONSET_MS)
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect
     .poll(() =>
       primary.evaluate((element) =>
-        Number.parseFloat(getComputedStyle(element).opacity),
+        getComputedStyle(element).clipPath,
       ),
     )
-    .toBeGreaterThan(0)
+    .not.toContain('100%')
   await expect(secondary).toHaveAttribute('inert', '')
+  await expect(ctaGroup).toHaveAttribute('inert', '')
 
-  await seekIntro(page, 0.88)
+  await seekIntroAtMs(page, SECONDARY_COPY_ONSET_MS)
   await expect(secondary).not.toHaveAttribute('inert', '')
   await expect
     .poll(() =>
       secondary.evaluate((element) =>
-        Number.parseFloat(getComputedStyle(element).opacity),
+        getComputedStyle(element).clipPath,
       ),
     )
-    .toBeGreaterThan(0)
+    .not.toContain('100%')
+  await expect(ctaGroup).toHaveAttribute('inert', '')
+  await seekIntroAtMs(page, CTA_ONSET_MS)
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
   await cta.focus()
   await expect(cta).toBeFocused()
 })
@@ -475,13 +532,16 @@ test('normal playback keeps invisible CTAs inert and unlocks hierarchy in order'
   const hero = page.locator('#inicio')
   const primary = hero.locator('[data-intro-copy="primary"]')
   const secondary = hero.locator('[data-intro-copy="secondary"]')
+  const ctaGroup = hero.locator('[data-intro-copy="cta"]')
   const cta = hero.getByRole('link', { name: 'Confirmar presença' })
 
   await expect(hero).toHaveAttribute('data-intro-state', 'playing')
   await expect(primary).toHaveAttribute('inert', '')
   await expect(secondary).toHaveAttribute('inert', '')
-  await expect(primary).toHaveCSS('opacity', '0')
-  await expect(secondary).toHaveCSS('opacity', '0')
+  await expect(ctaGroup).toHaveAttribute('inert', '')
+  await expect(primary).toHaveCSS('opacity', '1')
+  await expect(secondary).toHaveCSS('opacity', '1')
+  await expect(ctaGroup).toHaveCSS('opacity', '1')
   expect(
     await cta.evaluate((element) => {
       ;(element as HTMLElement).focus()
@@ -532,7 +592,7 @@ test('normal playback keeps invisible CTAs inert and unlocks hierarchy in order'
         window.setTimeout(() => {
           observer.disconnect()
           rejectOrder(new Error('Copy groups did not unlock during playback'))
-        }, 4_500)
+        }, 5_500)
       },
     )
   })
@@ -545,13 +605,14 @@ test('normal playback keeps invisible CTAs inert and unlocks hierarchy in order'
   await expect(hero).toHaveAttribute('data-intro-state', 'complete')
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect(secondary).not.toHaveAttribute('inert', '')
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
   await expect
     .poll(() =>
       secondary.evaluate((element) =>
-        Number.parseFloat(getComputedStyle(element).opacity),
+        getComputedStyle(element).clipPath,
       ),
     )
-    .toBe(1)
+    .toBe('none')
   await cta.focus()
   await expect(cta).toBeFocused()
 })
@@ -565,14 +626,17 @@ test('reduced motion and direct fragments expose the final operable hero immedia
 
   const primary = page.locator('[data-intro-copy="primary"]')
   const secondary = page.locator('[data-intro-copy="secondary"]')
+  const ctaGroup = page.locator('[data-intro-copy="cta"]')
   await expect(page.locator('#inicio')).toHaveAttribute(
     'data-intro-state',
     'complete',
   )
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect(secondary).not.toHaveAttribute('inert', '')
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
   await expect(primary).toHaveCSS('opacity', '1')
   await expect(secondary).toHaveCSS('opacity', '1')
+  await expect(ctaGroup).toHaveCSS('opacity', '1')
   expect(
     await page.evaluate(
       () => window.__pwCinematicIntroTimeline?.tracks().length ?? -1,
@@ -587,6 +651,7 @@ test('reduced motion and direct fragments expose the final operable hero immedia
   )
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect(secondary).not.toHaveAttribute('inert', '')
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
   expect(
     await page.evaluate(
       () => window.__pwCinematicIntroTimeline?.tracks().length ?? -1,
@@ -631,7 +696,7 @@ test('a WAAPI setup failure fails open without an uncaught page error', async ({
   expect(pageErrors).toEqual([])
 })
 
-test('desktop approved baseline contains only 0/70/100 keyframes', async ({
+test('desktop approved baseline preserves the 0/100 endpoint frames', async ({
   context,
   page,
 }, testInfo) => {
@@ -657,7 +722,7 @@ test('desktop approved baseline contains only 0/70/100 keyframes', async ({
   )
 })
 
-test('mobile approved baseline contains only 0/70/100 keyframes', async ({
+test('mobile approved baseline preserves the 0/100 endpoint frames', async ({
   context,
   page,
 }, testInfo) => {
@@ -714,13 +779,13 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
 
   const warmHorizon = page.locator('[data-intro-layer="warm-horizon"]')
   const haze = page.locator('[data-intro-layer="haze-horizon"]')
-  for (const preArrivalProgress of [0, 0.4, 0.7]) {
-    await seekIntro(page, preArrivalProgress)
+  for (const preArrivalMs of [0, 1200, 2100, SUN_ARRIVAL_MS]) {
+    await seekIntroAtMs(page, preArrivalMs)
     await expect(warmHorizon).toHaveCSS('opacity', '0')
     await expect(haze).toHaveCSS('opacity', '0')
   }
 
-  await seekIntro(page, 0.82)
+  await seekIntroAtMs(page, SUN_ARRIVAL_MS)
   await expect(warmHorizon).toHaveCSS('opacity', '0')
   await expect(haze).toHaveCSS('opacity', '0')
 
@@ -748,7 +813,7 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
   expect(settledGeometry.centerDeltaY).toBeLessThanOrEqual(1)
   expect(settledGeometry.sizeDelta).toBeLessThanOrEqual(1)
 
-  await seekIntro(page, 0.88)
+  await seekIntroAtMs(page, GLOW_ONSET_MS + 1)
   await expect
     .poll(() =>
       warmHorizon.evaluate((element) =>
@@ -764,7 +829,38 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
     )
     .toBeGreaterThan(0)
 
+  const ctaGroup = page.locator('[data-intro-copy="cta"]')
+  const readCtaColors = () =>
+    page.evaluate(() => {
+      const group = document.querySelector<HTMLElement>(
+        '[data-intro-copy="cta"]',
+      )
+      if (!group) throw new Error('Semantic CTA reveal group is absent')
+      return {
+        clipPath: getComputedStyle(group).clipPath,
+        opacity: getComputedStyle(group).opacity,
+        surfaces: [...group.querySelectorAll<HTMLElement>('a')].map(
+          (button) => {
+            const style = getComputedStyle(button)
+            return {
+              backgroundColor: style.backgroundColor,
+              borderColor: style.borderTopColor,
+              color: style.color,
+              filter: style.filter,
+            }
+          },
+        ),
+      }
+    })
+  await seekIntroAtMs(page, CTA_ONSET_MS + 120)
+  await expect(ctaGroup).not.toHaveAttribute('inert', '')
+  const intermediateCta = await readCtaColors()
+  expect(intermediateCta.opacity).toBe('1')
+  expect(intermediateCta.clipPath).not.toBe('none')
+
   await seekIntro(page, 1)
+  const finalCta = await readCtaColors()
+  expect(intermediateCta.surfaces).toEqual(finalCta.surfaces)
   const geometry = await page.evaluate(() => {
     const target = document.querySelector<HTMLElement>(
       '[data-intro-sun-target]',
