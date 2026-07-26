@@ -1,5 +1,22 @@
 import { expect, test, type Page } from '@playwright/test'
 
+const INTRO_DURATION_MS = 3000
+const ART_TRACKS = [
+  'camera',
+  'cool-veil',
+  'copy-primary',
+  'copy-secondary',
+  'haze',
+  'sun-arc',
+  'warm-horizon',
+] as const
+
+type IntroProbeRecord = {
+  animation: Animation
+  node: Element
+  track: string
+}
+
 type DOMRectShape = {
   x: number
   y: number
@@ -13,71 +30,110 @@ type DOMRectShape = {
 
 declare global {
   interface Window {
-    __cinematicIntroAnimations: Animation[]
-    __cinematicIntroSunNodes: Element[]
-    __cinematicIntroNaturalPhases?: string[]
+    __pwCinematicIntroProbe?: {
+      records: IntroProbeRecord[]
+      seek: (progress: number) => void
+      pause: () => void
+    }
   }
 }
 
-async function expectNoDocumentOverflow(page: Page): Promise<void> {
-  const overflow = await page.evaluate(() => ({
-    document:
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
-    body: document.body.scrollWidth - document.body.clientWidth,
-  }))
-  expect(overflow.document).toBeLessThanOrEqual(1)
-  expect(overflow.body).toBeLessThanOrEqual(1)
-}
+async function installIntroProbe(
+  page: Page,
+  pauseOnCreate = true,
+): Promise<void> {
+  await page.addInitScript(
+    ({ duration, shouldPause }) => {
+      const originalAnimate = Element.prototype.animate
+      const records: IntroProbeRecord[] = []
 
-export async function installCinematicIntroControl(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const originalAnimate = Element.prototype.animate
-    window.__cinematicIntroAnimations = []
-    window.__cinematicIntroSunNodes = []
-
-    Element.prototype.animate = function (
-      keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
-      options?: number | KeyframeAnimationOptions,
-    ) {
-      const animation = originalAnimate.call(this, keyframes, options)
-      if ((this as HTMLElement).dataset.testid === 'hero-sun-visual') {
-        animation.pause()
-        window.__cinematicIntroAnimations.push(animation)
-        window.__cinematicIntroSunNodes.push(this)
+      window.__pwCinematicIntroProbe = {
+        records,
+        seek: (progress) => {
+          const clamped = Math.min(1, Math.max(0, progress))
+          for (const record of records) {
+            if (record.track === 'retarget') continue
+            record.animation.pause()
+            record.animation.currentTime = clamped * duration
+          }
+        },
+        pause: () => {
+          for (const record of records) record.animation.pause()
+        },
       }
-      return animation
-    }
-  })
-}
 
-export async function finishLatestCinematicIntro(page: Page): Promise<void> {
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length > 0,
+      Element.prototype.animate = function (
+        keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
+        options?: number | KeyframeAnimationOptions,
+      ) {
+        const animation = originalAnimate.call(this, keyframes, options)
+        const owner = this as HTMLElement
+        const track = owner.dataset.introTrack
+          ?? (owner.hasAttribute('data-intro-sun-retarget')
+            ? 'retarget'
+            : null)
+        if (!track) return animation
+
+        const timing = (animation.effect as KeyframeEffect | null)?.getTiming()
+        const finite =
+          typeof timing?.duration === 'number'
+          && Number.isFinite(timing.duration)
+          && typeof timing.iterations === 'number'
+          && Number.isFinite(timing.iterations)
+        if (!finite) return animation
+
+        records.push({ animation, node: this, track })
+        if (shouldPause && track !== 'retarget') animation.pause()
+        return animation
+      }
+    },
+    { duration: INTRO_DURATION_MS, shouldPause: pauseOnCreate },
   )
-  await page.evaluate(() => {
-    window.__cinematicIntroAnimations.at(-1)?.finish()
-  })
-  await expect
-    .poll(() =>
-      page
-        .locator('[data-intro-phase]')
-        .first()
-        .getAttribute('data-intro-phase'),
-    )
-    .not.toBe('descending')
 }
 
-export async function readSunGeometry(
+async function waitForArtTracks(page: Page): Promise<void> {
+  await page.waitForFunction(
+    (expectedTracks) => {
+      const records = window.__pwCinematicIntroProbe?.records ?? []
+      const tracks = records
+        .filter(({ track }) => track !== 'retarget')
+        .map(({ track }) => track)
+        .sort()
+      return (
+        tracks.length === expectedTracks.length
+        && tracks.every((track, index) => track === expectedTracks[index])
+      )
+    },
+    [...ART_TRACKS].sort(),
+  )
+}
+
+async function seekIntro(page: Page, progress: number): Promise<void> {
+  await page.evaluate((value) => {
+    const probe = window.__pwCinematicIntroProbe
+    if (!probe) throw new Error('Playwright intro probe is unavailable')
+    probe.seek(value)
+  }, progress)
+  await waitForPaint(page)
+}
+
+async function waitForPaint(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      }),
+  )
+}
+
+async function readSunGeometry(
   page: Page,
 ): Promise<{ target: DOMRectShape; visual: DOMRectShape }> {
   return page.evaluate(() => {
     const target = document.querySelector<HTMLElement>(
-      '[data-testid="hero-sun-target"]',
+      '[data-intro-sun-target]',
     )
-    const visual = document.querySelector<HTMLElement>(
-      '[data-testid="hero-sun-visual"]',
-    )
+    const visual = document.querySelector<HTMLElement>('[data-intro-sun]')
     if (!target || !visual) {
       throw new Error('Canonical sun target and visual must both exist')
     }
@@ -89,7 +145,7 @@ export async function readSunGeometry(
   })
 }
 
-export async function expectSunGeometryAligned(page: Page): Promise<void> {
+async function expectSunGeometryAligned(page: Page): Promise<void> {
   const { target, visual } = await readSunGeometry(page)
   const targetCenterX = target.left + target.width / 2
   const targetCenterY = target.top + target.height / 2
@@ -102,505 +158,403 @@ export async function expectSunGeometryAligned(page: Page): Promise<void> {
   expect(Math.abs(visual.height - target.height)).toBeLessThanOrEqual(1)
 }
 
-test('first frame shows only the final sky while the sun starts above the viewport', async ({
+async function expectNoDocumentOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => ({
+    document:
+      document.documentElement.scrollWidth
+      - document.documentElement.clientWidth,
+    body: document.body.scrollWidth - document.body.clientWidth,
+  }))
+  expect(overflow.document).toBeLessThanOrEqual(1)
+  expect(overflow.body).toBeLessThanOrEqual(1)
+}
+
+async function expectFinalUiOpen(page: Page): Promise<void> {
+  const hero = page.locator('#inicio')
+  const primary = hero.locator('[data-intro-copy="primary"]')
+  const secondary = hero.locator('[data-intro-copy="secondary"]')
+  const cta = hero.getByRole('link', { name: 'Confirmar presença' })
+
+  await expect(hero).toHaveAttribute('data-intro-state', 'complete')
+  await expect(page.locator('header')).toBeVisible()
+  await expect(primary).not.toHaveAttribute('inert', '')
+  await expect(secondary).not.toHaveAttribute('inert', '')
+  await expect(cta).toBeVisible()
+  await expect(cta).toBeEnabled()
+}
+
+async function expectSkipStillWorks(page: Page): Promise<void> {
+  const skip = page.getByRole('link', { name: 'Pular para o conteúdo' })
+  await skip.focus()
+  await expect(skip).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#conteudo')).toBeFocused()
+}
+
+test('continuous scene shares one 3000ms clock and preserves the approved restraint', async ({
   page,
 }) => {
-  await installCinematicIntroControl(page)
+  await installIntroProbe(page)
   await page.goto('/')
+  await waitForArtTracks(page)
+  await seekIntro(page, 0)
 
   const hero = page.locator('#inicio')
-  await expect(hero).toBeAttached()
-  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
-  await expect(page.locator('[data-testid="hero-sun-target"]')).toHaveCount(1)
-  await expect(page.locator('[data-testid="hero-sun-visual"]')).toHaveCount(1)
+  await expect(hero).toHaveAttribute('data-intro-state', 'playing')
+  await expect(hero.locator('[data-intro-layer="sky-base"]')).toBeVisible()
+  await expect(
+    hero.locator('[data-intro-layer="horizon-depth"]'),
+  ).toBeVisible()
+  await expect(hero.locator('[data-intro-layer="sea"]')).toBeVisible()
+  await expect(hero.locator('.wave-band')).toHaveCount(3)
+  await expect(
+    hero.locator(
+      '[data-intro-layer="cloud-far"], '
+      + '[data-intro-layer="cloud-near"], '
+      + '[data-intro-layer="reflection"], '
+      + '[data-intro-layer="palms"]',
+    ),
+  ).toHaveCount(0)
+  await expect(hero.locator('[data-intro-scene]')).toHaveCSS(
+    'pointer-events',
+    'none',
+  )
+  await expectNoDocumentOverflow(page)
 
-  const revealGroups = page.locator('[data-intro-reveal]')
-  await expect(revealGroups).toHaveCount(3)
-  for (const group of await revealGroups.all()) {
-    await expect(group).toHaveCSS('visibility', 'hidden')
-    await expect(group).toHaveCSS('opacity', '0')
+  const contracts = await page.evaluate(() =>
+    (window.__pwCinematicIntroProbe?.records ?? [])
+      .filter(({ track }) => track !== 'retarget')
+      .map(({ animation, track }) => {
+        const effect = animation.effect as KeyframeEffect | null
+        const timing = effect?.getTiming()
+        return {
+          track,
+          duration: timing?.duration,
+          iterations: timing?.iterations,
+          keyframes: effect?.getKeyframes() ?? [],
+        }
+      }),
+  )
+
+  expect(contracts.map(({ track }) => track).sort()).toEqual(
+    [...ART_TRACKS].sort(),
+  )
+  for (const contract of contracts) {
+    expect(contract.duration).toBe(INTRO_DURATION_MS)
+    expect(contract.iterations).toBe(1)
+    for (const keyframe of contract.keyframes) {
+      expect(keyframe).not.toHaveProperty('left')
+      expect(keyframe).not.toHaveProperty('top')
+      expect(keyframe).not.toHaveProperty('width')
+      expect(keyframe).not.toHaveProperty('height')
+      expect(keyframe).not.toHaveProperty('filter')
+    }
   }
 
-  const { visual } = await readSunGeometry(page)
-  expect(visual.bottom).toBeLessThanOrEqual(0)
-  await expect(hero.locator('h1')).toBeHidden()
-  await expect(page.locator('header')).toHaveCSS('visibility', 'hidden')
-  await expect(page.locator('header')).toHaveCSS('opacity', '0')
-  await expectNoDocumentOverflow(page)
+  const sun = contracts.find(({ track }) => track === 'sun-arc')
+  const warmHorizon = contracts.find(
+    ({ track }) => track === 'warm-horizon',
+  )
+  const haze = contracts.find(({ track }) => track === 'haze')
+  const primary = contracts.find(({ track }) => track === 'copy-primary')
+  const secondary = contracts.find(({ track }) => track === 'copy-secondary')
+  const firstSunTransform = String(sun?.keyframes[0]?.transform ?? '')
+  const coordinates = firstSunTransform.match(
+    /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/,
+  )
 
-  const initialSunStyle = await page
-    .locator('[data-testid="hero-sun-visual"]')
-    .evaluate((element) => {
-      const style = getComputedStyle(element)
-      const rect = element.getBoundingClientRect()
-      return {
-        width: rect.width,
-        height: rect.height,
-        background: style.backgroundColor,
-        boxShadow: style.boxShadow,
-      }
-    })
+  expect(coordinates).not.toBeNull()
+  expect(Number(coordinates?.[1])).not.toBe(0)
+  expect(Number(coordinates?.[2])).not.toBe(0)
+  expect(
+    sun?.keyframes.some(
+      ({ offset, transform }) => offset === 0.82 && transform === 'none',
+    ),
+  ).toBe(true)
+  for (const lightTrack of [warmHorizon, haze]) {
+    const throughOnset = lightTrack?.keyframes.filter(
+      ({ offset }) => Number(offset) <= 0.83,
+    )
+    expect(throughOnset?.length).toBeGreaterThan(1)
+    expect(throughOnset?.every(({ opacity }) => Number(opacity) === 0)).toBe(
+      true,
+    )
+    expect(
+      lightTrack?.keyframes.some(
+        ({ offset, opacity }) =>
+          Number(offset) > 0.83 && Number(opacity) > 0,
+      ),
+    ).toBe(true)
+  }
 
-  await finishLatestCinematicIntro(page)
-  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
-  await expect(page.locator('header')).toBeVisible()
-  await expect(page.locator('.wave-band').first()).toBeVisible()
-  await expect(hero.locator('h1')).toBeVisible()
-  await expect(
-    hero.getByRole('link', { name: 'Confirmar presença' }),
-  ).toBeEnabled()
-  await expectNoDocumentOverflow(page)
-
-  const finalSunStyle = await page
-    .locator('[data-testid="hero-sun-visual"]')
-    .evaluate((element) => {
-      const style = getComputedStyle(element)
-      const rect = element.getBoundingClientRect()
-      return {
-        width: rect.width,
-        height: rect.height,
-        background: style.backgroundColor,
-        boxShadow: style.boxShadow,
-        animationCount: element.getAnimations().length,
-      }
-    })
-  expect(finalSunStyle).toEqual({
-    ...initialSunStyle,
-    animationCount: 0,
-  })
+  const firstVisibleOffset = (keyframes: ComputedKeyframe[]) =>
+    Number(
+      keyframes.find(({ opacity }) => Number(opacity) > 0)?.offset
+      ?? Number.NaN,
+    )
+  const primaryOnset = firstVisibleOffset(primary?.keyframes ?? [])
+  const secondaryOnset = firstVisibleOffset(secondary?.keyframes ?? [])
+  expect(primaryOnset).toBeLessThan(secondaryOnset)
+  expect((1 - primaryOnset) * INTRO_DURATION_MS).toBeGreaterThanOrEqual(500)
+  expect((1 - primaryOnset) * INTRO_DURATION_MS).toBeLessThanOrEqual(700)
 })
 
-test('geometry lands the same canonical sun on its responsive target', async ({
+test('arc geometry keeps one canonical sun and finishes on the real responsive target', async ({
   page,
 }) => {
-  await installCinematicIntroControl(page)
+  await installIntroProbe(page)
 
   for (const viewport of [
     { width: 320, height: 760 },
-    { width: 768, height: 1024 },
     { width: 1280, height: 800 },
   ]) {
     await page.setViewportSize(viewport)
     await page.goto('/')
-    await page.waitForFunction(
-      () => window.__cinematicIntroSunNodes?.length > 0,
-    )
-    const visualWasCanonical = await page.evaluate(() => {
-      const visual = document.querySelector(
-        '[data-testid="hero-sun-visual"]',
-      )
-      return window.__cinematicIntroSunNodes.at(-1) === visual
-    })
-    expect(visualWasCanonical).toBe(true)
+    await waitForArtTracks(page)
+    await seekIntro(page, 0)
 
-    await finishLatestCinematicIntro(page)
+    const start = await readSunGeometry(page)
+    const identity = await page.evaluate(() => {
+      const sun = document.querySelector('[data-intro-sun]')
+      const records = window.__pwCinematicIntroProbe?.records ?? []
+      const sunRecords = records.filter(({ track }) => track === 'sun-arc')
+      return {
+        sunCount: document.querySelectorAll('[data-intro-sun]').length,
+        recordCount: sunRecords.length,
+        sameNode: sunRecords[0]?.node === sun,
+      }
+    })
+    expect(identity).toEqual({
+      sunCount: 1,
+      recordCount: 1,
+      sameNode: true,
+    })
+    expect(
+      Math.abs(start.visual.left - start.target.left),
+    ).toBeGreaterThan(20)
+    expect(
+      Math.abs(start.visual.top - start.target.top),
+    ).toBeGreaterThan(20)
+
+    await seekIntro(page, 1)
     await expectSunGeometryAligned(page)
-
-    const visualRemainedCanonical = await page.evaluate(() => {
-      const visual = document.querySelector(
-        '[data-testid="hero-sun-visual"]',
-      )
-      return window.__cinematicIntroSunNodes.at(-1) === visual
-    })
-    expect(visualRemainedCanonical).toBe(true)
+    await expectNoDocumentOverflow(page)
   }
 })
 
-test('resize keeps one canonical animation and lands on the new responsive target', async ({
+test('resize at 40% preserves progress and generation through a bounded retarget', async ({
   page,
 }) => {
-  await installCinematicIntroControl(page)
+  await installIntroProbe(page)
   await page.setViewportSize({ width: 320, height: 760 })
   await page.goto('/')
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length === 1,
-  )
+  await waitForArtTracks(page)
+  await seekIntro(page, 0.4)
 
-  const initialNodeIsConnected = await page.evaluate(
-    () => window.__cinematicIntroSunNodes[0]?.isConnected,
-  )
-  expect(initialNodeIsConnected).toBe(true)
-
-  await page.setViewportSize({ width: 768, height: 1024 })
-  const resizedState = await page.evaluate(() => ({
-    animationCount: window.__cinematicIntroAnimations.length,
-    nodeCount: window.__cinematicIntroSunNodes.length,
-    sameNode:
-      window.__cinematicIntroSunNodes[0] ===
-      document.querySelector('[data-testid="hero-sun-visual"]'),
-    connected: window.__cinematicIntroSunNodes[0]?.isConnected,
-  }))
-  expect(resizedState).toEqual({
-    animationCount: 1,
-    nodeCount: 1,
-    sameNode: true,
-    connected: true,
+  const before = await page.evaluate(() => {
+    const root = document.querySelector<HTMLElement>('#inicio')
+    const sun = document.querySelector<HTMLElement>('[data-intro-sun]')
+    const master = window.__pwCinematicIntroProbe?.records.find(
+      ({ track }) => track === 'sun-arc',
+    )?.animation
+    return {
+      generation: root?.dataset.introGeneration,
+      progress: Number(master?.currentTime ?? 0) / 3000,
+      rect: sun?.getBoundingClientRect().toJSON(),
+    }
   })
 
-  await finishLatestCinematicIntro(page)
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.waitForFunction(
+    () =>
+      (window.__pwCinematicIntroProbe?.records ?? []).some(
+        ({ track }) => track === 'retarget',
+      ),
+    undefined,
+    { timeout: 1000 },
+  )
+  await page.evaluate(() => window.__pwCinematicIntroProbe?.pause())
+
+  const after = await page.evaluate(() => {
+    const root = document.querySelector<HTMLElement>('#inicio')
+    const sun = document.querySelector<HTMLElement>('[data-intro-sun]')
+    const records = window.__pwCinematicIntroProbe?.records ?? []
+    const master = records.find(
+      ({ track }) => track === 'sun-arc',
+    )?.animation
+    const retarget = records.find(({ track }) => track === 'retarget')
+    return {
+      generation: root?.dataset.introGeneration,
+      progress: Number(master?.currentTime ?? 0) / 3000,
+      artCount: records.filter(({ track }) => track !== 'retarget').length,
+      retargetDuration: (
+        retarget?.animation.effect as KeyframeEffect | null
+      )?.getTiming().duration,
+      hasWrapper: Boolean(
+        document.querySelector('[data-intro-sun-retarget]'),
+      ),
+      rect: sun?.getBoundingClientRect().toJSON(),
+    }
+  })
+
+  expect(after.generation).toBe(before.generation)
+  expect(after.progress).toBeGreaterThanOrEqual(before.progress)
+  expect(after.progress).toBeLessThan(0.6)
+  expect(after.artCount).toBe(ART_TRACKS.length)
+  expect(after.retargetDuration).toBe(180)
+  expect(after.hasWrapper).toBe(true)
+  expect(
+    Math.hypot(
+      Number(after.rect?.left) - Number(before.rect?.left),
+      Number(after.rect?.top) - Number(before.rect?.top),
+    ),
+  ).toBeLessThanOrEqual(80)
+
+  await seekIntro(page, 1)
   await expectSunGeometryAligned(page)
   await expectNoDocumentOverflow(page)
 })
 
-test('natural duration observes descending, revealing and complete near the 2s contract', async ({
+test('intent acceleration exposes a 150–200ms interval without restoring scroll', async ({
   page,
 }) => {
-  const startedAt = Date.now()
+  await installIntroProbe(page, false)
   await page.goto('/')
-
+  await waitForArtTracks(page)
   const hero = page.locator('#inicio')
-  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
-  await page.evaluate(() => {
-    const intro = document.querySelector('[data-intro-phase]')
-    if (!intro) throw new Error('Intro phase root must exist')
+  await expect(hero).toHaveAttribute('data-intro-state', 'playing')
 
-    window.__cinematicIntroNaturalPhases = [
-      intro.getAttribute('data-intro-phase') ?? '',
-    ]
-    new MutationObserver(() => {
-      const phase = intro.getAttribute('data-intro-phase') ?? ''
-      const phases = window.__cinematicIntroNaturalPhases ?? []
-      if (phases.at(-1) !== phase) phases.push(phase)
-    }).observe(intro, {
-      attributes: true,
-      attributeFilter: ['data-intro-phase'],
-    })
+  const startedAt = await page.evaluate(() => {
+    window.scrollTo(0, 4)
+    return performance.now()
   })
 
-  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
-
-  const elapsed = Date.now() - startedAt
-  expect(elapsed).toBeGreaterThanOrEqual(1_800)
-  expect(elapsed).toBeLessThanOrEqual(3_500)
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.__cinematicIntroNaturalPhases),
-    )
-    .toEqual(['descending', 'revealing', 'complete'])
-})
-
-test('timing uses one transform-only descent and a 260ms reveal', async ({
-  page,
-}) => {
-  await installCinematicIntroControl(page)
-  await page.goto('/')
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length > 0,
-  )
-
-  const animationContract = await page.evaluate(() => {
-    const visual = document.querySelector<HTMLElement>(
-      '[data-testid="hero-sun-visual"]',
-    )
-    const animation = window.__cinematicIntroAnimations.at(-1)
-    const effect = animation?.effect as KeyframeEffect | null
-    const timing = effect?.getTiming()
-    const keyframes = effect?.getKeyframes() ?? []
-
+  await expect(hero).toHaveAttribute('data-intro-intent', 'accelerated', {
+    timeout: 1000,
+  })
+  const accelerated = await page.evaluate(() => {
+    const records = window.__pwCinematicIntroProbe?.records ?? []
     return {
-      duration: timing?.duration,
-      easing: timing?.easing,
-      animationCount: visual?.getAnimations().length,
-      keyframes,
-      background: visual ? getComputedStyle(visual).backgroundColor : '',
-      boxShadow: visual ? getComputedStyle(visual).boxShadow : '',
+      state: document.querySelector<HTMLElement>('#inicio')?.dataset.introState,
+      scrollY: window.scrollY,
+      remaining: records
+        .filter(({ track }) => track !== 'retarget')
+        .map(({ animation }) => {
+          const currentTime = Number(animation.currentTime ?? 0)
+          return (3000 - currentTime) / animation.playbackRate
+        }),
     }
   })
+  expect(accelerated.state).toBe('playing')
+  expect(accelerated.scrollY).toBe(4)
+  expect(accelerated.remaining.every((value) => value <= 205)).toBe(true)
+  expect(accelerated.remaining.some((value) => value >= 120)).toBe(true)
 
-  expect(animationContract.duration).toBe(2000)
-  expect(animationContract.easing).toBe('cubic-bezier(0.65, 0, 0.35, 1)')
-  expect(animationContract.animationCount).toBe(1)
-  expect(animationContract.keyframes).toHaveLength(2)
-  for (const keyframe of animationContract.keyframes) {
-    expect(keyframe.transform).toBeTruthy()
-    expect(keyframe).not.toHaveProperty('opacity')
-    expect(keyframe).not.toHaveProperty('filter')
-    expect(keyframe).not.toHaveProperty('width')
-    expect(keyframe).not.toHaveProperty('height')
-  }
-  expect(animationContract.background).not.toBe('rgba(0, 0, 0, 0)')
-  expect(animationContract.boxShadow).not.toBe('none')
-
-  await finishLatestCinematicIntro(page)
-  const reveal = page.locator('[data-intro-reveal]').first()
-  await expect(reveal).toHaveCSS('transition-duration', '0.26s')
-  await expect(page.locator('[data-testid="hero-sun-visual"]')).toHaveCSS(
-    'transition-duration',
-    '0s',
-  )
-  await expect
-    .poll(() =>
-      page
-        .locator('[data-testid="hero-sun-visual"]')
-        .evaluate((element) => element.getAnimations().length),
-    )
-    .toBe(0)
-})
-
-test('skip link stays first and outside inert while hidden controls reveal together', async ({
-  browserName,
-  page,
-}) => {
-  await installCinematicIntroControl(page)
-  await page.goto('/')
-
-  const hero = page.locator('#inicio')
-  const header = page.locator('header')
-  const interactiveHero = hero.locator('[data-intro-interactive]')
-  const skipLink = page.getByRole('link', {
-    name: 'Pular para o conteúdo',
+  await expect(hero).toHaveAttribute('data-intro-state', 'complete', {
+    timeout: 1000,
   })
-
-  await expect(hero).toBeAttached()
-  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
-  await expect(header).toHaveAttribute('inert', '')
-  await expect(interactiveHero).toHaveAttribute('inert', '')
-  await expect
-    .poll(() =>
-      skipLink.evaluate(
-        (element) => element.closest('[inert]') === null,
-      ),
-    )
-    .toBe(true)
-  await expect
-    .poll(() =>
-      page.locator('#inicio').evaluate(
-        (element) => element.getBoundingClientRect().top,
-      ),
-    )
-    .toBe(0)
-
-  if (browserName === 'webkit') {
-    await skipLink.focus()
-  } else {
-    await page.keyboard.press('Tab')
-  }
-  await expect(skipLink).toBeFocused()
-  await page.keyboard.press('Enter')
-  await expect(page.locator('#conteudo')).toBeFocused()
-
-  await finishLatestCinematicIntro(page)
-  await expect
-    .poll(() => hero.getAttribute('data-intro-phase'))
-    .toBe('revealing')
-  await expect(header).not.toHaveAttribute('inert', '')
-  await expect(interactiveHero).not.toHaveAttribute('inert', '')
-  await expect(header).toHaveCSS('transition-duration', '0.26s')
-  await expect(
-    hero.getByRole('link', { name: 'Confirmar presença' }),
-  ).toBeEnabled()
+  const elapsed = await page.evaluate(
+    (start) => performance.now() - start,
+    startedAt,
+  )
+  expect(elapsed).toBeGreaterThanOrEqual(120)
+  expect(elapsed).toBeLessThanOrEqual(500)
+  expect(await page.evaluate(() => window.scrollY)).toBe(4)
 })
 
-test('scroll cancellation ignores noise then lands the sun without restoring scroll', async ({
+test('reduced motion starts complete with no finite intro or wave animation', async ({
   page,
 }) => {
-  await installCinematicIntroControl(page)
+  await installIntroProbe(page, false)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length > 0,
-  )
 
-  const hero = page.locator('[data-intro-phase]')
-  await page.evaluate(() => window.scrollTo(0, 3))
-  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
+  await expectFinalUiOpen(page)
+  expect(
+    await page.evaluate(
+      () => window.__pwCinematicIntroProbe?.records.length ?? -1,
+    ),
+  ).toBe(0)
+  await expect(page.locator('.wave-band').first()).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+  await expectNoDocumentOverflow(page)
+})
+
+test('fail-open animate failure leaves header, CTA and skip operable', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await page.addInitScript(() => {
+    const originalAnimate = Element.prototype.animate
+    Element.prototype.animate = function (...args) {
+      if ((this as HTMLElement).dataset.introTrack) {
+        throw new Error('forced semantic animate failure')
+      }
+      return originalAnimate.apply(this, args)
+    }
+  })
+  await page.goto('/')
+
+  await expectFinalUiOpen(page)
+  await expectSkipStillWorks(page)
+  expect(pageErrors).toEqual([])
+})
+
+test('fail-open intent rate failure preserves the original scroll action', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await page.addInitScript(() => {
+    Animation.prototype.updatePlaybackRate = function () {
+      throw new Error('forced updatePlaybackRate failure')
+    }
+  })
+  await page.goto('/')
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'playing',
+  )
 
   await page.evaluate(() => window.scrollTo(0, 4))
-  await expect
-    .poll(() => hero.getAttribute('data-intro-phase'))
-    .toBe('revealing')
-  await expect
-    .poll(() => page.evaluate(() => window.scrollY))
-    .toBe(4)
-  await expectSunGeometryAligned(page)
-
-  const animationState = await page.evaluate(() => ({
-    playState: window.__cinematicIntroAnimations.at(-1)?.playState,
-    headerInert: document.querySelector('header')?.hasAttribute('inert'),
-    interactiveInert: document
-      .querySelector('[data-intro-interactive]')
-      ?.hasAttribute('inert'),
-  }))
-  expect(animationState.playState).toBe('idle')
-  expect(animationState.headerInert).toBe(false)
-  expect(animationState.interactiveInert).toBe(false)
-})
-
-test('route entry replays on remount but same-mount inicio and direct fragments do not', async ({
-  page,
-}) => {
-  await installCinematicIntroControl(page)
-  await page.goto('/')
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length === 1,
-  )
-
-  await page.evaluate(() => {
-    window.history.pushState(null, '', '/confirmar')
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  })
-  await expect(page).toHaveURL(/\/confirmar$/)
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations[0]?.playState,
-      ),
-    )
-    .toBe('idle')
-
-  await page.evaluate(() => {
-    window.history.pushState(null, '', '/')
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  })
   await expect(page.locator('#inicio')).toHaveAttribute(
-    'data-intro-phase',
-    'descending',
-  )
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(2)
-
-  await finishLatestCinematicIntro(page)
-  await page.evaluate(() => {
-    window.scrollTo(0, 900)
-    window.scrollTo(0, 0)
-  })
-  await page
-    .getByRole('link', { name: 'Sol faz 40 — voltar ao início' })
-    .click()
-  await expect(page).toHaveURL(/\/#inicio$/)
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(2)
-
-  await page.goto('/confirmar')
-  await page.goto('/#programacao')
-  await expect(page.locator('#inicio')).toHaveAttribute(
-    'data-intro-phase',
+    'data-intro-state',
     'complete',
+    { timeout: 1000 },
   )
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(0)
-  const programPosition = await page.locator('#programacao').evaluate(
-    (element) => {
-      const rect = element.getBoundingClientRect()
-      return { top: rect.top, bottom: rect.bottom, height: innerHeight }
-    },
-  )
-  expect(programPosition.bottom).toBeGreaterThan(0)
-  expect(programPosition.top).toBeLessThan(programPosition.height)
+  await expectFinalUiOpen(page)
+  expect(await page.evaluate(() => window.scrollY)).toBe(4)
+  expect(pageErrors).toEqual([])
 })
 
-test('bfcache persisted pageshow restarts an eligible generation and cleans up on unmount', async ({
+test('fail-open resize setKeyframes failure converges to the usable final geometry', async ({
   page,
 }) => {
-  await installCinematicIntroControl(page)
-  await page.goto('/')
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length === 1,
-  )
-  await finishLatestCinematicIntro(page)
-
-  await page.evaluate(() => {
-    window.dispatchEvent(
-      new PageTransitionEvent('pageshow', { persisted: true }),
-    )
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await page.addInitScript(() => {
+    KeyframeEffect.prototype.setKeyframes = function () {
+      throw new Error('forced setKeyframes failure')
+    }
   })
+  await page.setViewportSize({ width: 320, height: 760 })
+  await page.goto('/')
   await expect(page.locator('#inicio')).toHaveAttribute(
-    'data-intro-phase',
-    'descending',
-  )
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(2)
-
-  await page.evaluate(() => {
-    window.history.pushState(null, '', '/confirmar')
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  })
-  await expect(page).toHaveURL(/\/confirmar$/)
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations[1]?.playState,
-      ),
-    )
-    .toBe('idle')
-
-  await page.evaluate(() => {
-    window.dispatchEvent(
-      new PageTransitionEvent('pageshow', { persisted: true }),
-    )
-  })
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(2)
-})
-
-test('reduced motion skips initial and active intro without restarting later', async ({
-  page,
-}) => {
-  await installCinematicIntroControl(page)
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/')
-
-  const hero = page.locator('#inicio')
-  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(0)
-  await expect(page.locator('[data-intro-reveal]').first()).toHaveCSS(
-    'transition-duration',
-    '0s',
+    'data-intro-state',
+    'playing',
   )
 
-  await page.emulateMedia({ reducedMotion: 'no-preference' })
-  await page.goto('/')
-  await page.waitForFunction(
-    () => window.__cinematicIntroAnimations?.length === 1,
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'complete',
+    { timeout: 1000 },
   )
-  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
-
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations[0]?.playState,
-      ),
-    )
-    .toBe('idle')
-  await page.emulateMedia({ reducedMotion: 'no-preference' })
-  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__cinematicIntroAnimations.length,
-      ),
-    )
-    .toBe(1)
+  await expectFinalUiOpen(page)
+  await expectSunGeometryAligned(page)
+  await expectNoDocumentOverflow(page)
+  expect(pageErrors).toEqual([])
 })
