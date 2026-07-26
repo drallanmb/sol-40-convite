@@ -68,7 +68,13 @@ function Home() {
   }, [])
 
   return (
-    <Shell navLinks={NAV_LINKS} showCountdownRail wordmarkHref={`#${SECTION_IDS.hero}`}>
+    <Shell
+      navLinks={NAV_LINKS}
+      showCountdownRail
+      wordmarkHref={`#${SECTION_IDS.hero}`}
+      introPhase={introPhase}
+      underlapTopbar
+    >
       <Hero
         introPhase={introPhase}
         introRunGeneration={introRunGeneration}

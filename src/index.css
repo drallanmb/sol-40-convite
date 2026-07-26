@@ -155,6 +155,16 @@ body {
   opacity: 1;
 }
 
+[data-intro-chrome] {
+  visibility: visible;
+  opacity: 1;
+}
+
+[data-intro-chrome][data-intro-chrome-phase="descending"] {
+  visibility: hidden;
+  opacity: 0;
+}
+
 [data-intro-phase="descending"] [data-intro-reveal] {
   visibility: hidden;
   opacity: 0;
@@ -437,7 +447,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-intro-reveal] {
+  [data-intro-reveal],
+  [data-intro-chrome] {
     transition: none;
   }
 

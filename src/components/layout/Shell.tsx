@@ -3,6 +3,7 @@ import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router'
 import CountdownRail from '../invite/CountdownRail'
 import { FOOTER, SECTION_IDS, type NavLink } from '../../content/event'
+import type { IntroPhase } from '../../lib/cinematicIntro'
 
 export type ShellProps = {
   children: ReactNode
@@ -12,6 +13,10 @@ export type ShellProps = {
   showCountdownRail?: boolean
   /** Href for the wordmark. Omitted → wordmark renders as a plain (non-link) mark. */
   wordmarkHref?: string
+  /** Reveal state for Home chrome. Secondary routes default to fully visible. */
+  introPhase?: IntroPhase
+  /** Lets the Home sky begin at viewport Y=0 without moving the sticky header. */
+  underlapTopbar?: boolean
 }
 
 const MAIN_ID = 'conteudo'
@@ -31,10 +36,17 @@ function NavigationAnchor({ href, ...props }: NavigationAnchorProps) {
  * original class-toggling): `.topbar`/`.menu-toggle`/`.countdown-rail` in
  * `globals.css` from `sol-40-integrado` (Phase 2, plan 02-07).
  *
- * All three new props are optional so `NotFound.tsx` keeps rendering with no
- * topbar nav, unchanged.
+ * Route-specific props are optional so `NotFound.tsx` and secondary routes
+ * keep rendering with fully visible chrome and normal-flow main content.
  */
-export function Shell({ children, navLinks, showCountdownRail = false, wordmarkHref }: ShellProps) {
+export function Shell({
+  children,
+  navLinks,
+  showCountdownRail = false,
+  wordmarkHref,
+  introPhase = 'complete',
+  underlapTopbar = false,
+}: ShellProps) {
   const [scrolled, setScrolled] = useState(false)
   const [railRevealed, setRailRevealed] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -138,7 +150,10 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
       </a>
 
       <header
-        className={`sticky top-0 z-(--z-sticky) border-b text-plum transition-[background-color,border-color,box-shadow] duration-(--duration-medium) ease-out ${headerChromeClasses}`}
+        data-intro-chrome
+        data-intro-chrome-phase={introPhase}
+        inert={introPhase === 'descending' ? true : undefined}
+        className={`sticky top-0 z-(--z-sticky) border-b text-plum transition-[background-color,border-color,box-shadow,opacity] duration-(--duration-medium) ease-out ${underlapTopbar ? '-mb-px' : ''} ${headerChromeClasses}`}
       >
         <div className="relative mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
           {wordmarkHref ? (
@@ -255,7 +270,11 @@ export function Shell({ children, navLinks, showCountdownRail = false, wordmarkH
         ) : null}
       </header>
 
-      <main id={MAIN_ID} tabIndex={-1} className="flex-1 outline-none">
+      <main
+        id={MAIN_ID}
+        tabIndex={-1}
+        className={`flex-1 outline-none ${underlapTopbar ? '-mt-[72px]' : ''}`}
+      >
         {children}
       </main>
 

@@ -96,8 +96,9 @@ test('first frame shows only the final sky while the sun starts above the viewpo
   await installCinematicIntroControl(page)
   await page.goto('/')
 
-  const hero = page.locator('[data-intro-phase="descending"]')
+  const hero = page.locator('#inicio')
   await expect(hero).toBeAttached()
+  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
   await expect(page.locator('[data-testid="hero-sun-target"]')).toHaveCount(1)
   await expect(page.locator('[data-testid="hero-sun-visual"]')).toHaveCount(1)
 
@@ -206,7 +207,7 @@ test('skip link stays first and outside inert while hidden controls reveal toget
   await installCinematicIntroControl(page)
   await page.goto('/')
 
-  const hero = page.locator('[data-intro-phase="descending"]')
+  const hero = page.locator('#inicio')
   const header = page.locator('header')
   const interactiveHero = hero.locator('[data-intro-interactive]')
   const skipLink = page.getByRole('link', {
@@ -214,6 +215,7 @@ test('skip link stays first and outside inert while hidden controls reveal toget
   })
 
   await expect(hero).toBeAttached()
+  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
   await expect(header).toHaveAttribute('inert', '')
   await expect(interactiveHero).toHaveAttribute('inert', '')
   await expect
@@ -236,6 +238,7 @@ test('skip link stays first and outside inert while hidden controls reveal toget
   await page.keyboard.press('Enter')
   await expect(page.locator('#conteudo')).toBeFocused()
 
+  await finishLatestCinematicIntro(page)
   await expect
     .poll(() => hero.getAttribute('data-intro-phase'))
     .toBe('revealing')

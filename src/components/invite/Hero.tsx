@@ -67,7 +67,7 @@ export function Hero({
     const frame = window.requestAnimationFrame(() => {
       const target = sunTargetRef.current
       const visual = sunVisualRef.current
-      if (disposed) return
+      if (disposed || completed) return
 
       if (!target || !visual || typeof visual.animate !== 'function') {
         completeDescent()
@@ -168,6 +168,7 @@ export function Hero({
       {/* camada de texto */}
       <div
         data-intro-reveal
+        data-intro-interactive
         inert={introPhase === 'descending' ? true : undefined}
         className="relative z-[3] mx-auto flex max-w-3xl flex-col items-center px-4 text-center text-plum sm:px-8"
       >
