@@ -110,7 +110,7 @@ test('first frame shows only the final sky while the sun starts above the viewpo
 
   const { visual } = await readSunGeometry(page)
   expect(visual.bottom).toBeLessThanOrEqual(0)
-  await expect(page.getByRole('heading', { name: /Sol/i }).first()).toBeHidden()
+  await expect(hero.locator('h1')).toBeHidden()
 })
 
 test('geometry lands the same canonical sun on its responsive target', async ({

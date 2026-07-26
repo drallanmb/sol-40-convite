@@ -147,42 +147,34 @@ body {
   }
 }
 
-/* Assinatura de entrada: o cenário "assenta" como um pôr do sol chegando ao
-   horizonte. Nada parte de opacity: 0; conteúdo e ações seguem visíveis se a
-   animação atrasar, falhar ou for interrompida. */
+/* Abertura cinematográfica: céu e sol canônico permanecem fora do fade.
+   Mar, conteúdo e metadados já ficam montados (e as ondas continuam
+   rodando), mas só são revelados quando o disco alcança o alvo responsivo. */
+[data-intro-reveal] {
+  visibility: visible;
+  opacity: 1;
+}
+
+[data-intro-phase="descending"] [data-intro-reveal] {
+  visibility: hidden;
+  opacity: 0;
+}
+
+[data-intro-phase="revealing"] [data-intro-reveal],
+[data-intro-phase="complete"] [data-intro-reveal] {
+  transition: opacity var(--duration-medium) var(--ease-out);
+}
+
+[data-intro-phase="descending"] [data-testid="hero-sun-visual"] {
+  visibility: hidden;
+}
+
+[data-intro-phase="descending"]
+  [data-testid="hero-sun-visual"][data-intro-motion-ready="true"] {
+  visibility: visible;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .hero-sky-enter {
-    animation: hero-sky-warmth 900ms var(--ease-out) both;
-  }
-
-  .hero-sun-enter {
-    animation: hero-sun-settle 900ms var(--ease-out) both;
-  }
-
-  .hero-enter {
-    animation: hero-copy-settle 680ms var(--ease-out) both;
-  }
-
-  .hero-enter--eyebrow {
-    animation-delay: 80ms;
-  }
-
-  .hero-enter--title {
-    animation-delay: 140ms;
-  }
-
-  .hero-enter--tagline {
-    animation-delay: 210ms;
-  }
-
-  .hero-enter--actions {
-    animation-delay: 280ms;
-  }
-
-  .hero-enter--meta {
-    animation-delay: 340ms;
-  }
-
   [data-motion-state="entered"] .program-sun {
     animation: program-sun-settle 560ms var(--ease-out) both;
   }
@@ -262,37 +254,6 @@ body {
 
   dialog[open].admin-dialog::backdrop {
     animation: admin-backdrop-enter 180ms ease-out both;
-  }
-}
-
-@keyframes hero-sky-warmth {
-  from {
-    filter: saturate(0.88) brightness(0.96);
-  }
-  to {
-    filter: saturate(1) brightness(1);
-  }
-}
-
-@keyframes hero-sun-settle {
-  from {
-    transform: translate(-50%, -44%) scale(0.92);
-    filter: saturate(0.88);
-  }
-  to {
-    transform: translate(-50%, -50%) scale(1);
-    filter: saturate(1);
-  }
-}
-
-@keyframes hero-copy-settle {
-  from {
-    transform: translateY(16px);
-    filter: blur(5px);
-  }
-  to {
-    transform: translateY(0);
-    filter: blur(0);
   }
 }
 
@@ -476,6 +437,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-intro-reveal] {
+    transition: none;
+  }
+
   .wave-band,
   .wave-band--mid,
   .wave-band--back {
