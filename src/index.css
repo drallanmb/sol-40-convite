@@ -121,6 +121,343 @@ body {
   outline-offset: 3px;
 }
 
+/* Plano-sequência do hero. O CSS base é sempre o frame final; a WAAPI
+   acrescenta apenas transformações e opacidades transitórias. */
+.cinematic-hero {
+  isolation: isolate;
+}
+
+.cinematic-scene {
+  --intro-horizon-y: 69%;
+  --intro-sun-x: 56%;
+  --intro-sun-y: 59%;
+  --intro-sun-size: clamp(17rem, 29vw, 30rem);
+  --intro-reflection-width: clamp(5.5rem, 11vw, 9.5rem);
+}
+
+.cinematic-camera {
+  transform-origin: 50% var(--intro-horizon-y);
+}
+
+.cinematic-sky-base {
+  background:
+    radial-gradient(
+      ellipse at 76% 16%,
+      color-mix(in srgb, var(--color-cream) 28%, transparent) 0,
+      transparent 24%
+    ),
+    radial-gradient(
+      ellipse at var(--intro-sun-x) var(--intro-sun-y),
+      var(--color-sky-halo) 0,
+      color-mix(in srgb, var(--color-sky-halo) 52%, transparent) 18%,
+      transparent 42%
+    ),
+    linear-gradient(
+      176deg,
+      color-mix(in srgb, var(--color-plum) 48%, var(--color-sky-dusk)) 0%,
+      var(--color-sky-dusk) 28%,
+      var(--color-sky-apricot) 62%,
+      var(--color-sky-coral) 100%
+    );
+}
+
+.cinematic-cool-veil {
+  z-index: 1;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-plum) 76%, transparent) 0%,
+      color-mix(in srgb, var(--color-sea) 34%, transparent) 48%,
+      transparent 78%
+    );
+  opacity: 0;
+}
+
+.cinematic-warm-horizon {
+  top: 33%;
+  z-index: 1;
+  height: 48%;
+  transform-origin: center bottom;
+  background:
+    radial-gradient(
+      ellipse at var(--intro-sun-x) 82%,
+      color-mix(in srgb, var(--color-sun-soft) 88%, transparent) 0%,
+      color-mix(in srgb, var(--color-peach) 48%, transparent) 32%,
+      transparent 68%
+    );
+}
+
+.cinematic-cloud {
+  z-index: 2;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 18% 58%, currentColor 0 12%, transparent 31%),
+    radial-gradient(ellipse at 38% 42%, currentColor 0 19%, transparent 42%),
+    radial-gradient(ellipse at 61% 49%, currentColor 0 21%, transparent 45%),
+    radial-gradient(ellipse at 83% 63%, currentColor 0 13%, transparent 34%);
+  filter: blur(5px);
+}
+
+.cinematic-cloud--far {
+  top: 11%;
+  left: 4%;
+  width: min(49vw, 42rem);
+  height: clamp(5rem, 12vw, 10rem);
+  color: color-mix(in srgb, var(--color-cream) 34%, transparent);
+}
+
+.cinematic-cloud--near {
+  top: 28%;
+  right: -5%;
+  width: min(43vw, 35rem);
+  height: clamp(5rem, 11vw, 9rem);
+  color: color-mix(in srgb, var(--color-peach) 48%, transparent);
+}
+
+.cinematic-sun-target {
+  top: var(--intro-sun-y);
+  left: var(--intro-sun-x);
+  z-index: 3;
+  width: var(--intro-sun-size);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+
+.cinematic-sun-retarget {
+  transform-origin: center;
+}
+
+.cinematic-sun {
+  background:
+    radial-gradient(
+      circle at 38% 35%,
+      var(--color-sun-soft) 0,
+      var(--color-sun) 52%,
+      color-mix(in srgb, var(--color-sun) 86%, var(--color-coral)) 100%
+    );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-cream) 18%, transparent),
+    0 0 4rem var(--color-sun-halo),
+    0 0 10rem color-mix(in srgb, var(--color-sun-halo) 62%, transparent);
+  transform-origin: center;
+}
+
+.cinematic-haze {
+  top: 48%;
+  z-index: 4;
+  height: 31%;
+  transform-origin: center bottom;
+  background:
+    radial-gradient(
+      ellipse at var(--intro-sun-x) 72%,
+      color-mix(in srgb, var(--color-cream) 62%, transparent) 0,
+      color-mix(in srgb, var(--color-sun-soft) 34%, transparent) 36%,
+      transparent 72%
+    );
+}
+
+.cinematic-horizon-depth {
+  top: calc(var(--intro-horizon-y) - 7%);
+  z-index: 5;
+  height: 9%;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-horizon-plum) 50%, transparent) 100%
+    );
+  clip-path: polygon(
+    0 76%,
+    8% 57%,
+    18% 68%,
+    29% 43%,
+    39% 64%,
+    53% 37%,
+    66% 61%,
+    78% 46%,
+    90% 69%,
+    100% 55%,
+    100% 100%,
+    0 100%
+  );
+}
+
+[data-intro-layer="sea"] {
+  z-index: 6;
+}
+
+.cinematic-reflection {
+  top: var(--intro-horizon-y);
+  left: var(--intro-sun-x);
+  z-index: 7;
+  width: var(--intro-reflection-width);
+  height: calc(100% - var(--intro-horizon-y));
+  transform: translateX(-50%);
+  transform-origin: top center;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-sun-soft) 44%, transparent) 20%,
+      color-mix(in srgb, var(--color-sun) 86%, transparent) 50%,
+      color-mix(in srgb, var(--color-sun-soft) 44%, transparent) 80%,
+      transparent 100%
+    );
+  mask-image:
+    repeating-linear-gradient(
+      180deg,
+      var(--color-ink) 0 .4rem,
+      transparent .4rem .75rem
+    ),
+    linear-gradient(180deg, var(--color-ink), transparent 94%);
+  mask-composite: intersect;
+}
+
+.cinematic-wave-light {
+  top: calc(var(--intro-horizon-y) + 4%);
+  left: var(--intro-sun-x);
+  z-index: 8;
+  width: calc(var(--intro-reflection-width) * 1.9);
+  height: calc(100% - var(--intro-horizon-y) - 4%);
+  transform: translateX(-50%);
+  background:
+    repeating-linear-gradient(
+      176deg,
+      transparent 0 .8rem,
+      color-mix(in srgb, var(--color-cream) 40%, transparent) .8rem .94rem,
+      transparent .94rem 1.7rem
+    );
+  mask-image: radial-gradient(ellipse at 50% 0%, var(--color-ink), transparent 72%);
+}
+
+.cinematic-palm-wrap {
+  bottom: -1%;
+  z-index: 9;
+  width: clamp(8.5rem, 15vw, 14rem);
+  height: min(56%, 34rem);
+  color: color-mix(in srgb, var(--color-plum) 82%, transparent);
+  transform-origin: bottom center;
+}
+
+.cinematic-palm-wrap--left {
+  left: -2.5%;
+}
+
+.cinematic-palm-wrap--right {
+  right: -2.5%;
+  transform: scaleX(-1);
+}
+
+.cinematic-palm {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.cinematic-palm--right {
+  transform: rotate(-4deg);
+}
+
+.cinematic-palm--left {
+  transform: rotate(3deg);
+}
+
+.cinematic-texture {
+  z-index: 10;
+  background-image:
+    repeating-radial-gradient(
+      circle at 17% 31%,
+      var(--color-sky-grain) 0 1px,
+      transparent 1px 4px
+    );
+  mix-blend-mode: soft-light;
+  opacity: .1;
+}
+
+.cinematic-copy {
+  margin-top: -2.5vh;
+}
+
+.cinematic-meta {
+  text-shadow: 0 1px 1rem color-mix(in srgb, var(--color-plum) 58%, transparent);
+}
+
+[data-intro-state="playing"] [data-intro-track] {
+  will-change: transform, opacity;
+}
+
+[data-intro-state="complete"] [data-intro-track] {
+  will-change: auto;
+}
+
+@media (max-width: 639px) {
+  .cinematic-scene {
+    --intro-horizon-y: 73%;
+    --intro-sun-x: 52%;
+    --intro-sun-y: 64%;
+    --intro-sun-size: clamp(12.5rem, 65vw, 15rem);
+    --intro-reflection-width: clamp(3.2rem, 21vw, 4.8rem);
+  }
+
+  .cinematic-cloud--far {
+    top: 9%;
+    left: -28%;
+    width: 100vw;
+    height: 7.5rem;
+  }
+
+  .cinematic-cloud--near {
+    top: 31%;
+    right: -46%;
+    width: 112vw;
+    height: 8.5rem;
+  }
+
+  .cinematic-haze {
+    top: 53%;
+    height: 28%;
+  }
+
+  .cinematic-horizon-depth {
+    top: calc(var(--intro-horizon-y) - 5%);
+    height: 6%;
+  }
+
+  .cinematic-palm-wrap {
+    bottom: -2%;
+    width: 10.5rem;
+    height: 48%;
+    color: color-mix(in srgb, var(--color-plum) 90%, transparent);
+  }
+
+  .cinematic-palm-wrap--left {
+    left: -22%;
+  }
+
+  .cinematic-palm-wrap--right {
+    right: -24%;
+  }
+
+  .cinematic-copy {
+    margin-top: -5vh;
+    padding-inline: 1.1rem;
+  }
+
+  .cinematic-meta {
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    font-size: .65rem;
+    letter-spacing: .07em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-intro-track] {
+    will-change: auto;
+  }
+}
+
 /* Hero — mar animado (D-08). As três faixas de onda rodam via @keyframes
    puro; cada `.wave-band` recebe uma duração diferente (front 22s / mid
    30s / back 38s) para produzir a sensação de paralaxe. Quem pede menos
