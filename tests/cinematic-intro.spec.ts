@@ -17,6 +17,14 @@ type IntroProbeRecord = {
   track: string
 }
 
+type WaapiFaultOperation =
+  | 'animate'
+  | 'pause'
+  | 'setKeyframes'
+  | 'updatePlaybackRate'
+  | 'finish'
+  | 'cancel'
+
 type DOMRectShape = {
   x: number
   y: number
@@ -40,7 +48,114 @@ declare global {
       seek: (progress: number) => void
       pause: () => void
     }
+    __pwCinematicIntroWaapiFault?: {
+      records: Array<{
+        animation: Animation
+        node: Element
+        track: string
+      }>
+      calls: Record<WaapiFaultOperation, number>
+    }
   }
+}
+
+async function installWaapiFault(
+  page: Page,
+  operation: WaapiFaultOperation,
+): Promise<void> {
+  await page.addInitScript((fault) => {
+    const originalAnimate = Element.prototype.animate
+    const originalPause = Animation.prototype.pause
+    const originalUpdatePlaybackRate =
+      Animation.prototype.updatePlaybackRate
+    const originalFinish = Animation.prototype.finish
+    const originalCancel = Animation.prototype.cancel
+    const originalSetKeyframes = KeyframeEffect.prototype.setKeyframes
+    const semanticAnimations = new WeakSet<Animation>()
+    const semanticEffects = new WeakSet<KeyframeEffect>()
+    const records: Array<{
+      animation: Animation
+      node: Element
+      track: string
+    }> = []
+    const calls: Record<WaapiFaultOperation, number> = {
+      animate: 0,
+      pause: 0,
+      setKeyframes: 0,
+      updatePlaybackRate: 0,
+      finish: 0,
+      cancel: 0,
+    }
+
+    window.__pwCinematicIntroWaapiFault = { records, calls }
+
+    Element.prototype.animate = function (
+      keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
+      options?: number | KeyframeAnimationOptions,
+    ) {
+      const owner = this as HTMLElement
+      const track = owner.dataset.introTrack
+        ?? (owner.hasAttribute('data-intro-sun-retarget')
+          ? 'retarget'
+          : null)
+      if (track && fault === 'animate') {
+        calls.animate += 1
+        throw new Error('forced semantic animate failure')
+      }
+
+      const animation = originalAnimate.call(this, keyframes, options)
+      if (!track) return animation
+
+      semanticAnimations.add(animation)
+      const effect = animation.effect
+      if (effect instanceof KeyframeEffect) semanticEffects.add(effect)
+      records.push({ animation, node: this, track })
+      return animation
+    }
+
+    Animation.prototype.pause = function () {
+      if (semanticAnimations.has(this) && fault === 'pause') {
+        calls.pause += 1
+        throw new Error('forced semantic pause failure')
+      }
+      return originalPause.call(this)
+    }
+
+    KeyframeEffect.prototype.setKeyframes = function (keyframes) {
+      if (semanticEffects.has(this) && fault === 'setKeyframes') {
+        calls.setKeyframes += 1
+        throw new Error('forced semantic setKeyframes failure')
+      }
+      return originalSetKeyframes.call(this, keyframes)
+    }
+
+    Animation.prototype.updatePlaybackRate = function (rate) {
+      if (
+        semanticAnimations.has(this)
+        && fault === 'updatePlaybackRate'
+      ) {
+        calls.updatePlaybackRate += 1
+        throw new Error('forced semantic updatePlaybackRate failure')
+      }
+      return originalUpdatePlaybackRate.call(this, rate)
+    }
+
+    Animation.prototype.finish = function () {
+      if (semanticAnimations.has(this) && fault === 'finish') {
+        calls.finish += 1
+        throw new Error('forced semantic finish failure')
+      }
+      return originalFinish.call(this)
+    }
+
+    Animation.prototype.cancel = function () {
+      if (semanticAnimations.has(this) && fault === 'cancel') {
+        calls.cancel += 1
+        throw new Error('forced semantic cancel failure')
+      }
+      return originalCancel.call(this)
+    }
+  }, operation)
 }
 
 async function installIntroProbe(
@@ -244,6 +359,34 @@ async function expectCapturedIntentInterval(page: Page): Promise<void> {
       ({ remaining }) => remaining >= 150 && remaining <= 200,
     ),
   ).toBe(true)
+}
+
+async function expectWaapiFaultCalls(
+  page: Page,
+  operation: WaapiFaultOperation,
+  expected: number | 'none',
+): Promise<void> {
+  const calls = await page.evaluate(
+    (name) =>
+      window.__pwCinematicIntroWaapiFault?.calls[
+        name as WaapiFaultOperation
+      ] ?? -1,
+    operation,
+  )
+  if (expected === 'none') {
+    expect(calls).toBe(0)
+    return
+  }
+  expect(calls).toBeGreaterThanOrEqual(expected)
+}
+
+async function liveSemanticWaapiAnimations(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      window.__pwCinematicIntroWaapiFault?.records.filter(
+        ({ animation }) => animation.playState !== 'idle',
+      ).length ?? -1,
+  )
 }
 
 test('continuous production preview exposes no injected intro namespace', async ({
@@ -629,6 +772,211 @@ test('reduced motion starts complete with no finite intro or wave animation', as
     'none',
   )
   await expectNoDocumentOverflow(page)
+})
+
+test('route remount owns one controller while same-mount wordmark never replays it', async ({
+  page,
+}) => {
+  await installIntroProbe(page)
+  await page.goto('/')
+  await waitForArtTracks(page)
+  await seekIntro(page, 0.9)
+
+  const hero = page.locator('#inicio')
+  const initialGeneration = await hero.getAttribute('data-intro-generation')
+  const primaryCta = hero.getByRole('link', {
+    name: 'Confirmar presença',
+  })
+  await expect(primaryCta).toBeVisible()
+  await expect(primaryCta).toBeEnabled()
+  await primaryCta.click()
+  await expect(page).toHaveURL(/\/confirmar$/)
+  await expect(hero).toHaveCount(0)
+
+  const disposedRun = await page.evaluate(() => {
+    const probe = window.__pwCinematicIntroProbe
+    return {
+      liveAnimations:
+        probe?.records.filter(
+          ({ animation }) => animation.playState !== 'idle',
+        )
+          .length ?? -1,
+      rateUpdates: probe?.rateUpdates.length ?? -1,
+    }
+  })
+  expect(disposedRun.liveAnimations).toBe(0)
+
+  await page.evaluate(() => {
+    const probe = window.__pwCinematicIntroProbe
+    if (!probe) throw new Error('Playwright intro probe is unavailable')
+    const updatesBefore = probe.rateUpdates.length
+    window.scrollTo(0, 24)
+    document.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true }),
+    )
+    document.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    if (probe.rateUpdates.length !== updatesBefore) {
+      throw new Error('Disposed cinematic listeners handled route events')
+    }
+    probe.records.length = 0
+    probe.rateUpdates.length = 0
+  })
+
+  await page.goBack()
+  await expect(page).toHaveURL(/\/$/)
+  await waitForArtTracks(page)
+  await expect(hero).toHaveAttribute('data-intro-state', 'playing')
+  await expect(hero).toHaveAttribute('data-intro-generation', '0')
+  expect(
+    await page.evaluate(
+      () =>
+        window.__pwCinematicIntroProbe?.records.filter(
+          ({ track }) => track !== 'retarget',
+        ).length ?? -1,
+    ),
+  ).toBe(ART_TRACKS.length)
+
+  const wordmark = page.getByRole('link', {
+    name: 'Sol faz 40 — voltar ao início',
+  })
+  await wordmark.click()
+  await expect(page).toHaveURL(/#inicio$/)
+  await expect(hero).toHaveAttribute(
+    'data-intro-generation',
+    initialGeneration ?? '0',
+  )
+  expect(
+    await page.evaluate(
+      () =>
+        window.__pwCinematicIntroProbe?.records.filter(
+          ({ track }) => track !== 'retarget',
+        ).length ?? -1,
+    ),
+  ).toBe(ART_TRACKS.length)
+})
+
+test('focus keeps skip first and excludes copy until each visible onset', async ({
+  page,
+}) => {
+  await installIntroProbe(page)
+  await page.goto('/')
+  await waitForArtTracks(page)
+  await seekIntro(page, 0)
+
+  const hero = page.locator('#inicio')
+  const primary = hero.locator('[data-intro-copy="primary"]')
+  const secondary = hero.locator('[data-intro-copy="secondary"]')
+  const skip = page.getByRole('link', { name: 'Pular para o conteúdo' })
+
+  await page.keyboard.press('Tab')
+  await expect(skip).toBeFocused()
+  await expect(page.locator('header')).not.toHaveAttribute('inert', '')
+  await expect(primary).toHaveAttribute('inert', '')
+  await expect(secondary).toHaveAttribute('inert', '')
+
+  await page.keyboard.press('Tab')
+  expect(
+    await page.evaluate(() =>
+      Boolean(document.activeElement?.closest(
+        '[data-intro-copy="secondary"]',
+      )),
+    ),
+  ).toBe(false)
+
+  await seekIntro(page, 0.76)
+  await expect(primary).not.toHaveAttribute('inert', '')
+  await expect(secondary).toHaveAttribute('inert', '')
+  await seekIntro(page, 0.88)
+  await expect(secondary).not.toHaveAttribute('inert', '')
+})
+
+test('bfcache restart disposes the previous generation even when WAAPI cancel throws', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await installWaapiFault(page, 'cancel')
+  await page.goto('/')
+
+  const hero = page.locator('#inicio')
+  await expect(hero).toHaveAttribute('data-intro-state', 'playing')
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.__pwCinematicIntroWaapiFault?.records.length ?? -1,
+      ),
+    )
+    .toBe(ART_TRACKS.length)
+  const initialGeneration = Number(
+    await hero.getAttribute('data-intro-generation'),
+  )
+
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new PageTransitionEvent('pageshow', { persisted: true }),
+    )
+  })
+  await expect(hero).toHaveAttribute(
+    'data-intro-generation',
+    String(initialGeneration + 1),
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.__pwCinematicIntroWaapiFault?.records.length ?? -1,
+      ),
+    )
+    .toBe(ART_TRACKS.length * 2)
+
+  expect(await liveSemanticWaapiAnimations(page)).toBe(ART_TRACKS.length)
+  await expectWaapiFaultCalls(page, 'cancel', ART_TRACKS.length)
+
+  await page.evaluate(() => window.scrollTo(0, 4))
+  await expect(hero).toHaveAttribute('data-intro-state', 'complete', {
+    timeout: 1000,
+  })
+  await expectFinalUiOpen(page)
+  await expectSkipStillWorks(page)
+  expect(await liveSemanticWaapiAnimations(page)).toBe(0)
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(4)
+  expect(pageErrors).toEqual([])
+})
+
+test('WAAPI pause failure during retarget fails open without losing navigation', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await installWaapiFault(page, 'pause')
+  await page.setViewportSize({ width: 320, height: 760 })
+  await page.goto('/')
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await expectFinalUiOpen(page)
+  await expectWaapiFaultCalls(page, 'pause', 1)
+  await expectSkipStillWorks(page)
+  expect(pageErrors).toEqual([])
+})
+
+test('WAAPI finish remains unused and cannot turn intent acceleration into a cut', async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await installWaapiFault(page, 'finish')
+  await page.goto('/')
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-state',
+    'playing',
+  )
+
+  await page.evaluate(() => window.scrollTo(0, 4))
+  await expectFinalUiOpen(page)
+  await expectWaapiFaultCalls(page, 'finish', 'none')
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThanOrEqual(4)
+  await expectSkipStillWorks(page)
+  expect(pageErrors).toEqual([])
 })
 
 test('fail-open animate failure leaves header, CTA and skip operable', async ({
