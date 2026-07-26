@@ -283,3 +283,182 @@ test('scroll cancellation ignores noise then lands the sun without restoring scr
   expect(animationState.headerInert).toBe(false)
   expect(animationState.interactiveInert).toBe(false)
 })
+
+test('route entry replays on remount but same-mount inicio and direct fragments do not', async ({
+  page,
+}) => {
+  await installCinematicIntroControl(page)
+  await page.goto('/')
+  await page.waitForFunction(
+    () => window.__cinematicIntroAnimations?.length === 1,
+  )
+
+  await page.evaluate(() => {
+    window.history.pushState(null, '', '/confirmar')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page).toHaveURL(/\/confirmar$/)
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations[0]?.playState,
+      ),
+    )
+    .toBe('idle')
+
+  await page.evaluate(() => {
+    window.history.pushState(null, '', '/')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-phase',
+    'descending',
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(2)
+
+  await finishLatestCinematicIntro(page)
+  await page.evaluate(() => {
+    window.scrollTo(0, 900)
+    window.scrollTo(0, 0)
+  })
+  await page
+    .getByRole('link', { name: 'Sol faz 40 — voltar ao início' })
+    .click()
+  await expect(page).toHaveURL(/\/#inicio$/)
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(2)
+
+  await page.goto('/#programacao')
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-phase',
+    'complete',
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(0)
+  const programPosition = await page.locator('#programacao').evaluate(
+    (element) => {
+      const rect = element.getBoundingClientRect()
+      return { top: rect.top, bottom: rect.bottom, height: innerHeight }
+    },
+  )
+  expect(programPosition.bottom).toBeGreaterThan(0)
+  expect(programPosition.top).toBeLessThan(programPosition.height)
+})
+
+test('bfcache persisted pageshow restarts an eligible generation and cleans up on unmount', async ({
+  page,
+}) => {
+  await installCinematicIntroControl(page)
+  await page.goto('/')
+  await page.waitForFunction(
+    () => window.__cinematicIntroAnimations?.length === 1,
+  )
+  await finishLatestCinematicIntro(page)
+
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new PageTransitionEvent('pageshow', { persisted: true }),
+    )
+  })
+  await expect(page.locator('#inicio')).toHaveAttribute(
+    'data-intro-phase',
+    'descending',
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(2)
+
+  await page.evaluate(() => {
+    window.history.pushState(null, '', '/confirmar')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page).toHaveURL(/\/confirmar$/)
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations[1]?.playState,
+      ),
+    )
+    .toBe('idle')
+
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new PageTransitionEvent('pageshow', { persisted: true }),
+    )
+  })
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(2)
+})
+
+test('reduced motion skips initial and active intro without restarting later', async ({
+  page,
+}) => {
+  await installCinematicIntroControl(page)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+
+  const hero = page.locator('#inicio')
+  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(0)
+  await expect(page.locator('[data-intro-reveal]').first()).toHaveCSS(
+    'transition-duration',
+    '0s',
+  )
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.goto('/')
+  await page.waitForFunction(
+    () => window.__cinematicIntroAnimations?.length === 1,
+  )
+  await expect(hero).toHaveAttribute('data-intro-phase', 'descending')
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations[0]?.playState,
+      ),
+    )
+    .toBe('idle')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect(hero).toHaveAttribute('data-intro-phase', 'complete')
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__cinematicIntroAnimations.length,
+      ),
+    )
+    .toBe(1)
+})
