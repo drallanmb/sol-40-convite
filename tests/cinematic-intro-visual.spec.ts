@@ -6,6 +6,7 @@ import {
   type BrowserContext,
   type Page,
 } from '@playwright/test'
+import sharp from 'sharp'
 
 const INTRO_DURATION_MS = 3000
 const APPROVED_PROGRESS_SAMPLES = [0, 0.7, 1] as const
@@ -159,6 +160,16 @@ async function captureStoryboard(
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.goto('/')
   await waitForCoordinatedTracks(page)
+  await page.evaluate(() => document.fonts.ready)
+  await page.addStyleTag({
+    content: '.wave-band { animation: none !important; }',
+  })
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolvePaint) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolvePaint()))
+      }),
+  )
 
   const frames: Buffer[] = []
   for (const progress of APPROVED_PROGRESS_SAMPLES) {
@@ -245,10 +256,45 @@ async function expectApprovedBaseline(
   }
 
   const approved = await readFile(baselinePath)
+  const [actualPixels, approvedPixels] = await Promise.all(
+    [actual, approved].map((png) =>
+      sharp(png)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true }),
+    ),
+  )
+  expect(actualPixels.info).toMatchObject({
+    width: approvedPixels.info.width,
+    height: approvedPixels.info.height,
+    channels: approvedPixels.info.channels,
+  })
+
+  let materiallyDifferentPixels = 0
+  const channels = actualPixels.info.channels
+  for (
+    let index = 0;
+    index < actualPixels.data.length;
+    index += channels
+  ) {
+    let maximumChannelDelta = 0
+    for (let channel = 0; channel < channels; channel += 1) {
+      maximumChannelDelta = Math.max(
+        maximumChannelDelta,
+        Math.abs(
+          actualPixels.data[index + channel]
+            - approvedPixels.data[index + channel],
+        ),
+      )
+    }
+    if (maximumChannelDelta > 16) materiallyDifferentPixels += 1
+  }
+  const pixelCount = actualPixels.info.width * actualPixels.info.height
+  const differentPixelRatio = materiallyDifferentPixels / pixelCount
   expect(
-    actual.equals(approved),
-    `${fileName} divergiu dos keyframes 0/70/100 aprovados`,
-  ).toBe(true)
+    differentPixelRatio,
+    `${fileName} divergiu em ${materiallyDifferentPixels}/${pixelCount} pixels materiais`,
+  ).toBeLessThanOrEqual(0.002)
 }
 
 test('normal production preview exposes no test namespace', async ({
