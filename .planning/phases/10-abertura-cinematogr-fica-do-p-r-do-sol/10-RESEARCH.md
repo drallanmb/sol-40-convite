@@ -556,19 +556,19 @@ await page.evaluate(() => {
 
 All implementation-affecting claims in this research were verified in the codebase or cited from current official documentation. No `[ASSUMED]` claims remain.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should direct `/#inicio` play?**
    - What we know: the locked policy says a new entry “pelo hero” plays, while same-mount wordmark navigation to `#inicio` does not. `[VERIFIED: 10-CONTEXT.md D-08/D-10]`
-   - Recommendation: treat an initial empty hash and initial `#inicio` as eligible; mount scope prevents the wordmark from replaying.
+   - **RESOLVED:** Initial `/#inicio` is eligible; mount scope prevents the wordmark from replaying.
 
 2. **Should an orientation change during the two-second descent restart the clock?**
    - What we know: the locked requirement explicitly demands correct geometry for resize/orientation before entry; the same wrapper/child endpoint remains correct even if CSS geometry changes during the animation. `[VERIFIED: 10-CONTEXT.md D-23]`
-   - Recommendation: do not restart the 2s clock. Re-read the target immediately before animation start; during descent let the responsive wrapper move naturally and verify the final child/wrapper rect equality after a test-time resize.
+   - **RESOLVED:** Resize or orientation change does not restart the 2s clock. Re-read the target immediately before animation start; during descent let the responsive wrapper move naturally and verify the final child/wrapper rect equality after a test-time resize.
 
 3. **What exact subpixel tolerance should gate INTRO-01?**
    - What we know: `getBoundingClientRect()` preserves fractional CSS-pixel geometry and the Playwright project includes DPR 2 mobile profiles. `[CITED: https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model/Determining_the_dimensions_of_elements]` `[VERIFIED: playwright.config.ts]`
-   - Recommendation: compare center X, center Y, width, and height with absolute error ≤1 CSS pixel; also assert that the same visual node remains mounted across finish.
+   - **RESOLVED:** Geometry tolerance is ≤1 CSS px: compare center X, center Y, width, and height with absolute error ≤1 CSS pixel; also assert that the same visual node remains mounted across finish.
 
 ## Environment Availability
 
