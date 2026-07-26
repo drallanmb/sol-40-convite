@@ -127,7 +127,7 @@ export function Hero({
       {/* céu — gradiente radial (halo do sol) + gradiente linear de 5 paradas,
           com o sol e o horizonte desenhados por dentro dele */}
       <div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
             'radial-gradient(circle at 50% 61%, var(--color-sky-halo), transparent 21%), linear-gradient(180deg, var(--color-sky-dusk) 0%, var(--color-sky-apricot) 52%, var(--color-sky-coral) 100%)',
@@ -161,7 +161,10 @@ export function Hero({
         </div>
       </div>
 
-      <div data-intro-reveal className="absolute inset-0">
+      <div
+        data-intro-reveal
+        className="pointer-events-none absolute inset-0"
+      >
         <SeaWaves />
       </div>
 
