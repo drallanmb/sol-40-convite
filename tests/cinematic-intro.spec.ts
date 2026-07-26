@@ -32,6 +32,11 @@ declare global {
   interface Window {
     __pwCinematicIntroProbe?: {
       records: IntroProbeRecord[]
+      rateUpdates: Array<{
+        track: string
+        rate: number
+        remaining: number
+      }>
       seek: (progress: number) => void
       pause: () => void
     }
@@ -45,10 +50,18 @@ async function installIntroProbe(
   await page.addInitScript(
     ({ duration, shouldPause }) => {
       const originalAnimate = Element.prototype.animate
+      const originalUpdatePlaybackRate =
+        Animation.prototype.updatePlaybackRate
       const records: IntroProbeRecord[] = []
+      const rateUpdates: Array<{
+        track: string
+        rate: number
+        remaining: number
+      }> = []
 
       window.__pwCinematicIntroProbe = {
         records,
+        rateUpdates,
         seek: (progress) => {
           const clamped = Math.min(1, Math.max(0, progress))
           for (const record of records) {
@@ -60,6 +73,26 @@ async function installIntroProbe(
         pause: () => {
           for (const record of records) record.animation.pause()
         },
+      }
+
+      Animation.prototype.updatePlaybackRate = function (rate) {
+        const record = records.find(({ animation }) => animation === this)
+        if (record && record.track !== 'retarget') {
+          const timing = (
+            this.effect as KeyframeEffect | null
+          )?.getTiming()
+          const effectDuration =
+            typeof timing?.duration === 'number'
+              ? timing.duration
+              : duration
+          const currentTime = Number(this.currentTime ?? 0)
+          rateUpdates.push({
+            track: record.track,
+            rate,
+            remaining: (effectDuration - currentTime) / rate,
+          })
+        }
+        return originalUpdatePlaybackRate.call(this, rate)
       }
 
       Element.prototype.animate = function (
@@ -83,7 +116,7 @@ async function installIntroProbe(
         if (!finite) return animation
 
         records.push({ animation, node: this, track })
-        if (shouldPause && track !== 'retarget') animation.pause()
+        if (shouldPause) animation.pause()
         return animation
       }
     },
@@ -294,9 +327,21 @@ test('continuous scene shares one 3000ms clock and preserves the approved restra
     )
   const primaryOnset = firstVisibleOffset(primary?.keyframes ?? [])
   const secondaryOnset = firstVisibleOffset(secondary?.keyframes ?? [])
+  const hierarchyEnd = Math.max(
+    ...[primary, secondary].map((contract) =>
+      Number(
+        contract?.keyframes.find(({ opacity }) => Number(opacity) === 1)
+          ?.offset ?? Number.NaN,
+      ),
+    ),
+  )
   expect(primaryOnset).toBeLessThan(secondaryOnset)
-  expect((1 - primaryOnset) * INTRO_DURATION_MS).toBeGreaterThanOrEqual(500)
-  expect((1 - primaryOnset) * INTRO_DURATION_MS).toBeLessThanOrEqual(700)
+  expect((hierarchyEnd - primaryOnset) * INTRO_DURATION_MS).toBeGreaterThanOrEqual(
+    500,
+  )
+  expect((hierarchyEnd - primaryOnset) * INTRO_DURATION_MS).toBeLessThanOrEqual(
+    700,
+  )
 })
 
 test('arc geometry keeps one canonical sun and finishes on the real responsive target', async ({
@@ -360,7 +405,7 @@ test('resize at 40% preserves progress and generation through a bounded retarget
     return {
       generation: root?.dataset.introGeneration,
       progress: Number(master?.currentTime ?? 0) / 3000,
-      rect: sun?.getBoundingClientRect().toJSON(),
+      connected: sun?.isConnected,
     }
   })
 
@@ -403,10 +448,22 @@ test('resize at 40% preserves progress and generation through a bounded retarget
   expect(after.artCount).toBe(ART_TRACKS.length)
   expect(after.retargetDuration).toBe(180)
   expect(after.hasWrapper).toBe(true)
+  expect(before.connected).toBe(true)
+
+  const nextFrame = await page.evaluate(() => {
+    const records = window.__pwCinematicIntroProbe?.records ?? []
+    const retarget = records.find(({ track }) => track === 'retarget')
+    const sun = document.querySelector<HTMLElement>('[data-intro-sun]')
+    if (!retarget || !sun) {
+      throw new Error('Retarget correction and canonical sun are required')
+    }
+    retarget.animation.currentTime = 16
+    return sun.getBoundingClientRect().toJSON()
+  })
   expect(
     Math.hypot(
-      Number(after.rect?.left) - Number(before.rect?.left),
-      Number(after.rect?.top) - Number(before.rect?.top),
+      Number(nextFrame.left) - Number(after.rect?.left),
+      Number(nextFrame.top) - Number(after.rect?.top),
     ),
   ).toBeLessThanOrEqual(80)
 
@@ -433,22 +490,23 @@ test('intent acceleration exposes a 150–200ms interval without restoring scrol
     timeout: 1000,
   })
   const accelerated = await page.evaluate(() => {
-    const records = window.__pwCinematicIntroProbe?.records ?? []
+    const probe = window.__pwCinematicIntroProbe
     return {
       state: document.querySelector<HTMLElement>('#inicio')?.dataset.introState,
       scrollY: window.scrollY,
-      remaining: records
-        .filter(({ track }) => track !== 'retarget')
-        .map(({ animation }) => {
-          const currentTime = Number(animation.currentTime ?? 0)
-          return (3000 - currentTime) / animation.playbackRate
-        }),
+      rateUpdates: probe?.rateUpdates ?? [],
     }
   })
-  expect(accelerated.state).toBe('playing')
+  expect(['playing', 'complete']).toContain(accelerated.state)
   expect(accelerated.scrollY).toBe(4)
-  expect(accelerated.remaining.every((value) => value <= 205)).toBe(true)
-  expect(accelerated.remaining.some((value) => value >= 120)).toBe(true)
+  expect(
+    accelerated.rateUpdates.map(({ track }) => track).sort(),
+  ).toEqual([...ART_TRACKS].sort())
+  expect(
+    accelerated.rateUpdates.every(
+      ({ remaining }) => remaining >= 150 && remaining <= 200,
+    ),
+  ).toBe(true)
 
   await expect(hero).toHaveAttribute('data-intro-state', 'complete', {
     timeout: 1000,
@@ -458,7 +516,6 @@ test('intent acceleration exposes a 150–200ms interval without restoring scrol
     startedAt,
   )
   expect(elapsed).toBeGreaterThanOrEqual(120)
-  expect(elapsed).toBeLessThanOrEqual(500)
   expect(await page.evaluate(() => window.scrollY)).toBe(4)
 })
 

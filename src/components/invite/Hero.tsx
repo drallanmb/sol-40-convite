@@ -3,7 +3,20 @@ import { Link } from 'react-router'
 import { HERO, SECTION_IDS } from '../../content/event'
 import {
   CINEMATIC_INTRO_DURATION_MS,
+  CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
+  CINEMATIC_INTRO_INTENT_MAX_MS,
+  CINEMATIC_INTRO_RETARGET_MS,
+  CINEMATIC_INTRO_SUN_SETTLE_PROGRESS,
+  INTRO_COPY_TIMING,
+  hasIntentionalIntroScroll,
+  normalizeIntroProgress,
+  resolveIntentPlaybackRate,
+  resolveIntroComposition,
+  resolveSunArc,
   type IntroCompletionReason,
+  type IntroComposition,
+  type IntroPoint,
+  type RectLike,
   type IntroState,
 } from '../../lib/cinematicIntro'
 import { buttonClassName } from '../ui/Button'
@@ -15,10 +28,191 @@ export type HeroProps = {
   onIntroComplete: (reason: IntroCompletionReason) => void
 }
 
-const PRIMARY_COPY_ONSET = 0.76
-const SECONDARY_COPY_ONSET = 0.88
-const SUN_SETTLE_OFFSET = 0.82
-const AMBIENT_GLOW_ONSET = 0.83
+const PRIMARY_COPY_ONSET =
+  INTRO_COPY_TIMING.primaryStartMs / CINEMATIC_INTRO_DURATION_MS
+const SECONDARY_COPY_ONSET =
+  INTRO_COPY_TIMING.secondaryStartMs / CINEMATIC_INTRO_DURATION_MS
+const GEOMETRY_EPSILON_PX = 0.5
+
+type IntroTrackName =
+  | 'camera'
+  | 'cool-veil'
+  | 'warm-horizon'
+  | 'sun-arc'
+  | 'haze'
+  | 'copy-primary'
+  | 'copy-secondary'
+
+type IntroTrackDefinition = {
+  track: IntroTrackName
+  keyframes: Keyframe[]
+}
+
+type ActiveIntroTrack = {
+  track: IntroTrackName
+  owner: HTMLElement
+  animation: Animation
+}
+
+type CinematicIntroController = {
+  animations: ActiveIntroTrack[]
+  getProgress: () => number
+  accelerate: () => void
+  retarget: () => void
+  commitFinal: (reason: IntroCompletionReason) => void
+  dispose: () => void
+}
+
+function toRectLike(rect: DOMRect): RectLike {
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+function translatePoint(point: IntroPoint, scale: number): string {
+  return `translate3d(${point.x}px, ${point.y}px, 0) scale(${scale})`
+}
+
+function geometryChanged(previous: RectLike, next: RectLike): boolean {
+  return (['left', 'top', 'width', 'height'] as const).some(
+    (key) => Math.abs(previous[key] - next[key]) > GEOMETRY_EPSILON_PX,
+  )
+}
+
+function buildTrackDefinitions(
+  stage: RectLike,
+  target: RectLike,
+  composition: IntroComposition,
+): IntroTrackDefinition[] {
+  const [start, bend, approach] = resolveSunArc(
+    stage,
+    target,
+    composition,
+  )
+  const mobile = composition === 'mobile'
+  const primaryHold = Math.max(0, PRIMARY_COPY_ONSET - 0.01)
+  const secondaryHold = Math.max(0, SECONDARY_COPY_ONSET - 0.01)
+  const copyEnd =
+    INTRO_COPY_TIMING.endMs / CINEMATIC_INTRO_DURATION_MS
+
+  return [
+    {
+      track: 'camera',
+      keyframes: [
+        {
+          offset: 0,
+          transform: mobile
+            ? 'translate3d(0, 1.8%, 0) scale(1.038)'
+            : 'translate3d(0, 2.4%, 0) scale(1.052)',
+        },
+        {
+          offset: 0.68,
+          transform: 'translate3d(0, .5%, 0) scale(1.012)',
+          easing: 'cubic-bezier(.22,.72,.2,1)',
+        },
+        { offset: 1, transform: 'none' },
+      ],
+    },
+    {
+      track: 'cool-veil',
+      keyframes: [
+        { offset: 0, opacity: 0.72 },
+        { offset: 0.54, opacity: 0.28 },
+        { offset: 1, opacity: 0 },
+      ],
+    },
+    {
+      track: 'warm-horizon',
+      keyframes: [
+        { offset: 0, opacity: 0, transform: 'scale3d(.72, .72, 1)' },
+        {
+          offset: CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
+          opacity: 0,
+          transform: 'scale3d(.82, .78, 1)',
+        },
+        { offset: 0.88, opacity: 0.58, transform: 'scale3d(.95, .92, 1)' },
+        { offset: 1, opacity: 1, transform: 'none' },
+      ],
+    },
+    {
+      track: 'sun-arc',
+      keyframes: [
+        {
+          offset: 0,
+          transform: translatePoint(start, 0.84),
+          easing: 'cubic-bezier(.3,.02,.62,.72)',
+        },
+        {
+          offset: 0.4,
+          transform: translatePoint(bend, 0.91),
+          easing: 'cubic-bezier(.38,.12,.38,1)',
+        },
+        {
+          offset: 0.7,
+          transform: translatePoint(approach, 0.975),
+          easing: 'cubic-bezier(.16,.76,.16,1)',
+        },
+        {
+          offset: CINEMATIC_INTRO_SUN_SETTLE_PROGRESS,
+          transform: 'none',
+        },
+        { offset: 1, transform: 'none' },
+      ],
+    },
+    {
+      track: 'haze',
+      keyframes: [
+        { offset: 0, opacity: 0, transform: 'scale3d(.72, .62, 1)' },
+        {
+          offset: CINEMATIC_INTRO_GLOW_ONSET_PROGRESS,
+          opacity: 0,
+          transform: 'scale3d(.82, .74, 1)',
+        },
+        { offset: 0.88, opacity: 0.54, transform: 'scale3d(.95, .9, 1)' },
+        { offset: 1, opacity: 1, transform: 'none' },
+      ],
+    },
+    {
+      track: 'copy-primary',
+      keyframes: [
+        { offset: 0, opacity: 0, transform: 'translate3d(0, 12px, 0)' },
+        {
+          offset: primaryHold,
+          opacity: 0,
+          transform: 'translate3d(0, 12px, 0)',
+        },
+        {
+          offset: PRIMARY_COPY_ONSET,
+          opacity: 0.08,
+          transform: 'translate3d(0, 10px, 0)',
+        },
+        { offset: 0.9, opacity: 1, transform: 'none' },
+        { offset: 1, opacity: 1, transform: 'none' },
+      ],
+    },
+    {
+      track: 'copy-secondary',
+      keyframes: [
+        { offset: 0, opacity: 0, transform: 'translate3d(0, 10px, 0)' },
+        {
+          offset: secondaryHold,
+          opacity: 0,
+          transform: 'translate3d(0, 10px, 0)',
+        },
+        {
+          offset: SECONDARY_COPY_ONSET,
+          opacity: 0.08,
+          transform: 'translate3d(0, 8px, 0)',
+        },
+        { offset: copyEnd, opacity: 1, transform: 'none' },
+        { offset: 1, opacity: 1, transform: 'none' },
+      ],
+    },
+  ]
+}
 
 /**
  * O hero é o próprio plano-sequência: todas as camadas existem do primeiro
@@ -49,8 +243,26 @@ export function Hero({
     let completed = false
     let disposed = false
     let interactionFrame = 0
-    const animations: Animation[] = []
-    let masterAnimation: Animation | null = null
+    let resizeFrame = 0
+    let resizeObserver: ResizeObserver | null = null
+    let retargetAnimation: Animation | null = null
+    let masterTrack: ActiveIntroTrack | null = null
+    let lastStage: RectLike | null = null
+    let lastTarget: RectLike | null = null
+    let intentAccelerated = false
+    const startScrollY = window.scrollY
+    const listenerController = new AbortController()
+    const activeTracks: ActiveIntroTrack[] = []
+
+    const target = root.querySelector<HTMLElement>(
+      '[data-intro-sun-target]',
+    )
+    const retargetWrapper = root.querySelector<HTMLElement>(
+      '[data-intro-sun-retarget]',
+    )
+    const sun = root.querySelector<HTMLElement>('[data-intro-sun]')
+
+    let controller: CinematicIntroController
 
     const setCopyAvailability = (progress: number) => {
       if (progress >= PRIMARY_COPY_ONSET) {
@@ -66,13 +278,61 @@ export function Hero({
       }
     }
 
-    const cancelAnimationsSafely = () => {
-      for (const animation of animations) {
+    const cancelAnimation = (
+      animation: Animation,
+      failOpen: boolean,
+    ): boolean => {
+      try {
+        animation.onfinish = null
+      } catch {
+        if (failOpen) controller.commitFinal('error')
+        return false
+      }
+
+      try {
+        animation.cancel()
+        return true
+      } catch {
+        if (failOpen) controller.commitFinal('error')
+        return false
+      }
+    }
+
+    const cleanupHandles = (failOpen: boolean) => {
+      if (interactionFrame) {
+        window.cancelAnimationFrame(interactionFrame)
+        interactionFrame = 0
+      }
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame)
+        resizeFrame = 0
+      }
+
+      try {
+        listenerController.abort()
+      } catch {
+        if (failOpen) controller.commitFinal('error')
+      }
+
+      try {
+        resizeObserver?.disconnect()
+      } catch {
+        if (failOpen) controller.commitFinal('error')
+      }
+      resizeObserver = null
+
+      if (retargetAnimation) {
+        const correction = retargetAnimation
+        retargetAnimation = null
+        cancelAnimation(correction, failOpen)
+      }
+      if (retargetWrapper) retargetWrapper.style.transform = 'none'
+
+      for (const { animation } of activeTracks) {
         try {
-          animation.onfinish = null
-          animation.cancel()
+          cancelAnimation(animation, failOpen)
         } catch {
-          // The DOM has already been promoted to the authoritative final state.
+          if (failOpen) controller.commitFinal('error')
         }
       }
     }
@@ -83,195 +343,376 @@ export function Hero({
       root.dataset.introState = 'complete'
       primaryCopy.removeAttribute('inert')
       secondaryCopy.removeAttribute('inert')
-      if (interactionFrame) window.cancelAnimationFrame(interactionFrame)
-      cancelAnimationsSafely()
+      cleanupHandles(false)
       onIntroComplete(reason)
     }
 
-    try {
-      const target = root.querySelector<HTMLElement>(
-        '[data-intro-sun-target]',
-      )
-      if (!target || typeof target.animate !== 'function') {
-        throw new Error('Cinematic intro target is unavailable')
-      }
+    const dispose = () => {
+      if (disposed) return
+      disposed = true
+      cleanupHandles(false)
+    }
 
-      const stageRect = root.getBoundingClientRect()
-      const targetRect = target.getBoundingClientRect()
-      if (
-        !Number.isFinite(stageRect.width) ||
-        !Number.isFinite(stageRect.height) ||
-        !Number.isFinite(targetRect.width) ||
-        stageRect.width <= 0 ||
-        stageRect.height <= 0 ||
-        targetRect.width <= 0
-      ) {
-        throw new Error('Cinematic intro geometry is invalid')
-      }
-
-      const mobile = stageRect.width < 640
-      const startX = stageRect.width * (mobile ? 0.2 : -0.31)
-      const startY = stageRect.height * (mobile ? -0.39 : -0.41)
-      const bendX = stageRect.width * (mobile ? 0.13 : -0.2)
-      const bendY = stageRect.height * (mobile ? -0.27 : -0.28)
-      const approachX = stageRect.width * (mobile ? 0.045 : -0.065)
-      const approachY = stageRect.height * (mobile ? -0.095 : -0.085)
-
-      const definitions: Array<{
-        track: string
-        keyframes: Keyframe[]
-      }> = [
-        {
-          track: 'camera',
-          keyframes: [
-            {
-              offset: 0,
-              transform: mobile
-                ? 'translate3d(0, 1.8%, 0) scale(1.038)'
-                : 'translate3d(0, 2.4%, 0) scale(1.052)',
-            },
-            {
-              offset: 0.68,
-              transform: 'translate3d(0, .5%, 0) scale(1.012)',
-              easing: 'cubic-bezier(.22,.72,.2,1)',
-            },
-            { offset: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'cool-veil',
-          keyframes: [
-            { offset: 0, opacity: 0.72 },
-            { offset: 0.54, opacity: 0.28 },
-            { offset: 1, opacity: 0 },
-          ],
-        },
-        {
-          track: 'warm-horizon',
-          keyframes: [
-            { offset: 0, opacity: 0, transform: 'scale3d(.72, .72, 1)' },
-            {
-              offset: AMBIENT_GLOW_ONSET,
-              opacity: 0,
-              transform: 'scale3d(.82, .78, 1)',
-            },
-            { offset: 0.88, opacity: 0.58, transform: 'scale3d(.95, .92, 1)' },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'sun-arc',
-          keyframes: [
-            {
-              offset: 0,
-              transform: `translate3d(${startX}px, ${startY}px, 0) scale(.84)`,
-              easing: 'cubic-bezier(.3,.02,.62,.72)',
-            },
-            {
-              offset: 0.4,
-              transform: `translate3d(${bendX}px, ${bendY}px, 0) scale(.91)`,
-              easing: 'cubic-bezier(.38,.12,.38,1)',
-            },
-            {
-              offset: 0.7,
-              transform: `translate3d(${approachX}px, ${approachY}px, 0) scale(.975)`,
-              easing: 'cubic-bezier(.16,.76,.16,1)',
-            },
-            { offset: SUN_SETTLE_OFFSET, transform: 'none' },
-            { offset: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'haze',
-          keyframes: [
-            { offset: 0, opacity: 0, transform: 'scale3d(.72, .62, 1)' },
-            {
-              offset: AMBIENT_GLOW_ONSET,
-              opacity: 0,
-              transform: 'scale3d(.82, .74, 1)',
-            },
-            { offset: 0.88, opacity: 0.54, transform: 'scale3d(.95, .9, 1)' },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'copy-primary',
-          keyframes: [
-            { offset: 0, opacity: 0, transform: 'translate3d(0, 12px, 0)' },
-            { offset: 0.75, opacity: 0, transform: 'translate3d(0, 12px, 0)' },
-            {
-              offset: PRIMARY_COPY_ONSET,
-              opacity: 0.08,
-              transform: 'translate3d(0, 10px, 0)',
-            },
-            { offset: 0.9, opacity: 1, transform: 'none' },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-        {
-          track: 'copy-secondary',
-          keyframes: [
-            { offset: 0, opacity: 0, transform: 'translate3d(0, 10px, 0)' },
-            { offset: 0.87, opacity: 0, transform: 'translate3d(0, 10px, 0)' },
-            {
-              offset: SECONDARY_COPY_ONSET,
-              opacity: 0.08,
-              transform: 'translate3d(0, 8px, 0)',
-            },
-            { offset: 1, opacity: 1, transform: 'none' },
-          ],
-        },
-      ]
-
-      for (const definition of definitions) {
-        const owner = root.querySelector<HTMLElement>(
-          `[data-intro-track="${definition.track}"]`,
+    const getProgress = () => {
+      if (!masterTrack) return 1
+      try {
+        return normalizeIntroProgress(
+          Number(masterTrack.animation.currentTime),
+          CINEMATIC_INTRO_DURATION_MS,
         )
-        if (!owner) {
-          throw new Error(`Missing cinematic track: ${definition.track}`)
-        }
+      } catch {
+        commitFinal('error')
+        return 1
+      }
+    }
 
+    const createTrack = (
+      owner: HTMLElement,
+      definition: IntroTrackDefinition,
+    ): ActiveIntroTrack | null => {
+      try {
         const animation = owner.animate(definition.keyframes, {
           duration: CINEMATIC_INTRO_DURATION_MS,
           easing: 'linear',
           fill: 'both',
           iterations: 1,
         })
-        animations.push(animation)
-        if (definition.track === 'sun-arc') masterAnimation = animation
+        const track = {
+          track: definition.track,
+          owner,
+          animation,
+        }
+        activeTracks.push(track)
+        return track
+      } catch {
+        commitFinal('error')
+        return null
+      }
+    }
+
+    const setAnimationTime = (
+      animation: Animation,
+      currentTime: number,
+    ): boolean => {
+      try {
+        animation.currentTime = currentTime
+        return true
+      } catch {
+        commitFinal('error')
+        return false
+      }
+    }
+
+    const pauseAnimation = (animation: Animation): boolean => {
+      try {
+        animation.pause()
+        return true
+      } catch {
+        commitFinal('error')
+        return false
+      }
+    }
+
+    const playAnimation = (animation: Animation): boolean => {
+      try {
+        animation.play()
+        return true
+      } catch {
+        commitFinal('error')
+        return false
+      }
+    }
+
+    const replaceKeyframes = (
+      track: ActiveIntroTrack,
+      definition: IntroTrackDefinition,
+    ): boolean => {
+      try {
+        const effect = track.animation.effect
+        if (!(effect instanceof KeyframeEffect)) {
+          throw new Error(`Missing keyframe effect for ${track.track}`)
+        }
+        effect.setKeyframes(definition.keyframes)
+        return true
+      } catch {
+        commitFinal('error')
+        return false
+      }
+    }
+
+    const updatePlaybackRate = (
+      track: ActiveIntroTrack,
+      remainingMs: number,
+    ): boolean => {
+      try {
+        const nextRate = resolveIntentPlaybackRate(
+          remainingMs,
+          CINEMATIC_INTRO_INTENT_MAX_MS,
+          track.animation.playbackRate,
+        )
+        track.animation.updatePlaybackRate(nextRate)
+        return true
+      } catch {
+        commitFinal('error')
+        return false
+      }
+    }
+
+    const accelerate = () => {
+      if (completed || disposed || intentAccelerated || !masterTrack) return
+      intentAccelerated = true
+      root.dataset.introIntent = 'accelerated'
+      root.dataset.introIntentTargetMs = String(
+        CINEMATIC_INTRO_INTENT_MAX_MS,
+      )
+
+      for (const track of activeTracks) {
+        let currentTime = 0
+        try {
+          currentTime = Number(track.animation.currentTime ?? 0)
+        } catch {
+          commitFinal('error')
+          return
+        }
+        const remainingMs = Math.max(
+          0,
+          CINEMATIC_INTRO_DURATION_MS - currentTime,
+        )
+        if (!updatePlaybackRate(track, remainingMs)) return
+      }
+    }
+
+    const retarget = () => {
+      if (
+        completed
+        || disposed
+        || !target
+        || !retargetWrapper
+        || !sun
+        || !lastStage
+        || !lastTarget
+      ) {
+        return
       }
 
-      if (!masterAnimation) {
-        throw new Error('Cinematic intro master animation is unavailable')
+      try {
+        const progress = getProgress()
+        if (completed) return
+        const before = sun.getBoundingClientRect()
+
+        for (const { animation } of activeTracks) {
+          if (!pauseAnimation(animation)) return
+        }
+        for (const { animation } of activeTracks) {
+          if (!setAnimationTime(animation, CINEMATIC_INTRO_DURATION_MS)) {
+            return
+          }
+        }
+
+        const nextStage = toRectLike(root.getBoundingClientRect())
+        const nextTarget = toRectLike(target.getBoundingClientRect())
+        if (
+          !geometryChanged(lastStage, nextStage)
+          && !geometryChanged(lastTarget, nextTarget)
+        ) {
+          for (const { animation } of activeTracks) {
+            if (!setAnimationTime(
+              animation,
+              progress * CINEMATIC_INTRO_DURATION_MS,
+            )) {
+              return
+            }
+            if (!playAnimation(animation)) return
+          }
+          return
+        }
+
+        const nextDefinitions = buildTrackDefinitions(
+          nextStage,
+          nextTarget,
+          resolveIntroComposition(nextStage),
+        )
+        for (const track of activeTracks) {
+          const definition = nextDefinitions.find(
+            ({ track: name }) => name === track.track,
+          )
+          if (!definition || !replaceKeyframes(track, definition)) return
+        }
+        for (const { animation } of activeTracks) {
+          if (!setAnimationTime(
+            animation,
+            progress * CINEMATIC_INTRO_DURATION_MS,
+          )) {
+            return
+          }
+        }
+
+        const after = sun.getBoundingClientRect()
+        const beforeCenterX = before.left + before.width / 2
+        const beforeCenterY = before.top + before.height / 2
+        const afterCenterX = after.left + after.width / 2
+        const afterCenterY = after.top + after.height / 2
+        const scaleX = after.width > 0 ? before.width / after.width : 1
+        const scaleY = after.height > 0 ? before.height / after.height : 1
+        const correction = `translate3d(${
+          beforeCenterX - afterCenterX
+        }px, ${beforeCenterY - afterCenterY}px, 0) scale3d(${
+          scaleX
+        }, ${scaleY}, 1)`
+
+        if (retargetAnimation) {
+          const previousCorrection = retargetAnimation
+          retargetAnimation = null
+          if (!cancelAnimation(previousCorrection, true)) return
+        }
+        retargetWrapper.style.transform = correction
+        try {
+          retargetAnimation = retargetWrapper.animate(
+            [
+              { transform: correction },
+              { transform: 'none' },
+            ],
+            {
+              duration: CINEMATIC_INTRO_RETARGET_MS,
+              easing: 'cubic-bezier(.4,0,.2,1)',
+              fill: 'both',
+              iterations: 1,
+            },
+          )
+        } catch {
+          commitFinal('error')
+          return
+        }
+
+        const activeCorrection = retargetAnimation
+        try {
+          activeCorrection.onfinish = () => {
+            if (completed || disposed || retargetAnimation !== activeCorrection) {
+              return
+            }
+            retargetWrapper.style.transform = 'none'
+            retargetAnimation = null
+            cancelAnimation(activeCorrection, true)
+          }
+        } catch {
+          commitFinal('error')
+          return
+        }
+
+        lastStage = nextStage
+        lastTarget = nextTarget
+        for (const { animation } of activeTracks) {
+          if (!playAnimation(animation)) return
+        }
+      } catch {
+        commitFinal('error')
+      }
+    }
+
+    controller = {
+      animations: activeTracks,
+      getProgress,
+      accelerate,
+      retarget,
+      commitFinal,
+      dispose,
+    }
+
+    try {
+      if (
+        !target
+        || !retargetWrapper
+        || !sun
+        || typeof sun.animate !== 'function'
+        || typeof ResizeObserver !== 'function'
+      ) {
+        throw new Error('Cinematic intro scene APIs are unavailable')
       }
 
+      lastStage = toRectLike(root.getBoundingClientRect())
+      lastTarget = toRectLike(target.getBoundingClientRect())
+      const definitions = buildTrackDefinitions(
+        lastStage,
+        lastTarget,
+        resolveIntroComposition(lastStage),
+      )
+
+      for (const definition of definitions) {
+        const owner = root.querySelector<HTMLElement>(
+          `[data-intro-track="${definition.track}"]`,
+        )
+        if (!owner) throw new Error(`Missing cinematic track: ${definition.track}`)
+        const track = createTrack(owner, definition)
+        if (!track || completed) return controller.dispose
+        if (definition.track === 'sun-arc') masterTrack = track
+      }
+
+      if (!masterTrack) throw new Error('Cinematic intro master is unavailable')
       setCopyAvailability(0)
-      masterAnimation.onfinish = () => commitFinal('finished')
+      try {
+        masterTrack.animation.onfinish = () => commitFinal('finished')
+      } catch {
+        commitFinal('error')
+        return controller.dispose
+      }
 
       const updateInteraction = () => {
-        if (disposed || completed || !masterAnimation) return
+        if (disposed || completed) return
         try {
-          const currentTime = Number(masterAnimation.currentTime ?? 0)
-          const progress = Math.min(
-            1,
-            Math.max(0, currentTime / CINEMATIC_INTRO_DURATION_MS),
-          )
+          const progress = getProgress()
           setCopyAvailability(progress)
+          if (progress >= 1) {
+            commitFinal('finished')
+            return
+          }
           interactionFrame = window.requestAnimationFrame(updateInteraction)
         } catch {
           commitFinal('error')
         }
       }
       interactionFrame = window.requestAnimationFrame(updateInteraction)
+
+      const scheduleRetarget = () => {
+        if (completed || disposed || resizeFrame) return
+        resizeFrame = window.requestAnimationFrame(() => {
+          resizeFrame = 0
+          controller.retarget()
+        })
+      }
+      resizeObserver = new ResizeObserver(scheduleRetarget)
+      resizeObserver.observe(root)
+      resizeObserver.observe(target)
+
+      const onScroll = () => {
+        if (hasIntentionalIntroScroll(startScrollY, window.scrollY)) {
+          controller.accelerate()
+        }
+      }
+      const eventTargetsIntent = (event: Event) =>
+        event.target instanceof Element
+        && Boolean(event.target.closest('[data-intro-intent]'))
+      const onPointerIntent = (event: PointerEvent) => {
+        if (eventTargetsIntent(event)) controller.accelerate()
+      }
+      const onFocusIntent = (event: FocusEvent) => {
+        if (eventTargetsIntent(event)) controller.accelerate()
+      }
+      const signal = listenerController.signal
+      window.addEventListener('scroll', onScroll, { passive: true, signal })
+      document.addEventListener('pointerdown', onPointerIntent, {
+        capture: true,
+        passive: true,
+        signal,
+      })
+      document.addEventListener('focusin', onFocusIntent, {
+        capture: true,
+        signal,
+      })
     } catch {
       commitFinal('error')
     }
 
-    return () => {
-      disposed = true
-      if (interactionFrame) window.cancelAnimationFrame(interactionFrame)
-      cancelAnimationsSafely()
-    }
+    return controller.dispose
   }, [
     introState,
     introRunGeneration,
@@ -286,6 +727,7 @@ export function Hero({
       id={SECTION_IDS.hero}
       tabIndex={-1}
       data-intro-state={introState}
+      data-intro-generation={introRunGeneration}
       className="cinematic-hero relative grid h-[100dvh] min-h-[100dvh] place-items-center overflow-hidden bg-peach text-cream"
     >
       <div
@@ -317,7 +759,10 @@ export function Hero({
             data-intro-sun-target
             className="cinematic-sun-target absolute"
           >
-            <div className="cinematic-sun-retarget h-full w-full">
+            <div
+              data-intro-sun-retarget
+              className="cinematic-sun-retarget h-full w-full"
+            >
               <div
                 data-intro-sun
                 data-intro-track="sun-arc"
@@ -374,6 +819,7 @@ export function Hero({
           ref={secondaryCopyRef}
           data-intro-copy="secondary"
           data-intro-track="copy-secondary"
+          data-intro-intent
           inert={copyIsWaiting ? true : undefined}
           className="col-start-1 row-start-2 mt-5 flex w-full flex-col items-center"
         >

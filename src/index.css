@@ -185,6 +185,7 @@ body {
 
 .cinematic-sun-retarget {
   transform-origin: center;
+  transform: none;
 }
 
 .cinematic-sun {

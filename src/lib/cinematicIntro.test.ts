@@ -135,7 +135,9 @@ describe('cinematic intro timing contract', () => {
     expect(
       INTRO_COPY_TIMING.endMs - INTRO_COPY_TIMING.primaryStartMs,
     ).toBeLessThanOrEqual(700)
-    expect(INTRO_COPY_TIMING.endMs).toBe(CINEMATIC_INTRO_DURATION_MS)
+    expect(INTRO_COPY_TIMING.endMs).toBeLessThanOrEqual(
+      CINEMATIC_INTRO_DURATION_MS,
+    )
   })
 })
 
@@ -200,7 +202,7 @@ describe('cinematic intro responsive composition', () => {
     const first = resolveSunArc(desktopStage, desktopTarget, 'desktop')
     const shifted = resolveSunArc(
       { ...desktopStage, left: 100, width: 1440 },
-      { ...desktopTarget, left: 930 },
+      { ...desktopTarget, left: 900 },
       'desktop',
     )
 

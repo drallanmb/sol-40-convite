@@ -29,9 +29,9 @@ export const CINEMATIC_INTRO_SUN_SETTLE_PROGRESS = 0.82
 export const CINEMATIC_INTRO_GLOW_ONSET_PROGRESS = 0.83
 
 export const INTRO_COPY_TIMING = Object.freeze({
-  primaryStartMs: 2310,
-  secondaryStartMs: 2490,
-  endMs: CINEMATIC_INTRO_DURATION_MS,
+  primaryStartMs: 2280,
+  secondaryStartMs: 2640,
+  endMs: 2970,
 })
 
 const MOBILE_COMPOSITION_MAX_WIDTH = 639
@@ -53,14 +53,14 @@ const INTRO_ARC_PROFILE: Record<
   ]
 > = {
   desktop: [
-    { x: 0.24, y: 0.12 },
-    { x: 0.34, y: 0.25 },
-    { x: 0.57, y: 0.46 },
+    { x: 0.25, y: 0.18 },
+    { x: 0.36, y: 0.31 },
+    { x: 0.495, y: 0.505 },
   ],
   mobile: [
-    { x: 0.76, y: 0.22 },
-    { x: 0.66, y: 0.35 },
-    { x: 0.55, y: 0.53 },
+    { x: 0.72, y: 0.25 },
+    { x: 0.65, y: 0.37 },
+    { x: 0.565, y: 0.545 },
   ],
 }
 

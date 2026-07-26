@@ -144,6 +144,7 @@ export function Shell({
       {/* Skip link — visually hidden until focused, first focusable element on the page. */}
       <a
         href={`#${MAIN_ID}`}
+        data-intro-intent
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-(--z-skip) focus:rounded-full focus:bg-plum focus:px-4 focus:py-3 focus:text-small focus:font-bold focus:uppercase focus:tracking-label focus:text-cream"
       >
         Pular para o conteúdo
@@ -152,6 +153,7 @@ export function Shell({
       <header
         data-intro-chrome
         data-intro-chrome-state={introState}
+        data-intro-intent
         className={`sticky top-0 z-(--z-sticky) border-b text-plum transition-[background-color,border-color,box-shadow,opacity] duration-(--duration-medium) ease-out ${underlapTopbar ? '-mb-px' : ''} ${headerChromeClasses}`}
       >
         <div className="relative mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
