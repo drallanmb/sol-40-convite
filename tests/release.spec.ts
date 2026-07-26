@@ -128,14 +128,6 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   page,
 }) => {
   await page.goto('/')
-  const desktopNavigation = page.getByRole('navigation', {
-    name: 'Navegação principal',
-  })
-  if (await desktopNavigation.isVisible()) {
-    await expect(
-      page.getByRole('link', { name: 'Login administrativo' }),
-    ).toHaveAttribute('href', '/admin')
-  }
 
   const skipLink = page.getByRole('link', { name: 'Pular para o conteúdo' })
   // macOS WebKit follows the operating-system "full keyboard access"
@@ -150,8 +142,23 @@ test('keyboard skip link and mobile navigation return focus safely', async ({
   await page.keyboard.press('Enter')
   await expect(page.locator('#conteudo')).toBeFocused()
 
-  const menu = page.getByRole('button', { name: 'Abrir menu' })
-  if (await menu.isVisible()) {
+  const isDesktop = (page.viewportSize()?.width ?? 0) >= 1024
+  if (isDesktop) {
+    expect(
+      await page
+        .getByRole('navigation', { name: 'Navegação principal' })
+        .count(),
+    ).toBe(1)
+    await expect(
+      page.getByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: 'Login administrativo' }),
+    ).toHaveAttribute('href', '/admin')
+  } else {
+    const menu = page.getByRole('button', { name: 'Abrir menu' })
+    expect(await menu.count()).toBe(1)
+    await expect(menu).toBeVisible()
     await menu.click()
     const mobileNavigation = page.getByRole('navigation', {
       name: 'Navegação mobile',
