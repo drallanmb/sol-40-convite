@@ -683,7 +683,7 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
           ),
       )
       const allowedProperties = contract.track.startsWith('copy-')
-        ? ['clipPath', 'opacity', 'transform']
+        ? ['opacity']
         : ['opacity', 'transform']
       expect(
         animatedProperties.every((property) =>
@@ -719,12 +719,14 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
         transform !== 'none' && easing === 'linear',
     ),
   ).toBe(true)
-  expect(primary?.keyframes.every(
-    ({ clipPath, transform }) =>
-      clipPath === undefined && transform === undefined,
-  )).toBe(true)
-  expect(Number(primary?.keyframes[0]?.opacity)).toBe(0)
-  expect(Number(primary?.keyframes.at(-1)?.opacity)).toBe(1)
+  for (const copyTrack of [primary, secondary, cta]) {
+    expect(copyTrack?.keyframes.every(
+      ({ clipPath, transform }) =>
+        clipPath === undefined && transform === undefined,
+    )).toBe(true)
+    expect(Number(copyTrack?.keyframes[0]?.opacity)).toBe(0)
+    expect(Number(copyTrack?.keyframes.at(-1)?.opacity)).toBe(1)
+  }
 
   const sunCoordinates = sunTravelFrames.map(({ transform }) => {
     if (transform === 'none') return { x: 0, y: 0 }
@@ -873,7 +875,7 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
   await expect(hero).toHaveAttribute('data-intro-state', 'complete')
 })
 
-test('continuous desktop CTA reveal preserves final colors while clipping into view', async ({
+test('continuous desktop CTA reveal preserves final colors while fading in', async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -929,8 +931,7 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
       return {
         surfaces,
         ancestorOpacities,
-        clipPath: groupStyle.clipPath,
-        transform: groupStyle.transform,
+        opacity: Number.parseFloat(groupStyle.opacity),
       }
     })
 
@@ -943,11 +944,8 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
     await seekIntroAtMs(page, currentTimeMs)
     await expect(ctaGroup).not.toHaveAttribute('inert', '')
     const intermediate = await readVisualState()
-    expect(intermediate.clipPath).not.toBe('none')
-    expect(intermediate.clipPath).not.toBe('inset(0px)')
-    expect(
-      intermediate.ancestorOpacities.every((opacity) => opacity === 1),
-    ).toBe(true)
+    expect(intermediate.opacity).toBeGreaterThan(0)
+    expect(intermediate.opacity).toBeLessThanOrEqual(1)
     expect(
       intermediate.surfaces.every(({ filter }) => filter === 'none'),
     ).toBe(true)
@@ -958,8 +956,9 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
   const final = await readVisualState()
   for (const intermediate of intermediateStates) {
     expect(intermediate.surfaces).toEqual(final.surfaces)
-    expect(intermediate.transform).not.toBe(final.transform)
   }
+  expect(intermediateStates[0].opacity).toBeLessThan(1)
+  expect(final.opacity).toBe(1)
   expect(final.ancestorOpacities.every((opacity) => opacity === 1)).toBe(true)
 })
 

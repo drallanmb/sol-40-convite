@@ -235,18 +235,10 @@ async function captureStoryboard(
   for (const sample of APPROVED_TIMELINE_SAMPLES) {
     await seekIntroAtMs(page, sample.timeMs)
     if (sample.progress <= 0.7) {
-      const primary = page.locator('[data-intro-copy="primary"]')
-      await expect(primary).toHaveCSS('opacity', '0')
-      await expect(primary).toHaveCSS('clip-path', 'none')
-
-      for (const group of ['secondary', 'cta']) {
+      for (const group of ['primary', 'secondary', 'cta']) {
         const copy = page.locator(`[data-intro-copy="${group}"]`)
-        await expect(copy).toHaveCSS('opacity', '1')
-        expect(
-          await copy.evaluate((element) =>
-            getComputedStyle(element).clipPath.includes('100%'),
-          ),
-        ).toBe(true)
+        await expect(copy).toHaveCSS('opacity', '0')
+        await expect(copy).toHaveCSS('clip-path', 'none')
       }
     }
     frames.push(
@@ -446,7 +438,7 @@ test('storyboard tracks are finite, semantic and transform-opacity only', async 
           ),
       )
       const allowedProperties = track.track.startsWith('copy-')
-        ? ['clipPath', 'opacity', 'transform']
+        ? ['opacity']
         : ['opacity', 'transform']
       expect(
         animatedProperties.every((property) =>
@@ -510,15 +502,11 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
   await expect(secondary).toHaveAttribute('inert', '')
   await expect(ctaGroup).toHaveAttribute('inert', '')
   await expect(primary).toHaveCSS('opacity', '0')
-  await expect(secondary).toHaveCSS('opacity', '1')
-  await expect(ctaGroup).toHaveCSS('opacity', '1')
+  await expect(secondary).toHaveCSS('opacity', '0')
+  await expect(ctaGroup).toHaveCSS('opacity', '0')
   await expect(primary).toHaveCSS('clip-path', 'none')
-  expect(await secondary.evaluate((element) =>
-    getComputedStyle(element).clipPath.includes('100%'),
-  )).toBe(true)
-  expect(await ctaGroup.evaluate((element) =>
-    getComputedStyle(element).clipPath.includes('100%'),
-  )).toBe(true)
+  await expect(secondary).toHaveCSS('clip-path', 'none')
+  await expect(ctaGroup).toHaveCSS('clip-path', 'none')
   expect(
     await cta.evaluate((element) => {
       ;(element as HTMLElement).focus()
@@ -567,13 +555,34 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
   await expect
     .poll(() =>
       secondary.evaluate((element) =>
-        getComputedStyle(element).clipPath,
+        Number(getComputedStyle(element).opacity),
       ),
     )
-    .not.toContain('100%')
+    .toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      secondary.evaluate((element) =>
+        Number(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeLessThan(1)
   await expect(ctaGroup).toHaveAttribute('inert', '')
   await seekIntroAtMs(page, CTA_ONSET_MS)
   await expect(ctaGroup).not.toHaveAttribute('inert', '')
+  await expect
+    .poll(() =>
+      ctaGroup.evaluate((element) =>
+        Number(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      ctaGroup.evaluate((element) =>
+        Number(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeLessThan(1)
   await cta.focus()
   await expect(cta).toBeFocused()
 })
@@ -595,8 +604,8 @@ test('normal playback keeps invisible CTAs inert and unlocks hierarchy in order'
   await expect(secondary).toHaveAttribute('inert', '')
   await expect(ctaGroup).toHaveAttribute('inert', '')
   await expect(primary).toHaveCSS('opacity', '0')
-  await expect(secondary).toHaveCSS('opacity', '1')
-  await expect(ctaGroup).toHaveCSS('opacity', '1')
+  await expect(secondary).toHaveCSS('opacity', '0')
+  await expect(ctaGroup).toHaveCSS('opacity', '0')
   expect(
     await cta.evaluate((element) => {
       ;(element as HTMLElement).focus()
@@ -661,13 +670,8 @@ test('normal playback keeps invisible CTAs inert and unlocks hierarchy in order'
   await expect(primary).not.toHaveAttribute('inert', '')
   await expect(secondary).not.toHaveAttribute('inert', '')
   await expect(ctaGroup).not.toHaveAttribute('inert', '')
-  await expect
-    .poll(() =>
-      secondary.evaluate((element) =>
-        getComputedStyle(element).clipPath,
-      ),
-    )
-    .toBe('none')
+  await expect(secondary).toHaveCSS('opacity', '1')
+  await expect(ctaGroup).toHaveCSS('opacity', '1')
   await cta.focus()
   await expect(cta).toBeFocused()
 })
@@ -917,12 +921,14 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
         '[data-intro-copy="cta"]',
       )
       if (!group) throw new Error('Semantic CTA reveal group is absent')
+      const groupStyle = getComputedStyle(group)
       return {
-        clipPath: getComputedStyle(group).clipPath,
-        transform: getComputedStyle(group).transform,
-        ancestorOpacities: (() => {
+        clipPath: groupStyle.clipPath,
+        transform: groupStyle.transform,
+        opacity: Number.parseFloat(groupStyle.opacity),
+        parentOpacities: (() => {
           const opacities: number[] = []
-          let ancestor: HTMLElement | null = group
+          let ancestor: HTMLElement | null = group.parentElement
           while (ancestor) {
             opacities.push(
               Number.parseFloat(getComputedStyle(ancestor).opacity),
@@ -951,10 +957,12 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
   await expect(ctaGroup).not.toHaveAttribute('inert', '')
   const intermediateCta = await readCtaColors()
   expect(
-    intermediateCta.ancestorOpacities.every((opacity) => opacity === 1),
+    intermediateCta.parentOpacities.every((opacity) => opacity === 1),
   ).toBe(true)
-  expect(intermediateCta.clipPath).not.toBe('none')
-  expect(intermediateCta.transform).not.toBe('none')
+  expect(intermediateCta.opacity).toBeGreaterThan(0)
+  expect(intermediateCta.opacity).toBeLessThan(1)
+  expect(intermediateCta.clipPath).toBe('none')
+  expect(intermediateCta.transform).toBe('none')
 
   await seekIntroAtMs(page, INTRO_DURATION_MS - 1)
   await expect(page.locator('#inicio')).toHaveAttribute(
@@ -963,10 +971,12 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
   )
   const almostFinalCta = await readCtaColors()
   expect(
-    almostFinalCta.ancestorOpacities.every((opacity) => opacity === 1),
+    almostFinalCta.parentOpacities.every((opacity) => opacity === 1),
   ).toBe(true)
-  expect(almostFinalCta.clipPath).not.toBe('none')
-  expect(almostFinalCta.transform).not.toBe('none')
+  expect(almostFinalCta.opacity).toBeGreaterThan(0.95)
+  expect(almostFinalCta.opacity).toBeLessThanOrEqual(1)
+  expect(almostFinalCta.clipPath).toBe('none')
+  expect(almostFinalCta.transform).toBe('none')
 
   await seekIntroAtMs(page, INTRO_DURATION_MS)
   await expect(page.locator('#inicio')).toHaveAttribute(
@@ -976,6 +986,7 @@ test('approved direction keeps removed layers absent and glow post-arrival', asy
   const finalCta = await readCtaColors()
   expect(intermediateCta.surfaces).toEqual(finalCta.surfaces)
   expect(almostFinalCta.surfaces).toEqual(finalCta.surfaces)
+  expect(finalCta.opacity).toBe(1)
   const geometry = await page.evaluate(() => {
     const target = document.querySelector<HTMLElement>(
       '[data-intro-sun-target]',

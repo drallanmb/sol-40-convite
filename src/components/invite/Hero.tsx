@@ -94,46 +94,14 @@ function absoluteOffset(timeMs: number): number {
   return timeMs / CINEMATIC_INTRO_DURATION_MS
 }
 
-function buildCopyRevealKeyframes(
-  startMs: number,
-  translateY: number,
-): Keyframe[] {
-  const holdOffset = absoluteOffset(Math.max(0, startMs - 20))
-  const onsetOffset = absoluteOffset(startMs)
-  const hiddenTransform = `translate3d(0, ${translateY}px, 0)`
-
-  return [
-    {
-      offset: 0,
-      clipPath: 'inset(0 0 100% 0)',
-      transform: hiddenTransform,
-    },
-    {
-      offset: holdOffset,
-      clipPath: 'inset(0 0 100% 0)',
-      transform: hiddenTransform,
-    },
-    {
-      offset: onsetOffset,
-      clipPath: 'inset(0 0 96% 0)',
-      transform: `translate3d(0, ${translateY * 0.92}px, 0)`,
-    },
-    {
-      offset: 1,
-      clipPath: 'inset(0 0 0 0)',
-      transform: 'none',
-    },
-  ]
-}
-
-function buildPrimaryFadeKeyframes(startMs: number): Keyframe[] {
+function buildCopyFadeKeyframes(startMs: number): Keyframe[] {
   const holdOffset = absoluteOffset(Math.max(0, startMs - 20))
   const onsetOffset = absoluteOffset(startMs)
   const settleOffset = absoluteOffset(
     Math.min(CINEMATIC_INTRO_DURATION_MS, startMs + 500),
   )
 
-  return [
+  const keyframes: Keyframe[] = [
     { offset: 0, opacity: 0 },
     { offset: holdOffset, opacity: 0 },
     {
@@ -142,8 +110,9 @@ function buildPrimaryFadeKeyframes(startMs: number): Keyframe[] {
       easing: 'cubic-bezier(.22,1,.36,1)',
     },
     { offset: settleOffset, opacity: 1 },
-    { offset: 1, opacity: 1 },
   ]
+  if (settleOffset < 1) keyframes.push({ offset: 1, opacity: 1 })
+  return keyframes
 }
 
 function buildTrackDefinitions(
@@ -247,24 +216,22 @@ function buildTrackDefinitions(
     {
       track: 'copy-primary',
       durationMs: CINEMATIC_INTRO_DURATION_MS,
-      keyframes: buildPrimaryFadeKeyframes(
+      keyframes: buildCopyFadeKeyframes(
         INTRO_COPY_TIMING.primaryStartMs,
       ),
     },
     {
       track: 'copy-secondary',
       durationMs: CINEMATIC_INTRO_DURATION_MS,
-      keyframes: buildCopyRevealKeyframes(
+      keyframes: buildCopyFadeKeyframes(
         INTRO_COPY_TIMING.secondaryStartMs,
-        10,
       ),
     },
     {
       track: 'copy-cta',
       durationMs: CINEMATIC_INTRO_DURATION_MS,
-      keyframes: buildCopyRevealKeyframes(
+      keyframes: buildCopyFadeKeyframes(
         INTRO_COPY_TIMING.ctaStartMs,
-        10,
       ),
     },
   ]
