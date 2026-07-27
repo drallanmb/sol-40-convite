@@ -126,6 +126,26 @@ function buildCopyRevealKeyframes(
   ]
 }
 
+function buildPrimaryFadeKeyframes(startMs: number): Keyframe[] {
+  const holdOffset = absoluteOffset(Math.max(0, startMs - 20))
+  const onsetOffset = absoluteOffset(startMs)
+  const settleOffset = absoluteOffset(
+    Math.min(CINEMATIC_INTRO_DURATION_MS, startMs + 500),
+  )
+
+  return [
+    { offset: 0, opacity: 0 },
+    { offset: holdOffset, opacity: 0 },
+    {
+      offset: onsetOffset,
+      opacity: 0.04,
+      easing: 'cubic-bezier(.22,1,.36,1)',
+    },
+    { offset: settleOffset, opacity: 1 },
+    { offset: 1, opacity: 1 },
+  ]
+}
+
 function buildTrackDefinitions(
   stage: RectLike,
   target: RectLike,
@@ -227,9 +247,8 @@ function buildTrackDefinitions(
     {
       track: 'copy-primary',
       durationMs: CINEMATIC_INTRO_DURATION_MS,
-      keyframes: buildCopyRevealKeyframes(
+      keyframes: buildPrimaryFadeKeyframes(
         INTRO_COPY_TIMING.primaryStartMs,
-        12,
       ),
     },
     {

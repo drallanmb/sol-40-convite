@@ -683,7 +683,7 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
           ),
       )
       const allowedProperties = contract.track.startsWith('copy-')
-        ? ['clipPath', 'transform']
+        ? ['clipPath', 'opacity', 'transform']
         : ['opacity', 'transform']
       expect(
         animatedProperties.every((property) =>
@@ -719,6 +719,12 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
         transform !== 'none' && easing === 'linear',
     ),
   ).toBe(true)
+  expect(primary?.keyframes.every(
+    ({ clipPath, transform }) =>
+      clipPath === undefined && transform === undefined,
+  )).toBe(true)
+  expect(Number(primary?.keyframes[0]?.opacity)).toBe(0)
+  expect(Number(primary?.keyframes.at(-1)?.opacity)).toBe(1)
 
   const sunCoordinates = sunTravelFrames.map(({ transform }) => {
     if (transform === 'none') return { x: 0, y: 0 }
@@ -765,17 +771,21 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
     ).toBe(true)
   }
 
-  const firstClipRevealOffset = (keyframes: ComputedKeyframe[]) =>
+  const firstVisibleRevealOffset = (keyframes: ComputedKeyframe[]) =>
     Number(
-      keyframes.find(({ clipPath }) =>
-        String(clipPath) !== 'inset(0px 0px 100%)'
-        && String(clipPath) !== 'inset(0px 0px 100% 0px)',
+      keyframes.find(({ clipPath, opacity }) =>
+        Number(opacity) > 0
+        || (
+          clipPath !== undefined
+          && String(clipPath) !== 'inset(0px 0px 100%)'
+          && String(clipPath) !== 'inset(0px 0px 100% 0px)'
+        ),
       )?.offset
       ?? Number.NaN,
     )
-  const primaryOnset = firstClipRevealOffset(primary?.keyframes ?? [])
-  const secondaryOnset = firstClipRevealOffset(secondary?.keyframes ?? [])
-  const ctaOnset = firstClipRevealOffset(cta?.keyframes ?? [])
+  const primaryOnset = firstVisibleRevealOffset(primary?.keyframes ?? [])
+  const secondaryOnset = firstVisibleRevealOffset(secondary?.keyframes ?? [])
+  const ctaOnset = firstVisibleRevealOffset(cta?.keyframes ?? [])
   const hierarchyEnd = Number(cta?.keyframes.at(-1)?.offset)
   expect(primaryOnset * INTRO_DURATION_MS).toBeCloseTo(
     PRIMARY_COPY_ONSET_MS,

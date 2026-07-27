@@ -235,7 +235,11 @@ async function captureStoryboard(
   for (const sample of APPROVED_TIMELINE_SAMPLES) {
     await seekIntroAtMs(page, sample.timeMs)
     if (sample.progress <= 0.7) {
-      for (const group of ['primary', 'secondary', 'cta']) {
+      const primary = page.locator('[data-intro-copy="primary"]')
+      await expect(primary).toHaveCSS('opacity', '0')
+      await expect(primary).toHaveCSS('clip-path', 'none')
+
+      for (const group of ['secondary', 'cta']) {
         const copy = page.locator(`[data-intro-copy="${group}"]`)
         await expect(copy).toHaveCSS('opacity', '1')
         expect(
@@ -442,7 +446,7 @@ test('storyboard tracks are finite, semantic and transform-opacity only', async 
           ),
       )
       const allowedProperties = track.track.startsWith('copy-')
-        ? ['clipPath', 'transform']
+        ? ['clipPath', 'opacity', 'transform']
         : ['opacity', 'transform']
       expect(
         animatedProperties.every((property) =>
@@ -505,12 +509,10 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
   await expect(primary).toHaveAttribute('inert', '')
   await expect(secondary).toHaveAttribute('inert', '')
   await expect(ctaGroup).toHaveAttribute('inert', '')
-  await expect(primary).toHaveCSS('opacity', '1')
+  await expect(primary).toHaveCSS('opacity', '0')
   await expect(secondary).toHaveCSS('opacity', '1')
   await expect(ctaGroup).toHaveCSS('opacity', '1')
-  expect(await primary.evaluate((element) =>
-    getComputedStyle(element).clipPath.includes('100%'),
-  )).toBe(true)
+  await expect(primary).toHaveCSS('clip-path', 'none')
   expect(await secondary.evaluate((element) =>
     getComputedStyle(element).clipPath.includes('100%'),
   )).toBe(true)
@@ -538,12 +540,27 @@ test('copy groups unlock at their own visible onset without blocking chrome', as
   await expect
     .poll(() =>
       primary.evaluate((element) =>
-        getComputedStyle(element).clipPath,
+        Number(getComputedStyle(element).opacity),
       ),
     )
-    .not.toContain('100%')
+    .toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      primary.evaluate((element) =>
+        Number(getComputedStyle(element).opacity),
+      ),
+    )
+    .toBeLessThan(1)
   await expect(secondary).toHaveAttribute('inert', '')
   await expect(ctaGroup).toHaveAttribute('inert', '')
+
+  await seekIntroAtMs(page, PRIMARY_COPY_ONSET_MS + 250)
+  const primaryMidFadeOpacity = await primary.evaluate((element) =>
+    Number(getComputedStyle(element).opacity),
+  )
+  expect(primaryMidFadeOpacity).toBeGreaterThan(0.5)
+  expect(primaryMidFadeOpacity).toBeLessThan(1)
+  await expect(secondary).toHaveAttribute('inert', '')
 
   await seekIntroAtMs(page, SECONDARY_COPY_ONSET_MS)
   await expect(secondary).not.toHaveAttribute('inert', '')
@@ -577,7 +594,7 @@ test('normal playback keeps invisible CTAs inert and unlocks hierarchy in order'
   await expect(primary).toHaveAttribute('inert', '')
   await expect(secondary).toHaveAttribute('inert', '')
   await expect(ctaGroup).toHaveAttribute('inert', '')
-  await expect(primary).toHaveCSS('opacity', '1')
+  await expect(primary).toHaveCSS('opacity', '0')
   await expect(secondary).toHaveCSS('opacity', '1')
   await expect(ctaGroup).toHaveCSS('opacity', '1')
   expect(

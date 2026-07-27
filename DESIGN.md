@@ -317,10 +317,10 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 
 - **Interface:** `180ms` para estados simples e `260ms` para transições compostas, com `cubic-bezier(.22,1,.36,1)`.
 - **Hero:** ondas contínuas em 22s, 30s e 38s permanecem independentes; a abertura finita dura `3700ms`, dividida entre `3000ms` de percurso solar e um beat pós-chegada separado de `700ms`.
-- **Signature entrance:** o sol percorre o arco sem ease, hold, settle ou desaceleração; depois da chegada, o glow começa em `3060ms`, título/data em `3100ms`, convite em `3400ms`, CTAs em `3460ms` e o hero termina aberto em `3700ms`.
+- **Signature entrance:** o sol percorre o arco sem ease, hold, settle ou desaceleração; depois da chegada, o glow começa em `3060ms`, o bloco do H1 faz um fade de `500ms` a partir de `3100ms`, o convite entra em `3400ms`, os CTAs em `3460ms` e o hero termina aberto em `3700ms`.
 - **Intent:** scroll, skip, foco ou navegação aceleram o tempo restante para `150–200ms` sem consumir a ação original nem cortar diretamente para o fim.
 - **Retarget:** resize/orientação preserva geração e progresso e converge à nova composição por correção FLIP de aproximadamente `180ms`.
-- **Performance:** camadas grandes da paisagem animam somente `transform` e `opacity`; copy usa apenas recorte e deslocamento, e os CTAs preservam suas cores finais de fundo, borda e texto durante todo o reveal. `will-change` existe apenas durante `playing` e é removido em `complete`.
+- **Performance:** camadas grandes da paisagem animam somente `transform` e `opacity`; o bloco primário usa apenas `opacity`, a copy secundária usa recorte e deslocamento, e os CTAs preservam suas cores finais de fundo, borda e texto durante todo o reveal. `will-change` existe apenas durante `playing` e é removido em `complete`.
 - **Program sequence:** o sol da data e os sete horários entram uma única vez via `IntersectionObserver`, com stagger de `45ms` limitado aos seis primeiros intervalos.
 - **Public routes:** confirmação troca painéis em `520ms`; a carta aquece a superfície em `720ms` e escalona somente os rótulos de cada faixa, limitando o atraso acumulado.
 - **Admin states:** transições de rota, menus, diálogos, feedbacks e carregamento de dados usam `180–280ms`; movimento comunica mudança de estado e nunca cria uma coreografia de entrada no painel.
