@@ -258,6 +258,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 - **Canonical sun:** um único disco percorre arco diagonal derivado do palco e termina em `transform: none` dentro do alvo responsivo realmente renderizado.
 - **Light bridge:** o sol percorre todo o arco em velocidade espacial aparente constante de `0–3000ms` e chega exatamente ao alvo em `3000ms`; warm horizon e haze permanecem em opacidade zero inclusive no frame de chegada e só começam a aparecer depois, a partir de `3060ms`.
 - **Responsive:** desktop e mobile têm trajetórias e enquadramentos próprios; mobile é uma composição vertical dirigida, não um recorte automático do desktop.
+- **Stacking:** o hero isolado usa planos irmãos permanentes — cena `0`, metadata `1` e conteúdo `2`; a cena cria seu próprio stacking context e aprisiona todo `z-index` decorativo, enquanto o grupo CTA ocupa o subplano frontal do conteúdo em desktop e mobile. Toda arte continua com `pointer-events: none`; somente topbar e skip link permanecem acima do hero na escala global.
 
 ### Venue Map
 
