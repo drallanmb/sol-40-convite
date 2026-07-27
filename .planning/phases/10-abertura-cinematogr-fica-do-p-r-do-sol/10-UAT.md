@@ -30,6 +30,10 @@ real no bfcache nem fluidez de GPU. Enquanto qualquer linha aplicável estiver
   de fundo, borda, texto e filtro. Todos os ancestrais permanecem com opacity
   1; a progressão usa somente `clip-path` e `transform`, na mesma linguagem do
   H1.
+- Em desktop e mobile, os CTAs permanecem num plano frontal permanente:
+  nenhuma camada do sol, glow, névoa, horizonte, mar ou textura pode pintá-los
+  por cima ou interceptar clique/toque durante o reveal ou depois do cleanup
+  das animações.
 - O recuo afeta a paisagem, não a escala da interface ou da tipografia.
 - A reprodução natural total dura aproximadamente 3,7 segundos: 3 segundos de
   percurso solar e 700 ms de beat pós-chegada. Intenção de navegação pode
@@ -54,10 +58,11 @@ Todos os aparelhos devem abrir exatamente o mesmo build registrado acima.
 |---|---|---|---|
 | Lifecycle/focus/falhas WAAPI focado | Chromium desktop emulado | PASS — 10/10 | Inclui remount, same-mount, bfcache sintético, `pause`, `finish` ausente e `cancel` lançando |
 | Timeline absoluta, velocidade solar e reveal dos CTAs repetidos | Chromium desktop + WebKit mobile emulados | PASS — 6/6 + 10/10 | Três repetições do percurso 0–3000 ms e CTA 3460–3700 ms; dez repetições WebKit mobile do limite exato de 3459/3460 ms |
-| Baselines 0 ms/2590 ms/3700 ms desktop/mobile + namespace test-only | Chromium desktop estável | PASS — 6/6 + 2/2 | Gate visual expandido e repetição bruta sem máscara de painel; PNGs SHA-256 `f7d8b5536b6981ffed65f022823ac471dfd9faf275d6a79649a17ed6af7eaec3` e `223e80993402573107b5fe651be0e02b5dcc495a9c63660711f64daa56746a20` |
+| Plano frontal + hit-testing dos CTAs | Chromium desktop e mobile 320px emulados | PASS — 12/12 casos proprietários; 12 skips de ownership | Três repetições do reveal intermediário e estado final por viewport; contrato `scene 0 / meta 1 / content 2 / CTA local 1`; `elementFromPoint`, clique e tap reais continuam nos links mesmo com a cena habilitada para hit-test |
+| Baselines 0 ms/2590 ms/3700 ms desktop/mobile + namespace test-only | Chromium desktop estável | PASS — 10/10 + 4/4 | A suíte visual completa e a repetição bruta comparam a imagem inteira, sem máscara, exclusão ou pixels de CTA ignorados. Os PNGs antigos falharam legitimamente em 0,7038% desktop e 2,3114% mobile antes da regeneração; novos SHA-256 `4f611f2507b3ba8c05d1faa38edb6b9eb4a6c81a08850215ff8d4ec4d0ffa2de` e `778e85ba7ea081f3e85b1af267bfe787459634257f1ef960e7e0853c273df752` |
 | Axe com tags WCAG A/AA sem filtro por impacto | Chromium desktop emulado | PASS — 6/6 | `result.violations` precisa ser vazio |
-| Matriz comportamental da intro nos quatro projetos | Chromium/WebKit desktop/mobile emulados | PASS — 72/72 | `emulated-chromium-desktop`, `emulated-chromium-mobile-320px-2x`, `emulated-webkit-desktop` e `emulated-webkit-mobile-320px-2x` |
-| Release completo | Vitest + build + quatro projetos Playwright | PASS | 674/674 testes Vitest em 36 arquivos; build de produção concluído; 194 Playwright passaram e 6 baselines de pixel foram ignorados fora do Chromium desktop conforme o contrato |
+| Matriz comportamental da intro nos quatro projetos | Chromium/WebKit desktop/mobile emulados | PASS — 76/76 casos aplicáveis; 12 skips de ownership | `emulated-chromium-desktop`, `emulated-chromium-mobile-320px-2x`, `emulated-webkit-desktop` e `emulated-webkit-mobile-320px-2x`; os skips pertencem somente aos quatro casos de stack exclusivos dos dois projetos Chromium |
+| Release completo | Vitest + build + quatro projetos Playwright | PASS | 674/674 testes Vitest em 36 arquivos; build de produção concluído; 198 Playwright passaram e 18 foram ignorados conforme ownership explícito de baseline/stack |
 
 ## Registro de aparelhos e navegadores
 
@@ -93,6 +98,7 @@ registre em nenhum arquivo senhas, cookies, tokens ou dados privados.
 | HW-12 — ausência dos elementos removidos | ENV-01 a ENV-04 | Revisar playback natural, slow motion e frame final. | Zero nuvens, zero reflexo/brilho/glitter na água e zero coqueiros/palmeiras em todos os formatos. | PENDENTE | PENDENTE |
 | HW-13 — timeline absoluta pós-chegada | ENV-01, ENV-02 e ENV-03 | Revisar slow motion com timestamps em torno de 3000–3700 ms. Registrar quadros de 3000, 3060, 3100, 3400, 3460 e 3700 ms. | Sol alinhado somente em 3000 ms; glow ainda zero em 3060 ms e positivo depois; H1/data começam em 3100 ms; convite/tagline em 3400 ms; CTAs em 3460 ms; hero final em 3700 ms. | PENDENTE | PENDENTE |
 | HW-14 — reveal full-color dos CTAs | ENV-01 e ENV-02 | Em desktop, revisar em câmera lenta o intervalo 3460–3700 ms e comparar o primeiro recorte visível, um quadro intermediário e o estado final dos dois CTAs. | Desde o primeiro recorte, fundo, borda, texto e filtro já têm exatamente a aparência final; nenhum fade, lavagem ou transparência ancestral. A aparição progride apenas por recorte e deslocamento vertical coerentes com o H1. | PENDENTE | PENDENTE |
+| HW-15 — CTAs acima da paisagem e operáveis | ENV-01 a ENV-04 | Em desktop e mobile, revisar o primeiro trecho visível, um quadro intermediário e o frame final. Tocar/clicar no centro visível de cada CTA quando disponível e repetir depois do fim da animação. | Os dois CTAs permanecem visualmente à frente do sol, glow, névoa, horizonte, mar e textura em todos os quadros; nenhuma faixa da paisagem pinta sobre os botões. Clique/toque chega ao CTA correto sem interceptação antes ou depois do cleanup WAAPI. | PENDENTE | PENDENTE |
 
 ## Como registrar um resultado
 

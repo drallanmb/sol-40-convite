@@ -56,6 +56,7 @@ type CtaStackProbe = {
   sceneZ: number | null
   contentZ: number | null
   metaZ: number | null
+  ctaZ: number | null
   directHeroLayers: boolean
   allSceneryOwnedByScene: boolean
 }
@@ -464,6 +465,7 @@ async function readCtaStackProbe(
         sceneZ: readLayerZ(scene),
         contentZ: readLayerZ(content),
         metaZ: readLayerZ(meta),
+        ctaZ: readLayerZ(group),
         directHeroLayers:
           scene.parentElement === hero
           && content.parentElement === hero
@@ -1017,15 +1019,10 @@ for (const viewport of [
       expect(probe.scenePosition).not.toBe('static')
       expect(probe.directHeroLayers).toBe(true)
       expect(probe.allSceneryOwnedByScene).toBe(true)
-      expect(probe.sceneZ).not.toBeNull()
-      expect(probe.contentZ).not.toBeNull()
-      expect(probe.metaZ).not.toBeNull()
-      expect(probe.contentZ as number).toBeGreaterThan(
-        probe.sceneZ as number,
-      )
-      expect(probe.contentZ as number).toBeGreaterThan(
-        probe.metaZ as number,
-      )
+      expect(probe.sceneZ).toBe(0)
+      expect(probe.metaZ).toBe(1)
+      expect(probe.contentZ).toBe(2)
+      expect(probe.ctaZ).toBe(1)
     })
   }
 }
