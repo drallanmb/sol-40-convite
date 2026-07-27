@@ -124,6 +124,9 @@ body {
 /* Plano-sequência do hero. O CSS base é sempre o frame final pós-chegada;
    a WAAPI acrescenta apenas movimento, atmosfera e recortes transitórios. */
 .cinematic-hero {
+  --hero-layer-scene: 0;
+  --hero-layer-meta: 1;
+  --hero-layer-content: 2;
   isolation: isolate;
 }
 
@@ -132,6 +135,8 @@ body {
   --intro-sun-x: 56%;
   --intro-sun-y: 59%;
   --intro-sun-size: clamp(17rem, 29vw, 30rem);
+  z-index: var(--hero-layer-scene);
+  pointer-events: none;
 }
 
 .cinematic-camera {
@@ -260,6 +265,8 @@ body {
 }
 
 .cinematic-copy {
+  position: relative;
+  z-index: var(--hero-layer-content);
   margin-top: -2.5vh;
 }
 
@@ -268,7 +275,14 @@ body {
   transform-origin: 50% 0;
 }
 
+.cinematic-cta-layer {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
 .cinematic-meta {
+  z-index: var(--hero-layer-meta);
   text-shadow: 0 1px 1rem color-mix(in srgb, var(--color-plum) 58%, transparent);
 }
 

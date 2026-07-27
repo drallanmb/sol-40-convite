@@ -788,6 +788,7 @@ export function Hero({
     >
       <div
         data-intro-scene
+        data-hero-stack-layer="scene"
         aria-hidden="true"
         className="cinematic-scene pointer-events-none absolute inset-0 overflow-hidden"
       >
@@ -850,7 +851,10 @@ export function Hero({
         </div>
       </div>
 
-      <div className="cinematic-copy relative z-[3] grid w-full max-w-3xl place-items-center px-4 text-center text-plum sm:px-8">
+      <div
+        data-hero-stack-layer="content"
+        className="cinematic-copy grid w-full max-w-3xl place-items-center px-4 text-center text-plum sm:px-8"
+      >
         <div
           ref={primaryCopyRef}
           data-intro-copy="primary"
@@ -889,8 +893,9 @@ export function Hero({
           data-intro-copy="cta"
           data-intro-track="copy-cta"
           data-intro-intent
+          data-hero-stack-item="cta"
           inert={copyIsWaiting ? true : undefined}
-          className="cinematic-copy-reveal col-start-1 row-start-3 mt-7 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:gap-5"
+          className="cinematic-copy-reveal cinematic-cta-layer col-start-1 row-start-3 mt-7 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:gap-5"
         >
           <Link
             to={HERO.primaryCtaHref}
@@ -907,7 +912,10 @@ export function Hero({
         </div>
       </div>
 
-      <div className="cinematic-meta pointer-events-none absolute inset-x-[clamp(22px,5vw,78px)] bottom-7 z-[4] flex justify-between text-caption uppercase tracking-label text-cream">
+      <div
+        data-hero-stack-layer="meta"
+        className="cinematic-meta pointer-events-none absolute inset-x-[clamp(22px,5vw,78px)] bottom-7 flex justify-between text-caption uppercase tracking-label text-cream"
+      >
         <span>{HERO.metaLeft}</span>
         <span>{HERO.metaRight}</span>
       </div>
