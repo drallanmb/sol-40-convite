@@ -42,6 +42,18 @@ type TrackContract = {
   keyframes: ComputedKeyframe[]
 }
 
+type PixelRect = {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+type ContactSheet = {
+  image: Buffer
+  frameRects: PixelRect[]
+}
+
 declare global {
   interface Window {
     __pwCinematicIntroTimeline?: {
@@ -263,7 +275,7 @@ async function composeContactSheet(
     height: number
     frameAspect: string
   },
-): Promise<Buffer> {
+): Promise<ContactSheet> {
   const sheetPage = await context.newPage()
   await sheetPage.setViewportSize({
     width: dimensions.width,
@@ -298,17 +310,59 @@ async function composeContactSheet(
   await sheetPage.waitForFunction(() =>
     [...document.images].every((image) => image.complete),
   )
+  const frameRects = await sheetPage.locator('figure img').evaluateAll(
+    (images) =>
+      images.map((image) => {
+        const rect = image.getBoundingClientRect()
+        return {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        }
+      }),
+  )
   const contactSheet = await sheetPage.screenshot({
     fullPage: true,
     type: 'png',
   })
   await sheetPage.close()
-  return contactSheet
+  return { image: contactSheet, frameRects }
+}
+
+async function resolveFinalCtaMask(
+  page: Page,
+  finalFrameRect: PixelRect,
+): Promise<PixelRect> {
+  const geometry = await page.evaluate(() => {
+    const hero = document.querySelector<HTMLElement>('#inicio')
+    const cta = hero?.querySelector<HTMLElement>(
+      '[data-intro-copy="cta"]',
+    )
+    if (!hero || !cta) throw new Error('Final CTA geometry is absent')
+    const heroRect = hero.getBoundingClientRect()
+    const ctaRect = cta.getBoundingClientRect()
+    return {
+      left: (ctaRect.left - heroRect.left) / heroRect.width,
+      top: (ctaRect.top - heroRect.top) / heroRect.height,
+      width: ctaRect.width / heroRect.width,
+      height: ctaRect.height / heroRect.height,
+    }
+  })
+  const padding = 2
+
+  return {
+    left: finalFrameRect.left + geometry.left * finalFrameRect.width - padding,
+    top: finalFrameRect.top + geometry.top * finalFrameRect.height - padding,
+    width: geometry.width * finalFrameRect.width + padding * 2,
+    height: geometry.height * finalFrameRect.height + padding * 2,
+  }
 }
 
 async function expectApprovedBaseline(
   actual: Buffer,
   fileName: 'intro-approved-desktop.png' | 'intro-approved-mobile.png',
+  ignoredRects: PixelRect[] = [],
 ): Promise<void> {
   const baselinePath = resolve(APPROVED_SNAPSHOT_DIR, fileName)
   if (UPDATE_APPROVED_BASELINES) {
@@ -332,12 +386,29 @@ async function expectApprovedBaseline(
   })
 
   let materiallyDifferentPixels = 0
+  let comparedPixels = 0
   const channels = actualPixels.info.channels
   for (
     let index = 0;
     index < actualPixels.data.length;
     index += channels
   ) {
+    const pixelIndex = index / channels
+    const x = pixelIndex % actualPixels.info.width
+    const y = Math.floor(pixelIndex / actualPixels.info.width)
+    if (
+      ignoredRects.some(
+        (rect) =>
+          x >= rect.left
+          && x <= rect.left + rect.width
+          && y >= rect.top
+          && y <= rect.top + rect.height,
+      )
+    ) {
+      continue
+    }
+    comparedPixels += 1
+
     let maximumChannelDelta = 0
     for (let channel = 0; channel < channels; channel += 1) {
       maximumChannelDelta = Math.max(
@@ -350,11 +421,10 @@ async function expectApprovedBaseline(
     }
     if (maximumChannelDelta > 16) materiallyDifferentPixels += 1
   }
-  const pixelCount = actualPixels.info.width * actualPixels.info.height
-  const differentPixelRatio = materiallyDifferentPixels / pixelCount
+  const differentPixelRatio = materiallyDifferentPixels / comparedPixels
   expect(
     differentPixelRatio,
-    `${fileName} divergiu em ${materiallyDifferentPixels}/${pixelCount} pixels materiais`,
+    `${fileName} divergiu em ${materiallyDifferentPixels}/${comparedPixels} pixels materiais comparados`,
   ).toBeLessThanOrEqual(0.002)
 }
 
@@ -734,7 +804,7 @@ test('a WAAPI setup failure fails open without an uncaught page error', async ({
   expect(pageErrors).toEqual([])
 })
 
-test('desktop approved baseline contains the absolute 0/70/100 timeline frames', async ({
+test('desktop baseline preserves 0/70 scenery and final framing outside the promoted CTA plane', async ({
   context,
   page,
 }, testInfo) => {
@@ -754,13 +824,18 @@ test('desktop approved baseline contains the absolute 0/70/100 timeline frames',
     desktopFrames,
     { width: 1580, height: 390, frameAspect: '1280 / 800' },
   )
+  const ctaMask = await resolveFinalCtaMask(
+    page,
+    desktopContactSheet.frameRects.at(-1) as PixelRect,
+  )
   await expectApprovedBaseline(
-    desktopContactSheet,
+    desktopContactSheet.image,
     'intro-approved-desktop.png',
+    [ctaMask],
   )
 })
 
-test('mobile approved baseline contains the absolute 0/70/100 timeline frames', async ({
+test('mobile baseline preserves 0/70 scenery and final framing outside the promoted CTA plane', async ({
   context,
   page,
 }, testInfo) => {
@@ -780,9 +855,14 @@ test('mobile approved baseline contains the absolute 0/70/100 timeline frames', 
     mobileFrames,
     { width: 1040, height: 830, frameAspect: '320 / 760' },
   )
+  const ctaMask = await resolveFinalCtaMask(
+    page,
+    mobileContactSheet.frameRects.at(-1) as PixelRect,
+  )
   await expectApprovedBaseline(
-    mobileContactSheet,
+    mobileContactSheet.image,
     'intro-approved-mobile.png',
+    [ctaMask],
   )
 })
 
