@@ -283,16 +283,16 @@ export function Shell({
         <div className="sunset-footer__sky" aria-hidden="true" />
 
         <div className="sunset-footer__sun absolute left-1/2 top-6 z-20 flex -translate-x-1/2 flex-col items-center justify-center px-6 pb-8 text-center sm:pb-12">
-          <h2 className="font-serif text-[clamp(4.75rem,9vw,6rem)] leading-[0.88] tracking-display">
+          <h2 className="font-serif text-footer-display leading-display-tight tracking-display">
             {FOOTER.title}
           </h2>
-          <p className="mt-4 font-serif text-[clamp(2rem,4vw,2.625rem)] italic leading-none">
+          <p className="mt-4 font-serif text-footer-anniversary italic leading-none">
             {FOOTER.anniversary}
           </p>
         </div>
 
         <div className="sunset-footer__base relative z-10 flex flex-col items-center justify-end gap-3 bg-plum px-5 py-5 text-center text-cream sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:px-12">
-          <p className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] sm:text-caption">
+          <p className="text-micro font-bold uppercase tracking-[0.04em] sm:text-caption">
             Feito com 🧠 + 🫀 + 🤖 por{' '}
             <a
               href="https://drallanmesquitabrito.com.br/"
@@ -303,7 +303,7 @@ export function Shell({
               anamnesis.MD
             </a>
           </p>
-          <p className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] sm:text-caption">
+          <p className="text-micro font-bold uppercase tracking-[0.04em] sm:text-caption">
             <time dateTime={FOOTER.dateTime}>{FOOTER.date}</time>{' '}
             <span aria-hidden="true">·</span> {FOOTER.venue}{' '}
             <span aria-hidden="true">·</span> {FOOTER.city}

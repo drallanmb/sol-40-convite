@@ -17,24 +17,24 @@ function CountdownHeading({ phase }: { phase: EventPhase }) {
   switch (phase) {
     case 'antes':
       return (
-        <h2 className="mt-5 font-serif text-heading leading-[1.02] tracking-display">
+        <h2 className="mt-5 font-serif text-heading leading-heading tracking-display">
           {COUNTDOWN_COPY.antes.headingLead}
           <em className="not-italic text-coral">{COUNTDOWN_COPY.antes.headingEm}</em>
         </h2>
       )
     case 'hoje':
-      return <h2 className="mt-5 font-serif text-heading leading-[1.02] tracking-display">{COUNTDOWN_COPY.hoje.heading}</h2>
+      return <h2 className="mt-5 font-serif text-heading leading-heading tracking-display">{COUNTDOWN_COPY.hoje.heading}</h2>
     case 'agora':
       return (
         <>
-          <h2 className="mt-5 font-serif text-heading leading-[1.02] tracking-display">{COUNTDOWN_COPY.agora.heading}</h2>
+          <h2 className="mt-5 font-serif text-heading leading-heading tracking-display">{COUNTDOWN_COPY.agora.heading}</h2>
           <p className="mt-4 text-body">{COUNTDOWN_COPY.agora.sub}</p>
         </>
       )
     case 'depois':
       // Owner-dictated literal copy — ships exactly as authored, nothing
       // added around it (P-02). Do not append an explanatory sub-line here.
-      return <h2 className="mt-5 font-serif text-heading leading-[1.02] tracking-display">{COUNTDOWN_COPY.depois.heading}</h2>
+      return <h2 className="mt-5 font-serif text-heading leading-heading tracking-display">{COUNTDOWN_COPY.depois.heading}</h2>
   }
 }
 
@@ -68,7 +68,7 @@ export function Countdown() {
           >
             {TILE_ORDER.map((unit) => (
               <div key={unit} className={unit === 'days' ? 'min-w-[4ch]' : undefined}>
-                <span className="block font-serif text-[clamp(3.5rem,6.5vw,5.5rem)] leading-none tracking-display tabular-nums">
+                <span className="block font-serif text-countdown-display leading-none tracking-display tabular-nums">
                   {parts[unit]}
                 </span>
                 <span className="mt-2 block text-caption uppercase tracking-label opacity-[.78]">

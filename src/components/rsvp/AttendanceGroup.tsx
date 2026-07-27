@@ -49,7 +49,7 @@ export function AttendanceGroup({
       disabled={disabled}
       className="grid min-w-0 gap-4 border-b border-line py-6 first:pt-0 last:border-b-0 last:pb-0 md:grid-cols-[minmax(180px,0.7fr)_minmax(0,1.3fr)] md:items-center md:gap-6"
     >
-      <legend className="min-w-0 break-words font-serif text-subheading leading-[1.2] text-plum md:float-left md:w-full">
+      <legend className="min-w-0 break-words font-serif text-subheading leading-subheading text-plum md:float-left md:w-full">
         {name}
       </legend>
 

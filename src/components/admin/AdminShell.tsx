@@ -302,7 +302,7 @@ export function AdminShell({
           {menuOpen ? (
             <div
               id="admin-utility-menu"
-              className="admin-popover-enter absolute right-0 top-[calc(100%+8px)] min-w-40 rounded-lg border border-line bg-card p-2 shadow-[0_8px_24px_rgba(53,25,42,.16)]"
+              className="admin-popover-enter absolute right-0 top-[calc(100%+8px)] min-w-40 rounded-lg border border-line bg-card p-2 shadow-[0_4px_8px_rgba(53,25,42,.12)]"
             >
               <p className="mb-2 px-2 text-sm font-bold text-plum">
                 {principal.displayName} ·{' '}

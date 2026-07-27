@@ -16,7 +16,9 @@ O site está publicado em `https://www.sol40.com.br`, com Vercel/Convex
 Production isolados, backup externo e domínio/rollback verificados. O painel
 administrativo usa contas individuais, RBAC, sessões revogáveis e auditoria
 owner-only. A Fase 7 mantém dois follow-ups independentes: lista real de
-convidados e matriz em aparelhos físicos.
+convidados e matriz em aparelhos físicos. A Fase 9 foi adicionada para integrar
+o conteúdo público do `@solfaz40` à fila de moderação já existente. A Fase 10
+foi reservada para uma abertura cinematográfica contínua até o sol do hero.
 
 ## Requirements
 
@@ -26,7 +28,7 @@ convidados e matriz em aparelhos físicos.
 - [x] **RSVP público por telefone** (sem login) — confirmação por pessoa, edição posterior, contato opcional e rate limit validados na Fase 3
 - [x] **Carta de vinhos** — 37 sugestões em três faixas, estados reativos e handoff para o WhatsApp da Vanessa validados na Fase 4
 - [x] **Mural de memórias** — envio de fotos/recados, moderação prévia e galeria pública aprovados na Fase 5
-- [x] **Dashboard interno** — senha única, visão geral reativa, convidados, moderação e presentes validados na Fase 6
+- [x] **Dashboard interno** — visão geral reativa, convidados, moderação e presentes validados na Fase 6; autenticação compartilhada original substituída pelas contas individuais da Fase 8
 - [x] **Stack** — Convex + React/Tailwind/TypeScript na Vercel validada pelas Fases 1–6
 - [x] **Gestão de gestores pós-lançamento** — proprietário, contas e sessões individuais, papéis, revogação, redefinição, operação restrita da Vanessa e auditoria validados na Fase 8
 
@@ -35,13 +37,14 @@ convidados e matriz em aparelhos físicos.
 <!-- Escopo v1. Hipóteses até serem entregues e validadas. -->
 
 - [ ] **Lançamento** — testes reais, acessibilidade AA, checklist dos donos, domínio e deploy de produção
+- [ ] **Instagram moderado** — conteúdo público relacionado ao `@solfaz40` entra por integração externa autenticada e nunca é publicado sem aprovação
+- [ ] **Abertura cinematográfica** — o sol se põe na primeira entrada e termina exatamente na composição responsiva do hero, com motion reduzido e sem bloquear interação
 
 ### Out of Scope
 
 <!-- Fronteiras explícitas com o motivo, pra não re-adicionar. -->
 
 - **Telão / slideshow ao vivo** — v2 prioritário (foco imediato após o v1); arquitetura do schema já será desenhada pensando nele
-- **Integração Instagram (Apify)** — v2; custo e complexidade externos não justificados no v1
 - **QR das mesas** — depende do telão/upload ao vivo; v2
 - **Venda / checkout de vinhos no site** — intencional: a venda é externa, pelo WhatsApp do vendedor ("Mistral")
 - **Login individual de convidado / contas nomeadas** — over-engineered para uma festa de uma noite; RSVP é público
@@ -52,16 +55,17 @@ convidados e matriz em aparelhos físicos.
 Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aproveitando o que ficou bom e descartando o que era complexo demais ou não desejado:
 
 - **Aproveitado**: o sistema visual completo (paleta pôr do sol, fontes Alegreya + Gabarito, todas as seções do convite e o layout do dashboard — de `app/globals.css` do projeto antigo); os **dados do evento**; o **catálogo de ~37 vinhos** (`lib/wines.ts`, vendedor "Mistral"); o `checklist-donos.md` como base de pendências externas.
-- **Descartado**: a stack Cloudflare (Workers/D1/R2/Images, vinext, Next 16, Drizzle, wrangler), Instagram/Apify, telão, QR das mesas, auth de convidado por sessão, e o modelo de acesso de dois níveis — tudo substituído por primitivas do Convex (banco reativo, file storage, auth) num frontend React/Tailwind na Vercel.
+- **Descartado na reconstrução inicial**: a stack Cloudflare (Workers/D1/R2/Images, vinext, Next 16, Drizzle, wrangler), Instagram/Apify, telão, QR das mesas, auth de convidado por sessão e o modelo de acesso de dois níveis. A integração Instagram foi posteriormente promovida à Fase 9, reaproveitando o mural e a moderação do Convex em vez de restaurar a arquitetura antiga.
 - **Fonte da verdade do antigo**: `/Users/allanmesquitabrito/Documents/Site Sol 40 anos/sol-40-integrado/design.md` (+ `globals.css`, `checklist-donos.md`, `lib/event.ts`, `lib/wines.ts`).
-- Handle de Instagram planejado para v2: **@solfaz40**.
+- Handle de Instagram da Fase 9: **@solfaz40**.
 
 ## Constraints
 
 - **Tech stack**: React + Tailwind + TypeScript (frontend), **Convex** (backend/DB/storage/auth), **Vercel** (hosting) — decisão do dono; a base React exata (Vite / Next / TanStack Start) e a estratégia de auth serão validadas na pesquisa
 - **Timeline**: festa em **17/10/2026**; 30/09 é prazo informativo do RSVP e nunca bloqueia edição posterior
 - **Design**: seguir a identidade "hora dourada / pôr do sol" já definida (paleta cream/peach/coral/orange/plum/wine + teal na adega; Alegreya display + Gabarito corpo)
-- **Escopo**: manter o v1 enxuto; telão e Instagram são v2
+- **Escopo**: manter o núcleo enxuto; Instagram moderado entra na Fase 9, enquanto telão e QR permanecem em v2
+- **Motion**: a abertura da Fase 10 deve reutilizar a arte do hero, medir a geometria real em cada viewport e respeitar `prefers-reduced-motion`
 - **Acessibilidade**: o design antigo já mira contraste AA — manter
 
 ## Key Decisions
@@ -76,7 +80,9 @@ Este projeto **refaz do zero** um projeto anterior (`sol-40-integrado`), aprovei
 | Gestores com contas individuais | A senha administrativa precisaria ser compartilhada; contas próprias permitem revogação, papéis e auditoria sem divulgar a senha-mestra | ✓ Good — owner, manager e seller validados na Fase 8 |
 | Vanessa usa papel seller restrito a Presentes | A compra ocorre fora do site e só precisa de confirmação operacional | ✓ Good — confirmar/editar/reabrir preserva “Já escolhido com carinho” sem dados privados |
 | Auditoria administrativa owner-only por 120 dias | Responsabilização sem expor segredos nem criar retenção indefinida | ✓ Good — eventos atômicos/redigidos, filtros e cleanup validados na Fase 8 |
-| Telão + Instagram → v2 | Reduz escopo v1 e evita custo externo (Apify) | — Pending |
+| Instagram moderado → Fase 9 | É a integração externa mais pesada e deve reutilizar a fila atual, sem publicação automática | — Pending |
+| Abertura do pôr do sol → Fase 10 | Uma transição shared-element preserva a identidade existente e evita recriar o hero em uma segunda composição divergente | — Pending |
+| Telão + QR → v2 | Mantém a experiência da festa ao vivo separada da ingestão e da moderação | — Pending |
 | Marcar "presenteado" manual (sem reserva 48h) | Simplicidade; a compra acontece fora do site | ✓ Modelo reativo validado na Fase 4; controle do dono segue para a Fase 6 |
 | Carta usa uma garrafa vetorial neutra e duas cores por vinho | Evita dependência de 37 fotos licenciadas sem perder diferenciação visual | ✓ Good — 37 paletas com proveniência privada e zero mídia remota |
 
@@ -98,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 after Phase 8 completion*
+*Last updated: 2026-07-25 after Phase 9 addition and documentation cleanup*

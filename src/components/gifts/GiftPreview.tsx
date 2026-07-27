@@ -37,13 +37,13 @@ function PreviewError() {
       role="alert"
       className="col-span-full border border-cellar-line bg-cellar-soft p-6 text-cellar-muted"
     >
-      <p className="max-w-[62ch] text-[16px] leading-[1.62]">
+      <p className="max-w-[62ch] text-body leading-body">
         {GIFTS_COPY.error}
       </p>
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="mt-4 inline-flex min-h-11 items-center justify-center border border-cream px-6 py-2 text-[16px] font-bold leading-[1.25] text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar motion-reduce:transform-none motion-reduce:transition-none"
+        className="mt-4 inline-flex min-h-11 items-center justify-center border border-cream px-6 py-2 text-small font-bold leading-action text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar motion-reduce:transform-none motion-reduce:transition-none"
       >
         {GIFTS_COPY.retry}
       </button>
@@ -104,27 +104,27 @@ function PreviewCard({ wine }: { wine: PublicWine }) {
         <span
           className={
             gifted
-              ? 'border border-gifted px-2 py-1 text-[13px] font-bold uppercase leading-[1.35] tracking-label text-gifted'
-              : 'border border-peach px-2 py-1 text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach'
+              ? 'border border-gifted px-2 py-1 text-caption font-bold uppercase leading-label-relaxed tracking-label text-gifted'
+              : 'border border-peach px-2 py-1 text-caption font-bold uppercase leading-label-relaxed tracking-label text-peach'
           }
         >
           {gifted ? GIFTS_COPY.gifted : GIFTS_COPY.available}
         </span>
         <data
           value={(wine.priceCents / 100).toFixed(2)}
-          className="shrink-0 font-serif text-[28px] font-normal leading-none tabular-nums"
+          className="shrink-0 font-serif text-editorial-title font-normal leading-none tabular-nums"
         >
           {formattedPrice}
         </data>
       </div>
 
-      <h3 className="mt-4 overflow-anywhere font-serif text-[28px] font-normal leading-[1.08] tracking-display">
+      <h3 className="mt-4 overflow-anywhere font-serif text-editorial-title font-normal leading-editorial-title tracking-display">
         {wine.name}
       </h3>
-      <p className="mt-2 overflow-anywhere text-[13px] font-bold uppercase leading-[1.35] tracking-label text-cellar-muted">
+      <p className="mt-2 overflow-anywhere text-caption font-bold uppercase leading-label-relaxed tracking-label text-cellar-muted">
         {wine.producer}
       </p>
-      <p className="mt-auto pt-6 text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
+      <p className="mt-auto pt-6 text-caption font-bold uppercase leading-label-relaxed tracking-label text-peach">
         Ver este rótulo
       </p>
     </Link>
@@ -176,13 +176,13 @@ export function GiftPreview() {
     <section className="bg-cellar px-6 py-16 text-cream md:px-8 lg:px-16">
       <div className="mx-auto max-w-[1320px]">
         <div className="max-w-[62ch]">
-          <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
+          <p className="text-caption font-bold uppercase leading-label-relaxed tracking-label text-peach">
             {PREVIEW_COPY.kicker}
           </p>
-          <h2 className="mt-4 max-w-[18ch] font-serif text-[48px] font-normal leading-[.95] tracking-display">
+          <h2 className="mt-4 max-w-[18ch] font-serif text-route-title font-normal leading-route-title tracking-display">
             {PREVIEW_COPY.heading}
           </h2>
-          <p className="mt-6 max-w-[62ch] text-[16px] leading-[1.62] text-cellar-muted">
+          <p className="mt-6 max-w-[62ch] text-body leading-body text-cellar-muted">
             {PREVIEW_COPY.support}
           </p>
         </div>
@@ -195,7 +195,7 @@ export function GiftPreview() {
 
         <Link
           to="/presentes"
-          className="mt-8 inline-flex min-h-12 items-center justify-center border border-cream px-6 py-3 text-[16px] font-bold leading-[1.25] text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar motion-reduce:transform-none motion-reduce:transition-none"
+          className="mt-8 inline-flex min-h-12 items-center justify-center border border-cream px-6 py-3 text-small font-bold leading-action text-cream transition-[transform,background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar active:scale-[.98] focus-visible:bg-cream focus-visible:text-cellar motion-reduce:transform-none motion-reduce:transition-none"
         >
           {PREVIEW_COPY.cta}
         </Link>

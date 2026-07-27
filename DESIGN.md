@@ -50,12 +50,43 @@ typography:
     fontSize: "clamp(1rem, 0.96rem + 0.18vw, 1.125rem)"
     fontWeight: 400
     lineHeight: 1.62
+  editorialTitle:
+    fontFamily: "Alegreya Variable, Georgia, Times New Roman, serif"
+    fontSize: "1.75rem"
+    fontWeight: 400
+    lineHeight: 1.08
+    letterSpacing: "-0.025em"
+  wineNote:
+    fontFamily: "Alegreya Variable, Georgia, Times New Roman, serif"
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.5
   label:
     fontFamily: "Gabarito Variable, Arial, Helvetica, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "0.1em"
+  micro:
+    fontFamily: "Gabarito Variable, Arial, Helvetica, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 700
+    lineHeight: 1.2
+  cinematicMeta:
+    fontFamily: "Gabarito Variable, Arial, Helvetica, sans-serif"
+    fontSize: "0.65rem"
+    fontWeight: 700
+    lineHeight: 1.2
+  railNumber:
+    fontFamily: "Alegreya Variable, Georgia, Times New Roman, serif"
+    fontSize: "clamp(1.1875rem, 1.0625rem + 0.625vw, 1.3125rem)"
+    fontWeight: 400
+    lineHeight: 1
+  railUnit:
+    fontFamily: "Gabarito Variable, Arial, Helvetica, sans-serif"
+    fontSize: "clamp(0.5rem, 0.3125rem + 0.9375vw, 0.6875rem)"
+    fontWeight: 700
+    lineHeight: 1
 rounded:
   none: "0px"
   operational: "8px"
@@ -181,11 +212,18 @@ A paleta parte do vinho profundo e atravessa coral, damasco e amarelo-sol, equil
 - **Route title** (400, `3rem`, 0.95): abertura das rotas públicas secundárias.
 - **Admin title** (700, `2rem`, 1.08): título fixo e consistente de todas as áreas operacionais.
 - **Body** (400, `clamp(1rem, 0.96rem + 0.18vw, 1.125rem)`, 1.62): texto corrido, limitado a aproximadamente 65–75 caracteres por linha.
+- **Editorial title** (400, `1.75rem`, 1.08, `-0.025em`): títulos curtos de rótulos, faixas da carta e callouts editoriais.
+- **Wine note** (400, `1rem`, 1.5): descrição serifada de um rótulo; exceção editorial deliberada ao corpo em Gabarito.
 - **Label** (700, `0.8125rem`, `0.1em`, uppercase): navegação, kickers, unidades e ações curtas.
+- **Micro** (700, `0.6875rem`): metadata móvel e labels compactos; nunca substitui corpo ou instrução essencial.
+- **Rail number** (400, `clamp(1.1875rem, 1.0625rem + 0.625vw, 1.3125rem)`, 1): numerais tabulares do countdown rail.
+- **Rail unit** (700, `clamp(0.5rem, 0.3125rem + 0.9375vw, 0.6875rem)`, 1): unidade decorativa do countdown rail, permitida somente porque o rail inteiro é `aria-hidden`.
 
 **The Serif Leads Rule.** Alegreya conduz títulos, números celebratórios e frases emocionais; Gabarito conduz instrução, navegação, status e entrada de dados.
 
 **The Display Restraint Rule.** Letter-spacing de display nunca ultrapassa `-0.025em`; títulos devem equilibrar linha antes de ganhar tamanho.
+
+**The Compact Type Rule.** Tamanhos abaixo de `0.8125rem` pertencem apenas a metadata curta ou ao countdown rail decorativo; conteúdo essencial permanece em `1rem` ou mais.
 
 ## 4. Elevation
 
@@ -195,6 +233,7 @@ O sistema é plano por padrão. Profundidade vem da alternância de massas crom�
 
 - **Sombra Editorial** (`14px 14px 0 var(--color-sand)`): cartões públicos e login; comunica impressão deslocada, não elevação física.
 - **Chrome Fixo** (`0 4px 8px rgba(53,25,42,0.10–0.12)`): topbar e countdown rail quando estão sobre conteúdo.
+- **Overlay Operacional** (`0 4px 8px rgba(53,25,42,0.12–0.18)`): toast e popover; comunica flutuação transitória sem criar um “cartão fantasma”.
 - **Sem Sombra** (`none`): cartões operacionais, feedbacks, campos e card do local sobre o mapa.
 
 **The Flat-by-Default Rule.** Bordas e cor devem resolver a hierarquia antes de qualquer sombra.

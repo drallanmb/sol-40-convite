@@ -63,7 +63,7 @@ export function DiscardDialog({
         <div className="grid gap-3">
           <h2
             id={headingId}
-            className="font-serif text-subheading leading-[1.2] text-plum"
+            className="font-serif text-subheading leading-subheading text-plum"
           >
             {RSVP_COPY.discard.heading}
           </h2>

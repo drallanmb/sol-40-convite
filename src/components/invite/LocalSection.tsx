@@ -24,7 +24,7 @@ export function LocalSection() {
           />
 
           <div className="absolute bottom-16 left-4 z-10 w-[calc(100%-2rem)] max-w-[292px] bg-plum p-4 text-cream sm:left-8 sm:max-w-[320px] sm:p-7 md:left-10">
-            <p className="text-[.6875rem] font-bold uppercase tracking-label text-peach sm:text-caption">
+            <p className="text-micro font-bold uppercase tracking-label text-peach sm:text-caption">
               {VENUE.kicker}
             </p>
             <h2 className="mt-3 font-serif text-subheading leading-subheading">{VENUE.name}</h2>

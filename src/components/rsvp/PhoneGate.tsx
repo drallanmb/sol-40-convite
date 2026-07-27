@@ -157,7 +157,7 @@ export function PhoneGate({
         className="grid gap-6"
       >
         <div className="grid gap-3">
-          <h2 className="font-serif text-subheading leading-[1.2] text-plum">
+          <h2 className="font-serif text-subheading leading-subheading text-plum">
             {RSVP_COPY.phone.heading}
           </h2>
           <p className="text-body">{RSVP_COPY.phone.body}</p>

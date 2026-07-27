@@ -865,11 +865,11 @@ export function Hero({
           <p className="text-small font-bold uppercase tracking-label">
             {HERO.eyebrow}
           </p>
-          <h1 className="mt-[18px] leading-[0.88] text-shadow-[0_5px_45px_var(--color-display-shadow)]">
+          <h1 className="mt-[18px] leading-display-tight text-shadow-[0_5px_45px_var(--color-display-shadow)]">
             <span className="block font-serif text-display tracking-display">
               {HERO.title}
             </span>
-            <span className="block font-serif text-[clamp(2.25rem,4.8vw,4rem)] italic leading-[1.1] tracking-display">
+            <span className="block font-serif text-hero-subtitle italic leading-hero-subtitle tracking-display">
               {HERO.titleSub}
             </span>
           </h1>
@@ -882,7 +882,7 @@ export function Hero({
           inert={copyIsWaiting ? true : undefined}
           className="cinematic-copy-reveal col-start-1 row-start-2 mt-5 flex w-full flex-col items-center"
         >
-          <p className="font-serif text-[clamp(1.35rem,2.5vw,2rem)] leading-[1.3]">
+          <p className="font-serif text-hero-lead leading-lead">
             {HERO.taglineLead}
             <em className="not-italic text-coral">{HERO.taglineEm}</em>
           </p>

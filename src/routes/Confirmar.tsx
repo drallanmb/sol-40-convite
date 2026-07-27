@@ -321,7 +321,7 @@ function Confirmar() {
             <h1
               ref={routeHeadingRef}
               tabIndex={-1}
-              className="font-serif text-heading leading-[1.02] tracking-display text-plum"
+              className="font-serif text-heading leading-heading tracking-display text-plum"
             >
               {RSVP_COPY.route.heading.slice(
                 0,

@@ -27,3 +27,10 @@ test-results
 *.njsproj
 *.sln
 *.sw?
+
+# Planejamento (GSD) — cache e rascunhos locais, nunca versionados
+.planning/research/.cache
+.planning/tmp
+
+# Scaffolds de template gerados fora do projeto (ex.: anatomy-ia-lp-v1-*)
+anatomy-ia-lp-*/

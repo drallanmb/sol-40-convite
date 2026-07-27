@@ -32,12 +32,12 @@ function CatalogSkeleton() {
           className="wine-band"
         >
           <div>
-            <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
+            <p className="text-caption font-bold uppercase leading-label-relaxed tracking-label text-peach">
               {band.eyebrow}
             </p>
             <h2
               id={`${band.id}-heading`}
-              className="mt-2 font-serif text-[28px] font-normal leading-[1.08] tracking-display"
+              className="mt-2 font-serif text-editorial-title font-normal leading-editorial-title tracking-display"
             >
               {band.heading}
             </h2>
@@ -89,23 +89,23 @@ function ReadyBand({
     >
       <div className="flex flex-col gap-2 min-[480px]:flex-row min-[480px]:items-end min-[480px]:justify-between min-[480px]:gap-6">
         <div>
-          <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-peach">
+          <p className="text-caption font-bold uppercase leading-label-relaxed tracking-label text-peach">
             {band.eyebrow}
           </p>
           <h2
             id={`${band.id}-heading`}
-            className="mt-2 font-serif text-[28px] font-normal leading-[1.08] tracking-display"
+            className="mt-2 font-serif text-editorial-title font-normal leading-editorial-title tracking-display"
           >
             {band.heading}
           </h2>
         </div>
-        <p className="text-[13px] font-bold uppercase leading-[1.35] tracking-label text-cellar-muted">
+        <p className="text-caption font-bold uppercase leading-label-relaxed tracking-label text-cellar-muted">
           {bandCount(bandWines.length)}
         </p>
       </div>
 
       {bandWines.length === 0 ? (
-        <p className="mt-6 border border-cellar-line bg-cellar-soft p-6 text-[16px] leading-[1.62] text-cellar-muted">
+        <p className="mt-6 border border-cellar-line bg-cellar-soft p-6 text-body leading-body text-cellar-muted">
           {GIFTS_COPY.empty.band}
         </p>
       ) : (
@@ -133,13 +133,13 @@ export function WineCatalog(props: WineCatalogProps) {
     return (
       <section aria-label="Carta de vinhos">
         <div role="alert" className="border border-cellar-line bg-cellar-soft p-6">
-          <p className="max-w-[62ch] text-[16px] leading-[1.62] text-cream">
+          <p className="max-w-[62ch] text-body leading-body text-cream">
             {GIFTS_COPY.error}
           </p>
           <button
             type="button"
             onClick={props.onRetry}
-            className="mt-4 min-h-11 border border-cream px-4 py-2 text-[16px] font-bold leading-[1.25] text-cream transition-[background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar focus-visible:bg-cream focus-visible:text-cellar"
+            className="mt-4 min-h-11 border border-cream px-4 py-2 text-small font-bold leading-action text-cream transition-[background-color,color] duration-(--duration-fast) ease-out hover:bg-cream hover:text-cellar focus-visible:bg-cream focus-visible:text-cellar"
           >
             {GIFTS_COPY.retry}
           </button>
@@ -166,11 +166,11 @@ export function WineCatalog(props: WineCatalogProps) {
       <section aria-labelledby="empty-catalog-heading">
         <h2
           id="empty-catalog-heading"
-          className="max-w-[62ch] font-serif text-[28px] font-normal leading-[1.08] tracking-display"
+          className="max-w-[62ch] font-serif text-editorial-title font-normal leading-editorial-title tracking-display"
         >
           {GIFTS_COPY.empty.heading}
         </h2>
-        <p className="mt-4 max-w-[62ch] text-[16px] leading-[1.62] text-cellar-muted">
+        <p className="mt-4 max-w-[62ch] text-body leading-body text-cellar-muted">
           {GIFTS_COPY.empty.body}
         </p>
       </section>
@@ -182,7 +182,7 @@ export function WineCatalog(props: WineCatalogProps) {
       {props.partial ? (
         <div
           role="status"
-          className="mb-16 border border-cellar-line bg-cellar-soft p-6 text-[16px] leading-[1.62] text-cellar-muted"
+          className="mb-16 border border-cellar-line bg-cellar-soft p-6 text-body leading-body text-cellar-muted"
         >
           {GIFTS_COPY.partial}
         </div>

@@ -49,7 +49,7 @@ export function CountdownRail({ revealed }: CountdownRailProps) {
       style={{ transitionDelay: revealed ? '0s' : '0s, 0s, var(--duration-medium)' }}
     >
       <div className="mx-auto flex h-full w-full max-w-3xl items-center justify-center px-3 sm:px-6">
-        <span className="shrink-0 text-[.6875rem] font-bold uppercase tracking-[.08em] text-peach sm:text-caption sm:tracking-label">
+        <span className="shrink-0 text-micro font-bold uppercase tracking-[.08em] text-peach sm:text-caption sm:tracking-label">
           {copy.railLabel}
         </span>
 
@@ -62,10 +62,10 @@ export function CountdownRail({ revealed }: CountdownRailProps) {
                   index > 0 ? 'border-l border-cream/[.14] pl-2.5 sm:pl-6' : ''
                 }`}
               >
-                <span className="font-serif text-[1.1875rem] leading-none tabular-nums text-cream sm:text-[1.3125rem]">
+                <span className="font-serif text-rail-number leading-none tabular-nums text-cream">
                   {parts[unit]}
                 </span>
-                <span className="text-[.5rem] uppercase tracking-[.02em] text-peach sm:text-[.6875rem] sm:tracking-[.06em]">
+                <span className="text-rail-unit uppercase tracking-[.02em] text-peach sm:tracking-[.06em]">
                   {pluralizeUnit(parts[unit], unit)}
                 </span>
               </div>

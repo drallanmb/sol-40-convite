@@ -5,12 +5,12 @@ milestone_name: milestone
 current_phase: 7
 current_phase_name: Endurecimento & Lançamento
 status: executing
-stopped_at: Phase 8 complete; resume Phase 7 plan 07-05 or 07-06
-last_updated: "2026-07-25T20:21:36.027Z"
+stopped_at: Phase 10 context gathered
+last_updated: "2026-07-26T05:09:48.921Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 8 complete; Phase 7 follow-ups remain
+last_activity_desc: Phase 10 cinematic sunset opening added
 progress:
-  total_phases: 8
+  total_phases: 10
   completed_phases: 7
   total_plans: 46
   completed_plans: 44
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-25)
 Phase: 7 — Endurecimento & Lançamento
 Plan: 5 of 6
 Status: Ready to execute
-Last activity: 2026-07-25 — Phase 8 complete; Phase 7 follow-ups remain
+Last activity: 2026-07-25 — Phase 10 cinematic sunset opening added
 
 Progress: [██████████] 96%
 
@@ -92,8 +92,8 @@ Progress: [██████████] 96%
 
 Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 
-- Stack: Convex + React/Tailwind (Vite SPA + React Router v7) + Vercel; auth do dono por senha compartilhada
-- Refaz do zero o projeto antigo `sol-40-integrado`, aproveitando design/vinhos/dados do evento e descartando a stack Cloudflare, Instagram, telão (→ v2)
+- Stack: Convex + React/Tailwind (Vite SPA + React Router v7) + Vercel; administração com contas individuais, RBAC e credencial-mestra restrita à recuperação
+- Refaz do zero o projeto antigo `sol-40-integrado`, aproveitando design/vinhos/dados do evento; Instagram retorna na Fase 9 sobre o mural moderado atual, enquanto telão e QR seguem em v2
 - RSVP público sem login; presente = redirect wa.me; mural com moderação
 - [Phase ?]: Checkpoint blocking-human de legitimidade de pacotes satisfeito por verificação first-party prévia (STACK.md) — instalação prosseguiu com versões EXATAS pinadas
 - [Phase ?]: src/main.tsx monta apenas ConvexProvider, sem provider de auth — auth do dono é escopo da Phase 6
@@ -139,28 +139,39 @@ Decisions are logged in PROJECT.md Key Decisions table. Recentes:
 
 ### Pending Todos
 
-- Phase 8: substituir o compartilhamento da senha-mestra por contas individuais
-  de gestores, com papéis, revogação, redefinição de senha e auditoria.
+- Phase 7: importar/revisar a lista real e concluir a matriz em aparelhos físicos.
+- Phase 9: discutir provedor, origem do conteúdo, deduplicação, frequência,
+  falhas e operação da moderação antes de pesquisar ou planejar.
+
+- Phase 10: discutir duração, primeira visita/repetição, skip, composição do
+  céu e momento de revelar o conteúdo antes de pesquisar ou planejar.
 
 ### Roadmap Evolution
 
 - Phase 8 added: Gestão de gestores — contas individuais, permissões e
   auditoria pós-lançamento.
 
+- Phase 9 added: Integração do `@solfaz40` com moderação, promovida de v2 para
+  o milestone atual.
+
+- Phase 10 added: Abertura cinematográfica do pôr do sol, terminando na
+  geometria responsiva do sol real do hero.
+
 ### Blockers/Concerns
 
 - Phase 7 launch requirements remain pending; real-list and physical-device follow-ups are independently resumable after publication.
+- Phase 9 depends on an external Instagram ingestion provider and must keep all
+  imported content pending until an authorized moderator decides.
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
 | Feature | Telão / slideshow ao vivo | v2 | 2026-07-23 |
-| Feature | Instagram (Apify) | v2 | 2026-07-23 |
 | Feature | QR das mesas | v2 | 2026-07-23 |
 
 ## Session Continuity
 
-Last session: 2026-07-25T20:21:36.022Z
-Stopped at: Phase 8 complete; resume Phase 7 plan 07-05 or 07-06
-Resume file: None
+Last session: 2026-07-26T05:09:48.915Z
+Stopped at: Phase 10 context gathered
+Resume file: .planning/phases/10-abertura-cinematogr-fica-do-p-r-do-sol/10-CONTEXT.md

@@ -198,7 +198,7 @@ export function AdminOverview(props: AdminOverviewProps) {
           <h1
             id="admin-page-title"
             tabIndex={-1}
-            className="font-serif text-admin-title font-bold leading-[1.08] tracking-[-.02em] text-plum outline-none"
+            className="font-serif text-admin-title font-bold leading-admin-title tracking-[-.02em] text-plum outline-none"
           >
             {ADMIN_COPY.overview.title}
           </h1>

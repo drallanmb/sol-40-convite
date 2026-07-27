@@ -2,7 +2,7 @@
 
 ## Overview
 
-Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffold Convex + Vite/React/Tailwind, deploy Vercel e o design system pôr do sol portado do projeto antigo), depois o convite público, e então os três módulos de dados independentes (RSVP, carta de vinhos, mural moderado) que podem ser construídos em paralelo. Com os dados no lugar, o dashboard interno consolida tudo ao vivo, e a última fase é endurecimento e lançamento. As fases 2–5 dependem só da fase 1 e podem rodar em paralelo; a fase 6 depende dos schemas de 3/4/5.
+Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação, o convite público e os módulos de dados; depois o dashboard, o lançamento e as contas individuais de gestores. A Fase 9 amplia o mural já moderado com ingestão do `@solfaz40`, mantendo a mesma regra central: nenhum conteúdo externo aparece publicamente sem aprovação. A Fase 10 transforma a primeira entrada no convite em uma abertura cinematográfica cujo sol termina exatamente na composição existente do hero. As fases 2–5 dependem só da fase 1 e podem rodar em paralelo; a fase 6 depende dos schemas de 3/4/5.
 
 ## Phases
 
@@ -14,6 +14,8 @@ Do zero ao site pronto para a festa de 17/10/2026: primeiro a fundação (scaffo
 - [x] **Phase 6: Dashboard Interno (/admin)** - Painel dos donos: confirmações ao vivo, convidados, moderação, presentes (completed 2026-07-25)
 - [ ] **Phase 7: Endurecimento & Lançamento** - Rate-limit, testes em dispositivo real, checklist dos donos, deploy de produção
 - [x] **Phase 8: Gestão de Gestores** - Contas individuais, permissões, revogação e auditoria pós-lançamento (completed 2026-07-25)
+- [ ] **Phase 9: Integração do @solfaz40 com moderação** - Ingestão autenticada e idempotente de conteúdo público, sempre passando pela fila de moderação
+- [ ] **Phase 10: Abertura cinematográfica do pôr do sol** - Transição de entrada responsiva que termina no sol real do hero
 
 ## Phase Details
 
@@ -254,7 +256,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 (2–5 são independentes após a 1 e podem ser paralelizadas).
+Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 (2–5 são independentes após a 1 e podem ser paralelizadas).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -266,11 +268,13 @@ Fases executam em ordem numérica: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 (
 | 6. Dashboard Interno (/admin) | 7/7 | Complete    | 2026-07-25 |
 | 7. Endurecimento & Lançamento | 4/6 | In Progress|  |
 | 8. Gestão de Gestores | 7/7 | Complete    | 2026-07-25 |
+| 9. Integração do @solfaz40 com moderação | 0/? | Not planned |  |
+| 10. Abertura cinematográfica do pôr do sol | 0/? | Not planned |  |
 
 ### Phase 8: Gestão de gestores — contas individuais, permissões e auditoria
 
 **Goal:** Permitir que o administrador proprietário gerencie gestores com credenciais, permissões e sessões individuais, sem compartilhar a senha-mestra.
-**Requirements**: TBD
+**Requirements**: MGR-01, MGR-02, MGR-03, MGR-04, MGR-05, MGR-06
 **Depends on:** Phase 7
 **Plans:** 7/7 plans complete
 
@@ -278,7 +282,6 @@ Plans:
 **Wave 1**
 
 - [x] 08-01-PLAN.md
-- [ ] TBD (run /gsd-discuss-phase 8 antes de planejar)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -303,3 +306,49 @@ Plans:
 **Wave 7** *(blocked on Wave 6 completion)*
 
 - [x] 08-07-PLAN.md
+
+### Phase 9: Integração do @solfaz40 com moderação
+
+**Goal:** Trazer para o mural o conteúdo público relacionado ao `@solfaz40` por uma integração externa segura, sem criar um segundo fluxo editorial e sem publicar automaticamente.
+**Requirements**: IG-01, IG-02
+**Depends on:** Phase 8
+**Success Criteria** (what must be TRUE):
+
+  1. A integração externa autentica callbacks e mantém segredos somente no servidor
+  2. Entregas repetidas não criam memórias duplicadas nem sobrescrevem decisões de moderação
+  3. Toda publicação ou menção ingerida nasce pendente e passa pela fila administrativa existente
+  4. Aprovar, ocultar ou rejeitar conteúdo importado preserva a mesma privacidade do mural público atual
+
+**Plans:** 0 plans — discussão pendente
+
+Plans:
+
+- [ ] Executar `/gsd-discuss-phase 9` antes de pesquisar e planejar
+
+### Phase 10: Abertura cinematográfica do pôr do sol
+
+**Goal:** Criar uma abertura de primeira entrada em que o sol atravessa o céu, se põe e termina exatamente sobre o sol real do hero, formando uma única cena contínua em qualquer viewport.
+**Requirements**: INTRO-01, INTRO-02
+**Depends on:** Phase 9
+**Success Criteria** (what must be TRUE):
+
+  1. A animação mede o alvo renderizado e termina sem salto perceptível entre o sol de abertura e o sol do hero
+  2. A composição continua correta em 320 px, tablet e desktop, inclusive após resize/orientação antes da entrada
+  3. Conteúdo, navegação e foco não ficam presos pela abertura
+  4. `prefers-reduced-motion` recebe a cena final imediatamente ou por uma transição mínima, sem deslocamento amplo
+
+**Plans:** 3 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Política testada, estado inicial sem flash e único sol medido/animado até o alvo real
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 10-02-PLAN.md — Reveal acessível, scroll cancellation, fragmentos, reentrada e cleanup de lifecycle
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 10-03-PLAN.md — Matriz responsiva/cross-browser, timing natural e proteção da suíte de release

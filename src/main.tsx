@@ -8,10 +8,9 @@ import App from './App.tsx'
 // Cliente reativo do Convex, conectado ao deployment via VITE_CONVEX_URL.
 // A URL é pública por design (o cliente WebSocket precisa dela) — nenhum
 // segredo é exposto aqui. Ver .env.example.
-//
-// NOTA: nesta fase (Fase 1), monta-se apenas ConvexProvider — nenhum
-// provider de autenticação é adicionado aqui. A auth do dono é escopo
-// da Phase 6; /admin é só um placeholder de rota até lá.
+// A autenticação administrativa usa sessões próprias validadas nas functions
+// Convex e é montada dentro das rotas /admin; não depende de um provider
+// global de identidade no ponto de entrada da aplicação.
 const convexUrl = import.meta.env.VITE_CONVEX_URL
 if (!convexUrl) {
   throw new Error(

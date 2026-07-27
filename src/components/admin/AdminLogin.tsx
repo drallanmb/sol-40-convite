@@ -54,7 +54,7 @@ export function AdminLogin({
         <p className="font-serif text-xl font-bold text-plum">
           {ADMIN_COPY.login.wordmark}
         </p>
-        <h1 className="mt-5 font-serif text-admin-title font-bold leading-[1.02] tracking-[-.025em] text-plum">
+        <h1 className="mt-5 font-serif text-admin-title font-bold leading-admin-title tracking-[-.025em] text-plum">
           {ADMIN_COPY.login.title}
         </h1>
         <p className="mt-3 text-base leading-normal">{description}</p>

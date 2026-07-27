@@ -267,7 +267,7 @@ export function FamilyForm({
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="break-words font-serif text-subheading leading-[1.2] text-plum"
+            className="break-words font-serif text-subheading leading-subheading text-plum"
           >
             {fillTemplate(RSVP_COPY.family.greeting, {
               displayName: view.displayName,
@@ -291,7 +291,7 @@ export function FamilyForm({
             className="grid gap-8"
           >
             <div className="grid gap-5">
-              <h3 className="font-serif text-subheading leading-[1.2] text-plum">
+              <h3 className="font-serif text-subheading leading-subheading text-plum">
                 {RSVP_COPY.family.formHeading}
               </h3>
               <div>
@@ -379,10 +379,10 @@ export function FamilyForm({
               {hasSavedSuccessfully ? (
                 <aside className="grid gap-4 border border-sand bg-cream p-6 text-plum">
                   <div className="grid gap-2">
-                    <h3 className="font-serif text-[28px] font-normal leading-[1.08] tracking-display">
+                    <h3 className="font-serif text-editorial-title font-normal leading-editorial-title tracking-display">
                       {GIFTS_RSVP_CALLOUT.heading}
                     </h3>
-                    <p className="text-[16px] leading-[1.62]">
+                    <p className="text-body leading-body">
                       {GIFTS_RSVP_CALLOUT.body}
                     </p>
                   </div>

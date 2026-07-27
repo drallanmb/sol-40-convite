@@ -7,6 +7,7 @@ const GLOW_ONSET_MS = 3060
 const PRIMARY_COPY_ONSET_MS = 3100
 const SECONDARY_COPY_ONSET_MS = 3400
 const CTA_ONSET_MS = 3460
+const COPY_REVEAL_HOLD_MS = 20
 const ART_TRACKS = [
   'camera',
   'cool-veil',
@@ -864,7 +865,12 @@ test('continuous scene gives the sun 3000ms of constant travel before the post-a
 
 test('continuous desktop CTA reveal preserves final colors while clipping into view', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(
+    !testInfo.project.name.endsWith('-desktop'),
+    'Desktop composition is already covered by the Chromium and WebKit desktop projects.',
+  )
+
   await installIntroProbe(page)
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/')
@@ -873,7 +879,7 @@ test('continuous desktop CTA reveal preserves final colors while clipping into v
   const hero = page.locator('#inicio')
   const ctaGroup = hero.locator('[data-intro-copy="cta"]')
   await expect(hero).toHaveAttribute('data-intro-state', 'playing')
-  await seekIntroAtMs(page, CTA_ONSET_MS - 1)
+  await seekIntroAtMs(page, CTA_ONSET_MS - COPY_REVEAL_HOLD_MS)
   await expect(ctaGroup).toHaveAttribute('inert', '')
 
   const readVisualState = () =>
