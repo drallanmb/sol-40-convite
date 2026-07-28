@@ -7,7 +7,7 @@ import WineCatalog from '../components/gifts/WineCatalog'
 import Shell from '../components/layout/Shell'
 import { GIFT_BANDS, GIFTS_COPY, GIFTS_NAV_LINKS } from '../content/gifts'
 import useReducedMotion from '../hooks/useReducedMotion'
-import { productCodeFromWineHash, wineDomId } from '../lib/wineDeepLink'
+import { catalogTargetFromWineHash } from '../lib/wineDeepLink'
 
 function BandShortcuts({ visible }: { visible: boolean }) {
   if (!visible) return null
@@ -115,21 +115,23 @@ function CatalogQuery() {
   const [selectedCode, setSelectedCode] = useState<string | null>(null)
 
   const applyCurrentHash = useCallback(() => {
-    const productCode = productCodeFromWineHash(window.location.hash)
-    if (!productCode) {
+    const hashTarget = catalogTargetFromWineHash(window.location.hash)
+    if (!hashTarget) {
       setSelectedCode(null)
       return
     }
 
-    const target = document.getElementById(wineDomId(productCode))
+    const target = document.getElementById(hashTarget.id)
     if (!target) {
       setSelectedCode(null)
       return
     }
 
-    setSelectedCode(productCode)
+    setSelectedCode(
+      hashTarget.kind === 'wine' ? hashTarget.productCode : null,
+    )
     target.scrollIntoView({
-      block: 'center',
+      block: hashTarget.kind === 'wine' ? 'center' : 'start',
       behavior: reducedMotion ? 'auto' : 'smooth',
     })
     target.focus({ preventScroll: true })

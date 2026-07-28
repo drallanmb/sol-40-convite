@@ -29,7 +29,8 @@ function CatalogSkeleton() {
           key={band.id}
           id={band.id}
           aria-labelledby={`${band.id}-heading`}
-          className="wine-band"
+          tabIndex={-1}
+          className="wine-band scroll-mt-24 outline-none"
         >
           <div>
             <p className="text-caption font-bold uppercase leading-label-relaxed tracking-label text-peach">
@@ -85,7 +86,8 @@ function ReadyBand({
     <section
       id={band.id}
       aria-labelledby={`${band.id}-heading`}
-      className="wine-band"
+      tabIndex={-1}
+      className="wine-band scroll-mt-24 outline-none"
     >
       <div className="flex flex-col gap-2 min-[480px]:flex-row min-[480px]:items-end min-[480px]:justify-between min-[480px]:gap-6">
         <div>

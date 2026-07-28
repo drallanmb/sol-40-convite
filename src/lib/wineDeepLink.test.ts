@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { productCodeFromWineHash, wineDomId } from './wineDeepLink'
+import {
+  catalogTargetFromWineHash,
+  productCodeFromWineHash,
+  wineDomId,
+} from './wineDeepLink'
 
 describe('wineDomId', () => {
   it('preserva zero inicial no identificador', () => {
@@ -36,5 +40,32 @@ describe('productCodeFromWineHash', () => {
     'vinho-123',
   ])('rejeita fragmento vazio, hostil ou com sufixo: %j', (hash) => {
     expect(productCodeFromWineHash(hash)).toBeNull()
+  })
+})
+
+describe('catalogTargetFromWineHash', () => {
+  it('leva o CTA pós-RSVP diretamente à primeira faixa da carta', () => {
+    expect(catalogTargetFromWineHash('#faixa-ate-200')).toEqual({
+      kind: 'band',
+      id: 'faixa-ate-200',
+    })
+  })
+
+  it('preserva o deep link de um rótulo específico', () => {
+    expect(catalogTargetFromWineHash('#vinho-0699230')).toEqual({
+      kind: 'wine',
+      id: 'vinho-0699230',
+      productCode: '0699230',
+    })
+  })
+
+  it.each([
+    '',
+    '#faixa',
+    '#faixa-ate-200-sufixo',
+    '#faixa-200-500',
+    '#faixa-<script>',
+  ])('rejeita destino de catálogo desconhecido ou hostil: %j', (hash) => {
+    expect(catalogTargetFromWineHash(hash)).toBeNull()
   })
 })

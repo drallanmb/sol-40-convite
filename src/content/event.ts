@@ -103,7 +103,7 @@ export const GIFTS_RSVP_CALLOUT = {
   heading: 'Quer deixar um carinho para a Sol?',
   body: 'A carta de vinhos está aberta para você escolher um presente.',
   cta: 'Escolher um presente',
-  href: '/presentes',
+  href: '/presentes#faixa-ate-200',
 } as const
 
 // ---------------------------------------------------------------------------

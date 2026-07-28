@@ -205,6 +205,25 @@ for (const route of RELEASE_ROUTES) {
   })
 }
 
+test('RSVP gift deep link lands on the first wine band', async ({ page }) => {
+  await page.goto('/presentes#faixa-ate-200')
+
+  const firstBand = page.locator('#faixa-ate-200')
+  await expect(
+    firstBand.getByRole('heading', { name: 'Abaixo de R$ 200' }),
+  ).toBeVisible()
+  await expect.poll(() =>
+    page.evaluate(() => document.activeElement?.id),
+  ).toBe('faixa-ate-200')
+
+  await expect.poll(() =>
+    firstBand.evaluate((element) => {
+      const top = element.getBoundingClientRect().top
+      return top >= 72 && top < 140
+    }),
+  ).toBe(true)
+})
+
 test('anonymous admin mounts no protected DOM or domain query', async ({ page }) => {
   await observeConvexTraffic(page)
   await page.goto('/admin/convidados')
