@@ -17,19 +17,19 @@ export function MemoryCard({ memory }: MemoryCardProps) {
   return (
     <Card className="flex h-full min-h-[34rem] flex-col overflow-hidden p-0! sm:p-0!">
       {hasImage ? (
-        <div className="grid h-[20rem] shrink-0 place-items-center bg-sand/55">
+        <div className="grid h-[20rem] shrink-0 place-items-center overflow-hidden bg-sand/55">
           <img
             src={memory.imageUrl}
             alt={MEMORIES_COPY.card.imageAlt}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-contain"
+            className="block h-full w-full object-contain"
           />
         </div>
       ) : null}
 
       <div
-        className={`flex min-h-0 flex-1 flex-col gap-5 p-6 sm:p-8 ${
+        className={`relative z-10 flex min-h-0 flex-1 flex-col gap-5 bg-card p-6 sm:p-8 ${
           hasImage ? 'justify-between' : 'items-center justify-center text-center'
         }`}
       >
