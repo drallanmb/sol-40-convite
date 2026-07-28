@@ -418,4 +418,52 @@ describe('admin guest csv importer', () => {
     ).toBeTruthy()
     expect(container.textContent).toContain('Adicionar família')
   })
+
+  it('keeps the panel mounted while typing a new person into an existing family', async () => {
+    convexMocks.query.mockReturnValue({
+      status: 'success',
+      data: {
+        kind: 'ready',
+        families: [
+          {
+            id: 'family-existing',
+            displayName: 'Família Fictícia',
+            phone: '79999994501',
+            contact: '',
+            updatedAt: 1,
+            guests: [],
+          },
+        ],
+      },
+    })
+    container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    await act(async () => {
+      root?.render(
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/admin/convidados'] },
+          createElement(AdminGuests, {
+            token: 'admin-token-ficticio',
+            onUnauthorized: vi.fn(),
+          }),
+        ),
+      )
+    })
+
+    const familyToggle = container.querySelector<HTMLButtonElement>(
+      'button[aria-controls="family-family-existing"]',
+    )!
+    await act(async () => familyToggle.click())
+    const guestInput =
+      container.querySelector<HTMLInputElement>('#add-guest-family-existing')!
+    await act(async () => setInputValue(guestInput, 'Pessoa Fictícia'))
+
+    expect(guestInput.value).toBe('Pessoa Fictícia')
+    expect(container.textContent).toContain('Convidados')
+    expect(container.textContent).not.toContain(
+      'Painel temporariamente indisponível',
+    )
+  })
 })

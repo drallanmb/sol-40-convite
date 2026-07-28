@@ -483,7 +483,32 @@ export function AdminGuests({
                           })}
                         </ul>
                       )}
-                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><div className="flex-1"><Field id={`add-guest-${family.id}`} appearance="outline" containerClassName="mb-0" label="Nova pessoa" value={addNames[family.id] ?? ''} disabled={busy} onChange={(event) => setAddNames((current) => ({ ...current, [family.id]: event.currentTarget.value }))} /></div><Button variant="adminSecondary" disabled={busy || !(addNames[family.id] ?? '').trim()} onClick={() => void addPerson(family)}>Adicionar pessoa</Button></div>
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="flex-1">
+                          <Field
+                            id={`add-guest-${family.id}`}
+                            appearance="outline"
+                            containerClassName="mb-0"
+                            label="Nova pessoa"
+                            value={addNames[family.id] ?? ''}
+                            disabled={busy}
+                            onChange={(event) => {
+                              const nextName = event.currentTarget.value
+                              setAddNames((current) => ({
+                                ...current,
+                                [family.id]: nextName,
+                              }))
+                            }}
+                          />
+                        </div>
+                        <Button
+                          variant="adminSecondary"
+                          disabled={busy || !(addNames[family.id] ?? '').trim()}
+                          onClick={() => void addPerson(family)}
+                        >
+                          Adicionar pessoa
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-8 border-t border-wine/30 pt-6"><h2 className="text-lg font-bold text-wine">Zona de cuidado</h2><p className="mt-2 text-sm">A remoção da família apaga o convite, todas as pessoas e os acessos públicos.</p><Button variant="adminDestructive" className="mt-4" disabled={busy} onClick={() => setRemoval({ kind: 'family', family })}>Remover família</Button></div>
                   </div>
