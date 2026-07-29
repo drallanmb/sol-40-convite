@@ -85,7 +85,7 @@ function PreviewCard({ wine }: { wine: PublicWine }) {
 
   return (
     <Link
-      to={`/presentes#${wineDomId(wine.productCode)}`}
+      to={`/presentes#${wineDomId(wine.catalogKey)}`}
       aria-label={`${wine.name}, ${formattedPrice}${accessibleStatus}`}
       data-wine-status={wine.status}
       className="group flex min-h-[452px] min-w-0 flex-col border border-cellar-line bg-cellar-soft p-6 text-cream outline-none transition-transform duration-(--duration-fast) ease-out focus-visible:outline-[3px] focus-visible:outline-peach focus-visible:outline-offset-[3px] motion-reduce:transform-none motion-reduce:transition-none"
@@ -165,7 +165,7 @@ function PreviewGrid() {
       className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6"
     >
       {wines.map((wine) => (
-        <PreviewCard key={wine.productCode} wine={wine} />
+        <PreviewCard key={wine.catalogKey} wine={wine} />
       ))}
     </div>
   )

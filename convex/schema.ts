@@ -163,6 +163,7 @@ export default defineSchema({
     .index('by_state_expires_at', ['state', 'expiresAt']),
 
   wines: defineTable({
+    catalogKey: v.optional(v.string()),
     productCode: v.string(),
     name: v.string(),
     producer: v.string(),
@@ -181,6 +182,7 @@ export default defineSchema({
     giftedAt: v.optional(v.number()),
     updatedAt: v.number(),
   })
+    .index('by_catalog_key', ['catalogKey'])
     .index('by_product_code', ['productCode'])
     .index('by_category_price_code', ['category', 'priceCents', 'productCode']),
 })

@@ -85,6 +85,8 @@ function isDisplayWine(value: unknown): value is PublicWine {
   return (
     typeof wine.productCode === 'string' &&
     wine.productCode.length > 0 &&
+    typeof wine.catalogKey === 'string' &&
+    wine.catalogKey.length > 0 &&
     typeof wine.name === 'string' &&
     wine.name.length > 0 &&
     typeof wine.producer === 'string' &&
@@ -112,23 +114,23 @@ function CatalogQuery() {
   const catalog = useQuery(api.wines.listCatalog)
   const catalogReady = catalog !== undefined
   const reducedMotion = useReducedMotion()
-  const [selectedCode, setSelectedCode] = useState<string | null>(null)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const applyCurrentHash = useCallback(() => {
     const hashTarget = catalogTargetFromWineHash(window.location.hash)
     if (!hashTarget) {
-      setSelectedCode(null)
+      setSelectedKey(null)
       return
     }
 
     const target = document.getElementById(hashTarget.id)
     if (!target) {
-      setSelectedCode(null)
+      setSelectedKey(null)
       return
     }
 
-    setSelectedCode(
-      hashTarget.kind === 'wine' ? hashTarget.productCode : null,
+    setSelectedKey(
+      hashTarget.kind === 'wine' ? hashTarget.catalogKey : null,
     )
     target.scrollIntoView({
       block: hashTarget.kind === 'wine' ? 'center' : 'start',
@@ -166,7 +168,7 @@ function CatalogQuery() {
         state="ready"
         wines={validWines}
         partial={partial}
-        selectedCode={selectedCode}
+        selectedKey={selectedKey}
       />
     </PresentesScaffold>
   )

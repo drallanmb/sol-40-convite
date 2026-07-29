@@ -15,6 +15,7 @@ import {
   assertMutedPalette,
   assertReferenceDate,
   nextWineUpdatedAt,
+  wineCatalogKey,
   WINE_CATEGORY_ORDER,
   type PublicWine,
   type WineGiftState,
@@ -107,16 +108,17 @@ describe('catalog wines', () => {
     ).join('')
 
     expect(digest).toBe(
-      '792bbdabdd250ce16afc8c5411d643033aebb697977b4a839532b963e5efbc78',
+      '83bdc348d0bc8e296e6b7bff6f2d327fb9a8ee199bb7717c1d96a2bff273cb1b',
     )
-    expect(WINE_CATALOG).toHaveLength(37)
+    expect(WINE_CATALOG).toHaveLength(38)
     expect(WINE_CATALOG.find((wine) => wine.productCode === '0699230')?.productCode).toBe(
       '0699230',
     )
   })
 
-  it('has unique codes, complete palette provenance, valid prices, and 13/10/14 bands', () => {
-    expect(new Set(WINE_CATALOG.map((wine) => wine.productCode)).size).toBe(37)
+  it('has unique bottle keys, complete palette provenance, valid prices, and 14/10/14 bands', () => {
+    expect(new Set(WINE_CATALOG.map(wineCatalogKey)).size).toBe(38)
+    expect(WINE_CATALOG.filter((wine) => wine.productCode === '38870')).toHaveLength(2)
     for (const wine of WINE_CATALOG) {
       expect(() =>
         assertMutedPalette(wine.palettePrimary, wine.paletteSecondary),
@@ -137,7 +139,7 @@ describe('catalog wines', () => {
         ]),
       ),
     ).toEqual({
-      'ate-200': 13,
+      'ate-200': 14,
       '200-350': 10,
       '350-500': 14,
     })
@@ -201,20 +203,20 @@ describe('wine reconciliation', () => {
     const stored = await t.run((ctx) => ctx.db.query('wines').collect())
 
     expect(first).toEqual({
-      created: 37,
+      created: 38,
       updated: 0,
       unchanged: 0,
       unexpectedProductCodes: [],
-      total: 37,
+      total: 38,
     })
     expect(second).toEqual({
       created: 0,
       updated: 0,
-      unchanged: 37,
+      unchanged: 38,
       unexpectedProductCodes: [],
-      total: 37,
+      total: 38,
     })
-    expect(stored).toHaveLength(37)
+    expect(stored).toHaveLength(38)
   })
 
   it('repairs only commercial content while preserving gifted state and reports unexpected rows', async () => {
@@ -252,9 +254,9 @@ describe('wine reconciliation', () => {
     expect(result).toMatchObject({
       created: 0,
       updated: 1,
-      unchanged: 36,
+      unchanged: 37,
       unexpectedProductCodes: ['unexpected-operator-row'],
-      total: 38,
+      total: 39,
     })
     expect(repaired).toMatchObject({
       name: 'Catena Malbec 2024',
@@ -313,7 +315,7 @@ describe('wine reconciliation', () => {
     )
 
     expect(first.updated).toBe(1)
-    expect(second.unchanged).toBe(37)
+    expect(second.unchanged).toBe(38)
     expect(stored).not.toHaveProperty('imageUrl')
     expect(stored).toMatchObject({
       status: 'gifted',
@@ -456,7 +458,7 @@ describe('wine functions are internal only', () => {
 })
 
 describe('wine public queries', () => {
-  it('returns 37 explicit public DTOs in category, price, and code order', async () => {
+  it('returns 38 explicit public DTOs in category, price, code, and bottle-key order', async () => {
     const t = makeWineTest()
     await t.mutation(wineInternal.ensureWineCatalog, {})
 
@@ -469,16 +471,18 @@ describe('wine public queries', () => {
         return (
           categoryDelta ||
           left.priceCents - right.priceCents ||
-          left.productCode.localeCompare(right.productCode)
+          left.productCode.localeCompare(right.productCode) ||
+          wineCatalogKey(left).localeCompare(wineCatalogKey(right))
         )
       })
       .map((wine) => wine.productCode)
 
-    expect(result).toHaveLength(37)
+    expect(result).toHaveLength(38)
     expect(result.map((wine) => wine.productCode)).toEqual(expectedCodes)
     expect(
       Object.keys(result[0]).sort(),
     ).toEqual([
+      'catalogKey',
       'category',
       'description',
       'name',

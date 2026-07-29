@@ -7,7 +7,7 @@ export const GIFTS_COPY = {
     headingLead: 'Um carinho para abrir ',
     headingEmphasis: 'sem pressa.',
     support:
-      'Explore os 37 rótulos escolhidos pela Sol, compare as faixas de valor e veja quais garrafas ainda estão disponíveis.',
+      'Explore as 38 garrafas escolhidas pela Sol, compare as faixas de valor e veja quais ainda estão disponíveis.',
     operationalNote:
       'Escolha um rótulo e fale com a Vanessa pelo WhatsApp para combinar pagamento e entrega. O clique não reserva o vinho; o status muda depois que a compra for confirmada pelos donos.',
   },

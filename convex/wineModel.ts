@@ -31,6 +31,7 @@ export const wineGiftStateValidator = v.union(
 )
 
 export const publicWineValidator = v.object({
+  catalogKey: v.string(),
   productCode: v.string(),
   name: v.string(),
   producer: v.string(),
@@ -56,6 +57,7 @@ export type WineGiftState =
     }
 
 export type WineCatalogItem = {
+  catalogKey?: string
   productCode: string
   name: string
   producer: string
@@ -71,8 +73,9 @@ export type WineCatalogItem = {
 
 export type PublicWine = Omit<
   WineCatalogItem,
-  'paletteReferenceUrl' | 'paletteReferencedAt'
+  'catalogKey' | 'paletteReferenceUrl' | 'paletteReferencedAt'
 > & {
+  catalogKey: string
   status: WineStatus
 }
 
@@ -85,12 +88,19 @@ export const WINE_GIFTED_BY_MAX_LENGTH = 180
 export const WINE_GIFT_NOTE_MAX_LENGTH = 500
 const HEX_COLOR_PATTERN = /^#[0-9A-F]{6}$/u
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u
+const CATALOG_KEY_PATTERN = /^\d{1,32}(?:-\d{1,8})?$/u
 
 export const WINE_CATEGORY_ORDER: readonly WineCategory[] = [
   'ate-200',
   '200-350',
   '350-500',
 ]
+
+export function wineCatalogKey(
+  wine: Pick<WineCatalogItem, 'catalogKey' | 'productCode'>,
+) {
+  return wine.catalogKey ?? wine.productCode
+}
 
 export function nextWineUpdatedAt(current: number, now: number) {
   return Math.max(now, current + 1)
@@ -151,7 +161,9 @@ export function assertReferenceDate(value: string) {
 }
 
 export function assertValidWineCatalogItem(item: WineCatalogItem) {
+  const catalogKey = wineCatalogKey(item)
   if (
+    !CATALOG_KEY_PATTERN.test(catalogKey) ||
     item.productCode.length === 0 ||
     item.productCode.length > WINE_PRODUCT_CODE_MAX_LENGTH ||
     item.name.length === 0 ||

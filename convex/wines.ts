@@ -6,9 +6,10 @@ import {
   publicWineValidator,
   WINE_CATEGORY_ORDER,
   type PublicWine,
+  wineCatalogKey,
 } from './wineModel'
 
-const CANONICAL_CODES = new Set(WINE_CATALOG.map((wine) => wine.productCode))
+const CANONICAL_KEYS = new Set(WINE_CATALOG.map(wineCatalogKey))
 
 function toPublicWine(wine: Doc<'wines'>): PublicWine {
   if (wine.palettePrimary === undefined || wine.paletteSecondary === undefined) {
@@ -17,6 +18,7 @@ function toPublicWine(wine: Doc<'wines'>): PublicWine {
     )
   }
   return {
+    catalogKey: wine.catalogKey ?? wine.productCode,
     productCode: wine.productCode,
     name: wine.name,
     producer: wine.producer,
@@ -44,19 +46,32 @@ export const listCatalog = query({
         )
         .collect()
       catalog.push(
-        ...categoryRows.filter((wine) => CANONICAL_CODES.has(wine.productCode)),
+        ...categoryRows.filter((wine) =>
+          CANONICAL_KEYS.has(wine.catalogKey ?? wine.productCode),
+        ),
       )
     }
 
     if (
       catalog.length !== WINE_CATALOG.length ||
-      new Set(catalog.map((wine) => wine.productCode)).size !==
+      new Set(catalog.map((wine) => wine.catalogKey ?? wine.productCode)).size !==
         WINE_CATALOG.length
     ) {
       throw new Error(
         'Catálogo público indisponível: reconciliação canônica necessária.',
       )
     }
+
+    catalog.sort(
+      (left, right) =>
+        WINE_CATEGORY_ORDER.indexOf(left.category) -
+          WINE_CATEGORY_ORDER.indexOf(right.category) ||
+        left.priceCents - right.priceCents ||
+        left.productCode.localeCompare(right.productCode) ||
+        (left.catalogKey ?? left.productCode).localeCompare(
+          right.catalogKey ?? right.productCode,
+        ),
+    )
 
     return catalog.map(toPublicWine)
   },

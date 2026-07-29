@@ -6,6 +6,7 @@ import {
   assertValidWineCatalogItem,
   nextWineUpdatedAt,
   wineGiftStateValidator,
+  wineCatalogKey,
   type WineCatalogItem,
 } from './wineModel'
 import {
@@ -34,6 +35,7 @@ function commercialFieldsChanged(
 ) {
   return (
     stored.productCode !== canonical.productCode ||
+    (stored.catalogKey ?? stored.productCode) !== wineCatalogKey(canonical) ||
     stored.name !== canonical.name ||
     stored.producer !== canonical.producer ||
     stored.description !== canonical.description ||
@@ -57,20 +59,21 @@ export const ensureWineCatalog = internalMutation({
   returns: ensureResultValidator,
   handler: async (ctx) => {
     const existingBefore = await ctx.db.query('wines').collect()
-    const countsByCode = new Map<string, number>()
+    const countsByKey = new Map<string, number>()
     for (const wine of existingBefore) {
-      countsByCode.set(
-        wine.productCode,
-        (countsByCode.get(wine.productCode) ?? 0) + 1,
+      const key = wine.catalogKey ?? wine.productCode
+      countsByKey.set(
+        key,
+        (countsByKey.get(key) ?? 0) + 1,
       )
     }
-    const duplicateCodes = [...countsByCode.entries()]
+    const duplicateKeys = [...countsByKey.entries()]
       .filter(([, count]) => count > 1)
-      .map(([productCode]) => productCode)
+      .map(([catalogKey]) => catalogKey)
       .sort()
-    if (duplicateCodes.length > 0) {
+    if (duplicateKeys.length > 0) {
       throw new Error(
-        `Invariante violada: código de vinho duplicado (${duplicateCodes.join(', ')}).`,
+        `Invariante violada: registro de garrafa duplicado (${duplicateKeys.join(', ')}).`,
       )
     }
 
@@ -80,16 +83,28 @@ export const ensureWineCatalog = internalMutation({
 
     for (const canonical of WINE_CATALOG) {
       assertValidWineCatalogItem(canonical)
-      const matches = await ctx.db
+      const catalogKey = wineCatalogKey(canonical)
+      let matches = await ctx.db
         .query('wines')
-        .withIndex('by_product_code', (query) =>
-          query.eq('productCode', canonical.productCode),
+        .withIndex('by_catalog_key', (query) =>
+          query.eq('catalogKey', catalogKey),
         )
         .collect()
 
+      if (matches.length === 0 && catalogKey === canonical.productCode) {
+        matches = (
+          await ctx.db
+            .query('wines')
+            .withIndex('by_product_code', (query) =>
+              query.eq('productCode', canonical.productCode),
+            )
+            .collect()
+        ).filter((wine) => wine.catalogKey === undefined)
+      }
+
       if (matches.length > 1) {
         throw new Error(
-          `Invariante violada: código de vinho duplicado (${canonical.productCode}).`,
+          `Invariante violada: registro de garrafa duplicado (${catalogKey}).`,
         )
       }
 
@@ -98,6 +113,7 @@ export const ensureWineCatalog = internalMutation({
         const now = Date.now()
         await ctx.db.insert('wines', {
           ...canonical,
+          catalogKey,
           status: 'available',
           updatedAt: now,
         })
@@ -109,6 +125,7 @@ export const ensureWineCatalog = internalMutation({
         const now = Date.now()
         await ctx.db.patch(stored._id, {
           ...canonical,
+          catalogKey,
           imageUrl: undefined,
           updatedAt: nextWineUpdatedAt(stored.updatedAt, now),
         })
@@ -119,10 +136,10 @@ export const ensureWineCatalog = internalMutation({
     }
 
     const storedAfter = await ctx.db.query('wines').collect()
-    const canonicalCodes = new Set(WINE_CATALOG.map((wine) => wine.productCode))
+    const canonicalKeys = new Set(WINE_CATALOG.map(wineCatalogKey))
     const unexpectedProductCodes = storedAfter
-      .map((wine) => wine.productCode)
-      .filter((productCode) => !canonicalCodes.has(productCode))
+      .map((wine) => wine.catalogKey ?? wine.productCode)
+      .filter((catalogKey) => !canonicalKeys.has(catalogKey))
       .sort()
 
     return {

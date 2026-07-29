@@ -23,7 +23,7 @@ export function WineCard({
   const previousStatusRef = useRef(wine.status)
   const [liveMessage, setLiveMessage] = useState('')
   const reactId = useId()
-  const titleId = `wine-title-${wine.productCode}-${reactId.replaceAll(':', '')}`
+  const titleId = `wine-title-${wine.catalogKey}-${reactId.replaceAll(':', '')}`
   const gifted = wine.status === 'gifted'
 
   useLayoutEffect(() => {
@@ -52,7 +52,7 @@ export function WineCard({
   return (
     <article
       ref={articleRef}
-      id={wineDomId(wine.productCode)}
+      id={wineDomId(wine.catalogKey)}
       tabIndex={-1}
       aria-labelledby={titleId}
       data-wine-status={wine.status}

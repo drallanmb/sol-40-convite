@@ -1,5 +1,5 @@
-const PRODUCT_CODE_PATTERN = /^\d{1,32}$/u
-const WINE_HASH_PATTERN = /^#vinho-(\d{1,32})$/u
+const CATALOG_KEY_PATTERN = /^\d{1,32}(?:-\d{1,8})?$/u
+const WINE_HASH_PATTERN = /^#vinho-(\d{1,32}(?:-\d{1,8})?)$/u
 const WINE_BAND_IDS = new Set([
   'faixa-ate-200',
   'faixa-200-350',
@@ -8,17 +8,17 @@ const WINE_BAND_IDS = new Set([
 
 export type WineCatalogHashTarget =
   | { kind: 'band'; id: string }
-  | { kind: 'wine'; id: string; productCode: string }
+  | { kind: 'wine'; id: string; catalogKey: string }
 
-export function wineDomId(productCode: string): string {
-  if (!PRODUCT_CODE_PATTERN.test(productCode)) {
-    throw new TypeError('Código de produto inválido para deep link de vinho.')
+export function wineDomId(catalogKey: string): string {
+  if (!CATALOG_KEY_PATTERN.test(catalogKey)) {
+    throw new TypeError('Identidade de catálogo inválida para deep link de vinho.')
   }
 
-  return `vinho-${productCode}`
+  return `vinho-${catalogKey}`
 }
 
-export function productCodeFromWineHash(hash: string): string | null {
+export function catalogKeyFromWineHash(hash: string): string | null {
   const match = WINE_HASH_PATTERN.exec(hash)
   return match?.[1] ?? null
 }
@@ -26,12 +26,12 @@ export function productCodeFromWineHash(hash: string): string | null {
 export function catalogTargetFromWineHash(
   hash: string,
 ): WineCatalogHashTarget | null {
-  const productCode = productCodeFromWineHash(hash)
-  if (productCode) {
+  const catalogKey = catalogKeyFromWineHash(hash)
+  if (catalogKey) {
     return {
       kind: 'wine',
-      id: wineDomId(productCode),
-      productCode,
+      id: wineDomId(catalogKey),
+      catalogKey,
     }
   }
 

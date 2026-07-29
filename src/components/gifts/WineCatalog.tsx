@@ -14,7 +14,7 @@ type WineCatalogProps =
       state: 'ready'
       wines: readonly PublicWine[]
       partial?: boolean
-      selectedCode?: string | null
+      selectedKey?: string | null
     }
 
 function bandCount(count: number) {
@@ -71,11 +71,11 @@ function CatalogSkeleton() {
 function ReadyBand({
   category,
   wines,
-  selectedCode,
+  selectedKey,
 }: {
   category: WineCategory
   wines: readonly PublicWine[]
-  selectedCode?: string | null
+  selectedKey?: string | null
 }) {
   const band = GIFT_BANDS.find((candidate) => candidate.category === category)
   if (!band) return null
@@ -114,13 +114,13 @@ function ReadyBand({
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
           {bandWines.map((wine, index) => (
             <div
-              key={wine.productCode}
+              key={wine.catalogKey}
               className="wine-card-enter"
               style={{ animationDelay: `${Math.min(index, 7) * 45}ms` }}
             >
               <WineCard
                 wine={wine}
-                selected={selectedCode === wine.productCode}
+                selected={selectedKey === wine.catalogKey}
               />
             </div>
           ))}
@@ -195,7 +195,7 @@ export function WineCatalog(props: WineCatalogProps) {
             key={band.category}
             category={band.category}
             wines={props.wines}
-            selectedCode={props.selectedCode}
+            selectedKey={props.selectedKey}
           />
         ))}
       </div>
