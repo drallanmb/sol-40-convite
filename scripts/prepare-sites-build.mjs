@@ -29,7 +29,11 @@ await writeFile(
       return response
     }
 
-    const fallbackUrl = new URL('/index.html', request.url)
+    // The Sites asset binding canonicalizes `/index.html` to `/`, which would
+    // leak a redirect to the browser and discard the original SPA route.
+    // Fetching the root asset internally returns the same document with 200,
+    // while the visitor keeps `/presentes`, `/admin`, etc. in the address bar.
+    const fallbackUrl = new URL('/', request.url)
     return env.ASSETS.fetch(new Request(fallbackUrl, request))
   },
 }
